@@ -885,16 +885,18 @@
           if (Date.now() - lastSoundAt < 700) return; lastSoundAt = Date.now(); // пачка сообщений — один сигнал
           const ctx = getNotifyCtx();
           if (!ctx || ctx.state !== "running") return;
-          // Мягкий двухтоновый «динь»
+          // Мягкая «капля»: два коротких булька с падающим тоном
           const t0 = ctx.currentTime;
-          [[880, 0], [1318.5, 0.09]].forEach(([freq, delay]) => {
+          [[1250, 620, 0, 0.22, 0.22], [1650, 1000, 0.08, 0.12, 0.2]].forEach(([from, to, delay, vol, dur]) => {
               const osc = ctx.createOscillator(), gain = ctx.createGain();
-              osc.type = "sine"; osc.frequency.value = freq;
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(from, t0 + delay);
+              osc.frequency.exponentialRampToValueAtTime(to, t0 + delay + 0.12);
               gain.gain.setValueAtTime(0.0001, t0 + delay);
-              gain.gain.exponentialRampToValueAtTime(0.18, t0 + delay + 0.015);
-              gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+              gain.gain.exponentialRampToValueAtTime(vol, t0 + delay + 0.01);
+              gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + dur);
               osc.connect(gain).connect(ctx.destination);
-              osc.start(t0 + delay); osc.stop(t0 + delay + 0.4);
+              osc.start(t0 + delay); osc.stop(t0 + delay + dur + 0.05);
           });
       }
 
