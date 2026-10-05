@@ -350,7 +350,7 @@
   </head>
   <body>
     <div id="toast-container"></div>
-    <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
+    <audio id="notification-sound" preload="none"></audio><!-- только хранит флаг «звук выкл.» (muted); сам сигнал — Web Audio -->
 
     <!-- ГЛОБАЛЬНЫЙ ЭКРАН ЗАГРУЗКИ (СПЛЭШ-СКРИН) -->
     <div id="global-loader" class="global-loader">
@@ -537,7 +537,9 @@
         <input type="file" id="custom-bg-input" accept="image/*" style="display:none;">
 
         <div class="st-sec">Уведомления</div>
-        <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div></div>
+        <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div>
+          <div class="st-row" style="margin-top:12px;"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>Уведомления на устройстве</span><label class="st-toggle"><input type="checkbox" id="push-toggle"><span></span></label></div>
+          <div id="push-hint" style="font-size:12px; color:var(--text-muted); margin-top:6px;">Новые сообщения и счётчик непрочитанных — даже когда вкладка свёрнута.</div></div>
 
         <div class="st-sec">Конфиденциальность</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
@@ -854,6 +856,133 @@
       let groupsListener = null;
       let metaListener = null;
 
+      // ===== ЗВУК УВЕДОМЛЕНИЙ (не прерывает музыку) =====
+      // <audio> телефон считает «медиа» и ставит музыку на паузу. Поэтому короткий сигнал синтезируем через Web Audio,
+      // а на iOS включаем режим ambient — звук смешивается с музыкой (и уважает беззвучный режим).
+      const audioSession = navigator.audioSession;
+      if (audioSession) { try { audioSession.type = "ambient"; } catch (_) {} }
+      // Голосовые сообщения — полноценное воспроизведение, на это время переключаемся в playback
+      document.addEventListener("play", (e) => { if (audioSession && e.target.tagName === "AUDIO") try { audioSession.type = "playback"; } catch (_) {} }, true);
+      ["pause", "ended"].forEach(ev => document.addEventListener(ev, (e) => {
+          if (!audioSession || e.target.tagName !== "AUDIO") return;
+          if (![...document.querySelectorAll("audio")].some(a => !a.paused)) try { audioSession.type = "ambient"; } catch (_) {}
+      }, true));
+
+      let notifyCtx = null;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      function getNotifyCtx() {
+          if (!AudioCtx) return null;
+          if (!notifyCtx) { try { notifyCtx = new AudioCtx(); } catch (_) { return null; } }
+          return notifyCtx;
+      }
+      // iOS разрешает звук только после касания — «разблокируем» контекст на первом жесте
+      ["pointerdown", "touchend", "keydown"].forEach(ev => document.addEventListener(ev, () => { const c = getNotifyCtx(); if (c && c.state === "suspended") c.resume().catch(() => {}); }, { passive: true }));
+
+      let lastSoundAt = 0;
+      function playNotifySound() {
+          const el = document.getElementById("notification-sound");
+          if (el && el.muted) return; // выключено в настройках
+          if (Date.now() - lastSoundAt < 700) return; lastSoundAt = Date.now(); // пачка сообщений — один сигнал
+          const ctx = getNotifyCtx();
+          if (!ctx || ctx.state !== "running") return;
+          // Мягкий двухтоновый «динь»
+          const t0 = ctx.currentTime;
+          [[880, 0], [1318.5, 0.09]].forEach(([freq, delay]) => {
+              const osc = ctx.createOscillator(), gain = ctx.createGain();
+              osc.type = "sine"; osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0.0001, t0 + delay);
+              gain.gain.exponentialRampToValueAtTime(0.18, t0 + delay + 0.015);
+              gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+              osc.connect(gain).connect(ctx.destination);
+              osc.start(t0 + delay); osc.stop(t0 + delay + 0.4);
+          });
+      }
+
+      // ===== СЧЁТЧИК НЕПРОЧИТАННЫХ И СИСТЕМНЫЕ УВЕДОМЛЕНИЯ =====
+      const BASE_TITLE = document.title;
+      function updateUnreadIndicators(total) {
+          document.title = total > 0 ? `(${total > 99 ? "99+" : total}) ${BASE_TITLE}` : BASE_TITLE;
+          // Бейдж на иконке установленного приложения (ПК, macOS, iPhone с iOS 16.4+ на экране «Домой»)
+          try {
+              if (total > 0 && navigator.setAppBadge) navigator.setAppBadge(total).catch(() => {});
+              else if (navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
+          } catch (_) {}
+      }
+      const pushEnabled = () => { try { return "Notification" in window && Notification.permission === "granted" && localStorage.getItem("owl-push") !== "off"; } catch (_) { return false; } };
+      function totalUnread() {
+          let total = 0;
+          for (const [chatId, meta] of Object.entries(chatsMetaCache)) {
+              if (!meta || !meta.unreadCount || chatId === currentChatId || !isMyChat(chatId) || isMyMeta(meta)) continue;
+              total += meta.unreadCount;
+          }
+          return total;
+      }
+      function isMyChat(chatId) {
+          if (!currentUser || chatId === "global") return false;
+          if (chatId.includes("_")) return chatId.split("_").includes(currentUser.uid);
+          return !!(groupsCache[chatId] && groupsCache[chatId].members && groupsCache[chatId].members.includes(currentUser.uid));
+      }
+      function chatTitle(chatId, meta) {
+          if (groupsCache[chatId]) return groupsCache[chatId].name || "Беседа";
+          const other = chatId.split("_").find(id => id !== currentUser.uid);
+          return usersCache[other]?.name || meta.lastMessageSender || "Owl Messenger";
+      }
+      async function showSystemNotification(chatId, meta) {
+          if (!pushEnabled()) return;
+          const count = meta.unreadCount || 1;
+          let text = String(meta.lastMessageText || "Новое сообщение");
+          if (groupsCache[chatId] && meta.lastMessageSender) text = meta.lastMessageSender + ": " + text;
+          const total = totalUnread();
+          const opts = {
+              body: (count > 1 ? `${count} новых · ` : "") + text + (total > count ? `\nВсего непрочитанных: ${total}` : ""),
+              icon: "/images/icon-192.png", badge: "/images/icon-192.png",
+              tag: "chat-" + chatId, renotify: true, data: { chatId: chatId }
+          };
+          try {
+              const reg = await navigator.serviceWorker?.getRegistration();
+              if (reg) await reg.showNotification(chatTitle(chatId, meta), opts);
+              else new Notification(chatTitle(chatId, meta), opts);
+          } catch (e) { console.log("Уведомление не показано:", e); }
+      }
+      async function closeChatNotifications(chatId) {
+          try { const reg = await navigator.serviceWorker?.getRegistration(); if (!reg) return; (await reg.getNotifications({ tag: "chat-" + chatId })).forEach(n => n.close()); } catch (_) {}
+      }
+      // Открыть чат по id (из уведомления)
+      window.openChatById = (chatId) => {
+          if (!chatId || !currentUser) return;
+          if (groupsCache[chatId]) return window.loadChat(chatId, escapeHTML(groupsCache[chatId].name), null, true);
+          const other = chatId.split("_").find(id => id !== currentUser.uid);
+          if (other && usersCache[other]) window.loadChat(chatId, escapeHTML(usersCache[other].name), other, false);
+      };
+      if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open-chat") window.openChatById(e.data.chatId); });
+      try { const pending = new URLSearchParams(location.search).get("chat"); if (pending) window.__pendingChat = pending; } catch (_) {}
+
+      // Реакция на новое сообщение в любом из моих чатов (по метаданным чатов)
+      function onChatMetaChanged(chatId, meta, prev) {
+          if (!isMyChat(chatId) || isMyMeta(meta)) return;
+          if (!((meta.unreadCount || 0) > ((prev && prev.unreadCount) || 0))) return; // правка/сброс — не новое сообщение
+          const visible = document.visibilityState === "visible";
+          if (chatId === currentChatId && chatIsOnScreen()) return; // открытый чат сам проиграет звук
+          if (visible) playNotifySound();
+          else showSystemNotification(chatId, meta);
+      }
+
+      document.getElementById("push-toggle").addEventListener("change", async (e) => {
+          const hint = document.getElementById("push-hint");
+          if (!("Notification" in window)) { e.target.checked = false; hint.innerText = "Этот браузер не поддерживает уведомления. На iPhone добавьте Owl на экран «Домой» (iOS 16.4+)."; return; }
+          if (e.target.checked) {
+              let perm = Notification.permission;
+              if (perm === "default") perm = await Notification.requestPermission();
+              if (perm !== "granted") { e.target.checked = false; hint.innerText = "Уведомления запрещены в настройках браузера — разрешите их для этого сайта."; return; }
+              try { localStorage.setItem("owl-push", "on"); } catch (_) {}
+              hint.innerText = "Готово! Придут, когда вкладка свёрнута или открыт другой чат.";
+              updateUnreadIndicators(totalUnread());
+          } else {
+              try { localStorage.setItem("owl-push", "off"); } catch (_) {}
+          }
+      });
+      document.getElementById("push-toggle").checked = pushEnabled();
+
       // ===== ОНЛАЙН-СТАТУС =====
       const ONLINE_TTL = 3 * 60 * 1000;     // считаем онлайн, если пульс был не позже 3 мин назад
       const HEARTBEAT_MS = 60 * 1000;
@@ -1073,6 +1202,7 @@
             refreshHeaderStatus();
             renderDevPanel();
             usersFirstSnap = false;
+            if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
             if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
           });
 
@@ -1086,11 +1216,17 @@
             renderChatList(document.getElementById("search-input").value);
           });
 
+          let metaFirstSnap = true;
           metaListener = onSnapshot(collection(db, "chats_metadata"), (snapshot) => {
             snapshot.docChanges().forEach(change => {
                 let meta = change.doc.data();
+                let prev = chatsMetaCache[change.doc.id];
                 chatsMetaCache[change.doc.id] = meta;
+                if (!metaFirstSnap && change.type !== "removed") onChatMetaChanged(change.doc.id, meta, prev);
             });
+            metaFirstSnap = false;
+            updateUnreadIndicators(totalUnread());
+            if (window.__pendingChat && Object.keys(usersCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
             renderChatList(document.getElementById("search-input").value);
           });
       }
@@ -1131,8 +1267,7 @@
               let n = change.doc.data();
               if(!n.read && !n.toasted) { 
                   showToast(n.text, "bell");
-                  let snd = document.getElementById("notification-sound");
-                  if (snd) snd.play().catch(e=>{});
+                  playNotifySound();
                   updateDoc(doc(db, "notifications", change.doc.id), { toasted: true }).catch(e=>{});
               }
             }
@@ -1807,7 +1942,7 @@
       window.loadChat = (chatId, title, targetUid, isGroup = false) => {
         try {
             if (!chatId) return;
-            currentChatId = chatId; editingMsgId = null; cancelReply();
+            currentChatId = chatId; editingMsgId = null; cancelReply(); closeChatNotifications(chatId); updateUnreadIndicators(totalUnread());
             currentChatTargetUid = (targetUid && !isGroup && chatId !== 'global') ? targetUid : null; currentTypers = [];
 
             if (chatId !== 'global') {
@@ -1898,7 +2033,7 @@
               if (currentChatId !== chatId) return;
               let messages = [];
 
-              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added") { let msg = change.doc.data(); if (msg.uid !== currentUser.uid) { document.getElementById("notification-sound").play().catch(e=>{}); } } });
+              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added") { let msg = change.doc.data(); if (msg.uid !== currentUser.uid) { playNotifySound(); } } });
               firstSnap = false;
 
               snapshot.forEach(docSnap => {

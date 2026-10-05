@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v3';
+const CACHE = 'owl-shell-v4';
 const SHELL = ['/', '/manifest.json', '/images/icon-192.png', '/images/icon-512.png', '/images/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -64,6 +64,22 @@ self.addEventListener('fetch', (event) => {
                 return res;
             }).catch(() => cached);
             return cached || net;
+        })
+    );
+});
+
+// Клик по уведомлению о сообщении — открываем приложение и нужный чат
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const chatId = event.notification.data && event.notification.data.chatId;
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+            const client = list.find((c) => new URL(c.url).origin === self.location.origin);
+            if (client) {
+                if (chatId) client.postMessage({ type: 'open-chat', chatId: chatId });
+                return client.focus();
+            }
+            return clients.openWindow(chatId ? '/?chat=' + encodeURIComponent(chatId) : '/');
         })
     );
 });
