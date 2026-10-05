@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v2';
+const CACHE = 'owl-shell-v3';
 const SHELL = ['/', '/manifest.json', '/images/icon-192.png'];
 
 self.addEventListener('install', (event) => {
@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
     if (req.mode === 'navigate') {
         // Страницы: сначала сеть, при ошибке — кэш, затем заглушка
         event.respondWith(
-            fetch(req).then((res) => {
+            fetch(req, { cache: 'no-cache' }).then((res) => {
                 if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
                 return res;
             }).catch(() => caches.match(req).then((r) => r || caches.match('/')).then((r) => r || new Response(offlineHtml, {
@@ -59,7 +59,7 @@ self.addEventListener('fetch', (event) => {
     // Статика: из кэша, обновляем в фоне
     event.respondWith(
         caches.match(req).then((cached) => {
-            const net = fetch(req).then((res) => {
+            const net = fetch(req, { cache: 'no-cache' }).then((res) => {
                 if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
                 return res;
             }).catch(() => cached);
