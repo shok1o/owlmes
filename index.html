@@ -233,6 +233,13 @@
       #toast-container { position: fixed; top: calc(20px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: min(92vw, 420px); display: flex; flex-direction: column; gap: 10px; z-index: 9999; pointer-events: none;}
       .toast { background: var(--accent); color: white; padding: 12px 24px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 14px; font-weight: bold; animation: slideDown 0.3s ease-out; display: flex; align-items: flex-start; gap: 10px; box-sizing: border-box; max-width: 100%;}
       .toast span:first-child { flex-shrink: 0; }
+      .toast-icon { display: flex; padding-top: 1px; }
+      .toast-icon svg, .st-label svg, .st-seg button svg { display: block; flex-shrink: 0; }
+      .st-label { display: flex; align-items: center; gap: 10px; }
+      .st-label svg { color: var(--accent); }
+      .st-seg button { display: flex; align-items: center; justify-content: center; gap: 6px; }
+      .inline-icon { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
+      .inline-icon svg { display: block; }
       .toast span:last-child { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; word-break: break-word; text-align: left; }
       @keyframes slideDown { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
@@ -403,8 +410,8 @@
             <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
         <h2 style="margin-top: 0; color: #ff3b30;">Настройки (Админ)</h2>
-        <label class="settings-label" style="display:block; text-align:left;">📣 Рассылка всем пользователям</label>
-        <textarea id="broadcast-text" rows="5" maxlength="1000" placeholder="🚀 Обновление Owl: что нового..."></textarea>
+        <label class="settings-label" style="display:flex; align-items:center; gap:6px; text-align:left;"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"></path><path d="M16 8.5a5 5 0 0 1 0 7"></path><path d="M19 5.5a9 9 0 0 1 0 13"></path></svg>Рассылка всем пользователям</label>
+        <textarea id="broadcast-text" rows="5" maxlength="1000" placeholder="Обновление Owl: что нового..."></textarea>
         <div id="broadcast-count" style="text-align:right; font-size:11px; color:var(--text-muted); margin:4px 0 10px;">0/1000</div>
         <button id="broadcast-btn" class="modal-btn" style="margin-bottom: 25px;">Отправить всем</button>
         <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">Вы можете полностью очистить историю глобального чата.</p>
@@ -440,7 +447,7 @@
 
         <div class="st-sec">Оформление</div>
         <div class="st-card">
-          <div class="st-seg" id="st-theme"><button data-v="dark">🌙 Тёмная</button><button data-v="light">☀️ Светлая</button></div>
+          <div class="st-seg" id="st-theme"><button data-v="dark"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>Тёмная</button><button data-v="light"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>Светлая</button></div>
           <div class="st-dots" id="st-accent"></div>
         </div>
         <select id="theme-select" style="display:none;"><option value="dark">Тёмная тема</option><option value="light">Светлая тема</option></select>
@@ -456,10 +463,10 @@
         <input type="file" id="custom-bg-input" accept="image/*" style="display:none;">
 
         <div class="st-sec">Уведомления</div>
-        <div class="st-card"><div class="st-row"><span>🔔 Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div></div>
+        <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div></div>
 
         <div class="st-sec">Конфиденциальность</div>
-        <div class="st-card"><div class="st-row"><span>👁 Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
+        <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
           <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Другие увидят «был(а) недавно» вместо точного времени.</div></div>
 
         <div class="st-sec">Аккаунт</div>
@@ -676,11 +683,46 @@
         }
       });
 
-      function showToast(message, icon = "🔔") {
+      // Набор иконок интерфейса (в стиле остальных SVG приложения)
+      const ICONS = {
+          bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>',
+          check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>',
+          error: '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>',
+          alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
+          info: '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>',
+          image: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>',
+          camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle>',
+          mic: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>',
+          pencil: '<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>',
+          users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+          trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
+          crown: '<path d="M2 18h20"></path><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5L3 7z"></path>',
+          logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
+          pin: '<line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.5l-3.2-3.2V5a1.8 1.8 0 0 0-1.8-1.8H10A1.8 1.8 0 0 0 8.2 5v7.3L5 15.5V17z"></path>',
+          shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
+          mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>',
+          clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+          offline: '<line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line>',
+          megaphone: '<path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"></path><path d="M16 8.5a5 5 0 0 1 0 7"></path><path d="M19 5.5a9 9 0 0 1 0 13"></path>',
+          eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
+          moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>',
+          sun: '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
+      };
+      function icon(name, size = 18) {
+          return `<svg class="ui-icon" viewBox="0 0 24 24" width="${size}" height="${size}" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.info}</svg>`;
+      }
+      // В базе превью хранятся с эмодзи-префиксом (📷/🎤/✏️) — при показе меняем его на иконку
+      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"]];
+      function iconizePreview(html) {
+          for (const [emoji, name] of PREVIEW_ICONS) html = html.split(emoji).join(`<span class="inline-icon">${icon(name, 14)}</span>`);
+          return html;
+      }
+
+      function showToast(message, icon_ = "bell") {
         const container = document.getElementById("toast-container"); if(!container) return;
         const toast = document.createElement("div"); toast.className = "toast";
         let msg = String(message == null ? "" : message); if (msg.length > 140) msg = msg.slice(0, 137).trimEnd() + "…";
-        const ic = document.createElement("span"); ic.textContent = icon;
+        const ic = document.createElement("span"); ic.className = "toast-icon"; ic.innerHTML = icon(ICONS[icon_] ? icon_ : "info", 18);
         const tx = document.createElement("span"); tx.textContent = msg;
         toast.append(ic, tx);
         container.appendChild(toast);
@@ -874,7 +916,7 @@
             if (change.type === "added") {
               let n = change.doc.data();
               if(!n.read && !n.toasted) { 
-                  showToast(n.text, "🔔");
+                  showToast(n.text, "bell");
                   let snd = document.getElementById("notification-sound");
                   if (snd) snd.play().catch(e=>{});
                   updateDoc(doc(db, "notifications", change.doc.id), { toasted: true }).catch(e=>{});
@@ -937,7 +979,7 @@
                       document.documentElement.style.setProperty('--custom-bg-url', `url(${base64})`);
                       document.body.setAttribute('data-bg', 'custom');
                       document.getElementById('bg-select').value = 'default';
-                      showToast("Свой фон установлен!", "🖼️");
+                      showToast("Свой фон установлен!", "image");
                   } catch(err) { alert("Файл слишком большой. Выберите картинку поменьше."); }
               }; img.src = evt.target.result;
           }; reader.readAsDataURL(file); e.target.value = "";
@@ -967,7 +1009,7 @@
       document.getElementById("save-bio-btn").addEventListener("click", async () => {
         let bio = document.getElementById("settings-bio").value.trim();
         await setDoc(doc(db, "users", currentUser.uid), { bio: bio }, { merge: true });
-        showToast("Профиль сохранен!", "✅");
+        showToast("Профиль сохранен!", "check");
       });
 
       // СОХРАНЕНИЕ АВАТАРКИ В BASE64 (БЕСПЛАТНО, БЕЗ СТОРЕДЖА)
@@ -989,7 +1031,7 @@
             
             try {
               await setDoc(doc(db, "users", currentUser.uid), { photoURL: base64 }, { merge: true });
-              showToast("Аватарка успешно обновлена!", "📸");
+              showToast("Аватарка успешно обновлена!", "camera");
               document.getElementById("settings-avatar").style.opacity = "1";
             } catch (err) {
               console.error(err); 
@@ -1027,7 +1069,7 @@
 
           try {
               const docRef = await addDoc(collection(db, "groups"), { name: name, members: selected, adminUid: currentUser.uid, photoURL: generateAvatarSVG(name, true), createdAt: new Date() });
-              document.getElementById("create-group-screen").style.display = "none"; showToast("Беседа успешно создана!", "🎉");
+              document.getElementById("create-group-screen").style.display = "none"; showToast("Беседа успешно создана!", "users");
               window.loadChat(docRef.id, name, docRef.id, true);
           } catch(e) { console.error(e); alert("Ошибка при создании беседы."); }
       });
@@ -1037,20 +1079,20 @@
               try {
                   const q = query(collection(db, "messages"), where("chatId", "==", "global"));
                   const snap = await getDocs(q); snap.forEach(d => deleteDoc(d.ref));
-                  showToast("Глобальный чат полностью очищен!", "🗑"); document.getElementById("admin-global-screen").style.display = "none";
+                  showToast("Глобальный чат полностью очищен!", "trash"); document.getElementById("admin-global-screen").style.display = "none";
               } catch(e) { console.error(e); }
           }
       });
 
       window.makeGroupAdmin = async (groupId, newAdminUid) => {
           if(confirm("Передать права администратора? Вы больше не сможете управлять этой беседой.")) {
-              try { await updateDoc(doc(db, "groups", groupId), { adminUid: newAdminUid }); showToast("Права администратора переданы!", "👑"); openPublicProfile(groupId); } catch(e) { console.error(e); }
+              try { await updateDoc(doc(db, "groups", groupId), { adminUid: newAdminUid }); showToast("Права администратора переданы!", "crown"); openPublicProfile(groupId); } catch(e) { console.error(e); }
           }
       };
 
       window.removeGroupMember = async (groupId, targetUid) => {
           if(confirm("Точно хотите исключить этого участника из беседы?")) {
-              try { await setDoc(doc(db, "groups", groupId), { members: arrayRemove(targetUid) }, { merge: true }); showToast("Участник исключен", "🚪"); openPublicProfile(groupId); } catch(e) { console.error(e); }
+              try { await setDoc(doc(db, "groups", groupId), { members: arrayRemove(targetUid) }, { merge: true }); showToast("Участник исключен", "logout"); openPublicProfile(groupId); } catch(e) { console.error(e); }
           }
       };
 
@@ -1071,7 +1113,7 @@
                 
                 try {
                   await updateDoc(doc(db, "groups", currentEditingGroupId), { photoURL: base64 });
-                  showToast("Аватарка беседы обновлена!", "📸");
+                  showToast("Аватарка беседы обновлена!", "camera");
                   document.getElementById("group-avatar-display").src = base64; document.getElementById("group-avatar-display").style.opacity = "1";
                 } catch (err) { 
                   document.getElementById("group-avatar-display").src = prevSrc; document.getElementById("group-avatar-display").style.opacity = "1"; 
@@ -1121,7 +1163,7 @@
                 if (!canAdd) addListEl.innerHTML = `<p style="color:var(--text-muted); font-size:13px; text-align:center;">Все ваши подписки уже добавлены в эту беседу.</p>`;
                 document.getElementById("add-members-submit-btn").onclick = async () => {
                     let selected = []; document.querySelectorAll('.add-group-friend-check:checked').forEach(cb => selected.push(cb.value));
-                    if(selected.length > 0) { await setDoc(doc(db, "groups", g.id), { members: arrayUnion(...selected) }, { merge: true }); showToast("Новые участники добавлены!", "✅"); openPublicProfile(g.id); }
+                    if(selected.length > 0) { await setDoc(doc(db, "groups", g.id), { members: arrayUnion(...selected) }, { merge: true }); showToast("Новые участники добавлены!", "check"); openPublicProfile(g.id); }
                 };
                 document.getElementById("delete-group-btn").onclick = async () => {
                     if(confirm("ВЫ УВЕРЕНЫ? Это навсегда удалит беседу и всю переписку в ней для всех участников!")) {
@@ -1166,9 +1208,9 @@
       document.getElementById("public-follow-btn").addEventListener("click", async (e) => {
         let targetUid = e.target.getAttribute("data-action-uid"); let myFollowing = usersCache[currentUser.uid]?.following || []; let isFollowing = myFollowing.includes(targetUid);
         try {
-          if (isFollowing) { await setDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayRemove(currentUser.uid) }, { merge: true }); showToast("Вы отписались", "ℹ️"); } else {
+          if (isFollowing) { await setDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayRemove(currentUser.uid) }, { merge: true }); showToast("Вы отписались", "info"); } else {
             await setDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayUnion(currentUser.uid) }, { merge: true });
-            await addDoc(collection(db, "notifications"), { toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }); showToast("Вы подписались!", "✅");
+            await addDoc(collection(db, "notifications"), { toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }); showToast("Вы подписались!", "check");
           }
           openPublicProfile(targetUid); 
         } catch (err) { console.error("Ошибка подписки", err); }
@@ -1200,8 +1242,8 @@
              if(!currentUser || !currentChatId) return;
              let myPinned = usersCache[currentUser.uid]?.pinnedChats || [];
              try {
-                 if (myPinned.includes(currentChatId)) { await setDoc(doc(db, "users", currentUser.uid), { pinnedChats: arrayRemove(currentChatId) }, { merge: true }); showToast("Чат откреплен", "📌"); } 
-                 else { await setDoc(doc(db, "users", currentUser.uid), { pinnedChats: arrayUnion(currentChatId) }, { merge: true }); showToast("Чат закреплен", "📌"); }
+                 if (myPinned.includes(currentChatId)) { await setDoc(doc(db, "users", currentUser.uid), { pinnedChats: arrayRemove(currentChatId) }, { merge: true }); showToast("Чат откреплен", "pin"); } 
+                 else { await setDoc(doc(db, "users", currentUser.uid), { pinnedChats: arrayUnion(currentChatId) }, { merge: true }); showToast("Чат закреплен", "pin"); }
              } catch(e) { console.error(e); }
           });
       }
@@ -1231,7 +1273,7 @@
             let chatItemsArray = [];
 
             let globalMeta = chatsMetaCache['global'];
-            let globalPreview = globalMeta && globalMeta.lastMessageText ? escapeHTML(globalMeta.lastMessageSender + ": " + globalMeta.lastMessageText) : "Доступен всем пользователям";
+            let globalPreview = globalMeta && globalMeta.lastMessageText ? iconizePreview(escapeHTML(globalMeta.lastMessageSender + ": " + globalMeta.lastMessageText)) : "Доступен всем пользователям";
             let globalTime = globalMeta && globalMeta.timestamp ? getTime(globalMeta.timestamp) : 0;
             
             if (currentFilter === 'all') {
@@ -1246,7 +1288,7 @@
                if (g && g.members && g.members.includes(currentUser.uid)) {
                   if (isSearching && !String(g.name).toLowerCase().includes(val)) return;
                   let meta = chatsMetaCache[g.id];
-                  let preview = meta && meta.lastMessageText ? escapeHTML(meta.lastMessageSender + ": " + meta.lastMessageText) : `${g.members.length} участников`;
+                  let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageSender + ": " + meta.lastMessageText)) : `${g.members.length} участников`;
                   let time = meta && meta.timestamp ? getTime(meta.timestamp) : (g.createdAt ? getTime(g.createdAt) : 0);
                   let safeName = escapeHTML(g.name); let av = g.photoURL || generateAvatarSVG(g.name, true);
                   chatItemsArray.push({
@@ -1272,7 +1314,7 @@
                   if (isSearching && !String(u.name).toLowerCase().includes(val)) return; 
               }
 
-              let preview = meta && meta.lastMessageText ? escapeHTML(meta.lastMessageText) : (u.bio ? escapeHTML(u.bio) : "Статус не указан");
+              let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageText)) : (u.bio ? escapeHTML(u.bio) : "Статус не указан");
               if (meta && meta.lastMessageSender && meta.lastMessageSender !== currentUser.displayName) preview = escapeHTML(meta.lastMessageSender) + ": " + preview;
               
               let time = meta && meta.timestamp ? getTime(meta.timestamp) : 0;
@@ -1353,12 +1395,12 @@
               await signInWithEmailAndPassword(auth, email, password); 
           } else {
             // Используем надежный токен cfToken вместо старого turnstileToken
-            if (!cfToken && (TURNSTILE_VERIFY_URL || turnstileWaiting)) { btn.innerText = origText; btn.disabled = false; return showToast("Подождите проверку Cloudflare!", "🛡️"); }
-            if (!name) { btn.innerText = origText; btn.disabled = false; return showToast("Укажите никнейм!", "⚠️"); }
+            if (!cfToken && (TURNSTILE_VERIFY_URL || turnstileWaiting)) { btn.innerText = origText; btn.disabled = false; return showToast("Подождите проверку Cloudflare!", "shield"); }
+            if (!name) { btn.innerText = origText; btn.disabled = false; return showToast("Укажите никнейм!", "alert"); }
             if (TURNSTILE_VERIFY_URL) {
               const vr = await fetch(TURNSTILE_VERIFY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: cfToken }) });
               const vj = await vr.json().catch(() => ({}));
-              if (!vj.success) { btn.innerText = origText; btn.disabled = false; try { window.turnstile && window.turnstile.reset(); } catch (_) {} return showToast("Проверка Cloudflare не пройдена, попробуйте ещё раз", "🛡️"); }
+              if (!vj.success) { btn.innerText = origText; btn.disabled = false; try { window.turnstile && window.turnstile.reset(); } catch (_) {} return showToast("Проверка Cloudflare не пройдена, попробуйте ещё раз", "shield"); }
             }
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
             try {
@@ -1375,19 +1417,19 @@
             btn.innerText = origText; btn.disabled = false; try { window.turnstile && window.turnstile.reset(); } catch (_) {} 
             
             if (error.code === 'auth/invalid-credential') {
-                showToast("Аккаунт не найден. Проверьте пароль или нажмите «Регистрация»", "⚠");
+                showToast("Аккаунт не найден. Проверьте пароль или нажмите «Регистрация»", "alert");
             } else if (error.code === 'auth/email-already-in-use') {
-                showToast("Этот Email уже занят. Нажмите «Уже есть аккаунт? Войти»", "ℹ️");
+                showToast("Этот Email уже занят. Нажмите «Уже есть аккаунт? Войти»", "info");
             } else if (error.code === 'auth/weak-password') {
-                showToast("Пароль должен быть не менее 6 символов", "🛡️");
+                showToast("Пароль должен быть не менее 6 символов", "shield");
             } else if (error.code === 'auth/invalid-email') {
-                showToast("Неверный формат Email", "✉️");
+                showToast("Неверный формат Email", "mail");
             } else if (error.code === 'auth/too-many-requests') {
-                showToast("Слишком много попыток. Подождите немного и повторите", "⏳");
+                showToast("Слишком много попыток. Подождите немного и повторите", "clock");
             } else if (error.code === 'auth/network-request-failed') {
-                showToast("Нет соединения с интернетом", "📡");
+                showToast("Нет соединения с интернетом", "offline");
             } else {
-                showToast("Ошибка: " + error.message, "❌"); 
+                showToast("Ошибка: " + error.message, "error"); 
             }
         }
       });
@@ -1458,6 +1500,15 @@
       let initialChatLoads = {}; 
       let loadedMsgs = {};
 
+      // Подгрузка истории: при прокрутке вверх увеличиваем лимит и переподписываемся
+      const PAGE_SIZE = 30;
+      let msgLimit = PAGE_SIZE, hasMoreMsgs = true, loadingOlder = false, subscribeMessages = null;
+      function loadOlderMessages() {
+          if (!subscribeMessages || !hasMoreMsgs || loadingOlder) return;
+          loadingOlder = true; msgLimit += PAGE_SIZE; subscribeMessages();
+      }
+      document.getElementById("chat-box").addEventListener("scroll", e => { if (e.target.scrollTop < 150) loadOlderMessages(); }, { passive: true });
+
       // Отмечаем прочитанным только то, что человек реально видит: вкладка активна и чат открыт на экране
       function chatIsOnScreen() {
           if (document.visibilityState !== "visible") return false;
@@ -1483,7 +1534,7 @@
           if (editingMsgId) { editingMsgId = null; document.getElementById("message-input").value = ""; document.getElementById("send-button").innerHTML = sendIconSVG; }
           replyingTo = { id: m.id, uid: m.uid || "", sender: m.sender || "", text: msgPreviewText(m).slice(0, 140) };
           document.getElementById("reply-bar-name").innerText = replyingTo.sender;
-          document.getElementById("reply-bar-text").innerText = replyingTo.text;
+          document.getElementById("reply-bar-text").innerHTML = iconizePreview(escapeHTML(replyingTo.text));
           document.getElementById("reply-bar").classList.add("on");
           let input = document.getElementById("message-input"); if (!input.disabled) input.focus();
       };
@@ -1514,7 +1565,7 @@
                             await setDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUid) }, { merge: true });
                             await setDoc(doc(db, "users", targetUid), { followers: arrayUnion(currentUser.uid) }, { merge: true });
                             await addDoc(collection(db, "notifications"), { toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false });
-                            showToast("Вы подписались!", "✅");
+                            showToast("Вы подписались!", "check");
                             qfBanner.style.display = "none";
                             renderChatList(document.getElementById("search-input").value); 
                         } catch(e) { console.error(e); }
@@ -1573,14 +1624,20 @@
 
             document.getElementById("chat-box").innerHTML = ""; loadedMsgs = {};
 
-            const q = query(collection(db, "messages"), where("chatId", "==", currentChatId), orderBy("timestamp", "desc"), limit(20));
+            msgLimit = PAGE_SIZE; hasMoreMsgs = true; loadingOlder = false;
+
+            subscribeMessages = () => {
+            if (activeListener) activeListener();
+            const q = query(collection(db, "messages"), where("chatId", "==", chatId), orderBy("timestamp", "desc"), limit(msgLimit));
+            let firstSnap = true; // первый снимок (в т.ч. после подгрузки истории) — без звука
             
             // ВАЖНО: Умная отрисовка (Smart Render) работает БЕЗ морганий
             activeListener = onSnapshot(q, (snapshot) => {
+              if (currentChatId !== chatId) return;
               let messages = [];
 
-              snapshot.docChanges().forEach(change => { if (change.type === "added" && initialChatLoads[chatId]) { let msg = change.doc.data(); if (msg.uid !== currentUser.uid) { document.getElementById("notification-sound").play().catch(e=>{}); } } });
-              initialChatLoads[chatId] = true;
+              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added") { let msg = change.doc.data(); if (msg.uid !== currentUser.uid) { document.getElementById("notification-sound").play().catch(e=>{}); } } });
+              firstSnap = false;
 
               snapshot.forEach(docSnap => {
                 let msg = docSnap.data(); messages.push({ id: docSnap.id, ...msg });
@@ -1593,7 +1650,14 @@
               let chatBox = document.getElementById("chat-box");
               let isScrolledToBottom = chatBox.scrollHeight - chatBox.clientHeight <= chatBox.scrollTop + 50;
 
+              // Запоминаем верхнее видимое сообщение, чтобы экран не прыгал при вставке старых сверху
+              let anchorRow = null, anchorOffset = 0;
+              if (!isScrolledToBottom) {
+                  for (const r of chatBox.children) { if (r.offsetTop + r.offsetHeight > chatBox.scrollTop) { anchorRow = r; anchorOffset = r.offsetTop - chatBox.scrollTop; break; } }
+              }
+
               let currentIds = [];
+              let prevRow = null;
 
               messages.forEach((msg) => {
                 currentIds.push(`msg-${msg.id}`);
@@ -1648,7 +1712,7 @@
                         contentHtml += `<span class="sender-name chat-msg-name" data-profile-target="${escapeHTML(msg.uid)}" style="display:flex; align-items:center;">${escapeHTML(msg.sender)}${officialBadge} ${senderLabel}</span>`;
                     }
 
-                    if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${escapeHTML(msg.replyTo.text || '')}</span></div>`;
+                    if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
                     if (msg.text) contentHtml += `<span class="msg-text-content">${escapeHTML(msg.text)}</span>`;
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
                     if (msg.audioUrl) contentHtml += `<audio controls src="${escapeHTML(msg.audioUrl)}"></audio>`;
@@ -1661,8 +1725,12 @@
                     contentHtml += `</div>`;
 
                     messageRow.innerHTML = isMe ? contentHtml : avatarHtml + contentHtml;
-                    chatBox.appendChild(messageRow);
+                    existingRow = messageRow;
                 }
+                // Ставим строку на её место по времени (старые при подгрузке — наверх)
+                let expected = prevRow ? prevRow.nextSibling : chatBox.firstChild;
+                if (existingRow !== expected) chatBox.insertBefore(existingRow, expected);
+                prevRow = existingRow;
               });
 
               // Удаляем сообщения, которые были удалены из БД
@@ -1670,11 +1738,21 @@
                   if (!currentIds.includes(child.id)) child.remove();
               });
 
+              // Пока ответ пришёл только из локального кэша и он неполный — ждём сервер, чтобы не решить, что истории больше нет
+              if (!snapshot.metadata.fromCache || snapshot.size >= msgLimit) { hasMoreMsgs = snapshot.size >= msgLimit; loadingOlder = false; }
+
               if (isScrolledToBottom || !initialChatLoads[chatId + "_scroll"]) {
                   chatBox.scrollTop = chatBox.scrollHeight;
                   initialChatLoads[chatId + "_scroll"] = true;
+              } else if (anchorRow && anchorRow.isConnected) {
+                  chatBox.scrollTop = anchorRow.offsetTop - anchorOffset;
               }
+
+              // Если сообщений мало и прокрутки нет — сразу догружаем ещё
+              if (hasMoreMsgs && !loadingOlder && chatBox.scrollHeight <= chatBox.clientHeight + 150) loadOlderMessages();
             });
+            };
+            subscribeMessages();
         } catch (err) { console.error("Ошибка загрузки чата: ", err); }
       };
 
@@ -1704,7 +1782,7 @@
         if (quote) {
            let target = document.getElementById("msg-" + quote.getAttribute("data-reply-id"));
            if (target) { target.scrollIntoView({ behavior: "smooth", block: "center" }); target.classList.remove("msg-flash"); void target.offsetWidth; target.classList.add("msg-flash"); }
-           else showToast("Сообщение слишком старое или удалено", "ℹ️");
+           else showToast("Сообщение слишком старое или удалено", "info");
            return;
         }
         let editBtn = e.target.closest(".edit-btn");
@@ -1739,7 +1817,7 @@
             
             mediaRecorder.start(); isRecording = true;
             micBtn.classList.add("recording"); micBtn.innerHTML = stopIconSVG;
-            msgInput.value = ""; msgInput.placeholder = "🔴 Идёт запись... (нажми стоп)"; msgInput.disabled = true;
+            msgInput.value = ""; msgInput.placeholder = "Идёт запись... (нажми стоп)"; msgInput.disabled = true;
           } catch(err) { console.error(err); alert("Ошибка микрофона! Проверьте, дали ли вы доступ в браузере."); }
         } else {
           if (mediaRecorder && mediaRecorder.state !== "inactive") { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
@@ -1809,7 +1887,7 @@
               if (!pw) return;
               await reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, pw));
               stopPresence(false); let uidToDelete = currentUser.uid; await deleteDoc(doc(db, "users", uidToDelete)); await deleteUser(currentUser);
-              showToast("Аккаунт успешно удален", "🗑"); document.getElementById("settings-screen").style.display = "none";
+              showToast("Аккаунт успешно удален", "trash"); document.getElementById("settings-screen").style.display = "none";
           } catch (error) {
               console.error("Ошибка при удалении аккаунта:", error);
               if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') { alert("Неверный пароль. Аккаунт не удалён."); }
@@ -1824,9 +1902,9 @@
       bcBtn.addEventListener("click", async () => {
           if (!currentUser || !isAdmin) return;
           const text = bcText.value.trim();
-          if (!text) return showToast("Введите текст рассылки", "⚠️");
+          if (!text) return showToast("Введите текст рассылки", "alert");
           const uids = Object.keys(usersCache);
-          if (!uids.length) return showToast("Список пользователей ещё загружается", "⏳");
+          if (!uids.length) return showToast("Список пользователей ещё загружается", "clock");
           if (!confirm("Отправить уведомление " + uids.length + " пользователям?")) return;
           bcBtn.disabled = true; const orig = bcBtn.innerText; bcBtn.innerText = "Отправка...";
           try {
@@ -1837,8 +1915,8 @@
                   await batch.commit();
               }
               bcText.value = ""; document.getElementById("broadcast-count").innerText = "0/1000";
-              showToast("Отправлено пользователям: " + uids.length, "📣");
-          } catch (e) { console.error(e); showToast("Не удалось отправить: " + e.message, "❌"); }
+              showToast("Отправлено пользователям: " + uids.length, "megaphone");
+          } catch (e) { console.error(e); showToast("Не удалось отправить: " + e.message, "error"); }
           bcBtn.disabled = false; bcBtn.innerText = orig;
       });
 
@@ -1848,8 +1926,8 @@
           let hide = e.target.checked;
           try {
               await setDoc(doc(db, "users", currentUser.uid), hide ? { hideOnline: true, online: false, lastSeen: deleteField() } : { hideOnline: false, online: true, lastSeen: new Date() }, { merge: true });
-              showToast(hide ? "Ваш статус скрыт" : "Ваш статус снова виден", "👁");
-          } catch (err) { console.error(err); e.target.checked = !hide; showToast("Не удалось сохранить", "❌"); }
+              showToast(hide ? "Ваш статус скрыт" : "Ваш статус снова виден", "eye");
+          } catch (err) { console.error(err); e.target.checked = !hide; showToast("Не удалось сохранить", "error"); }
       });
 
       // Свайп влево по сообщению — ответить (телефон)
