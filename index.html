@@ -186,6 +186,8 @@
       
       #send-button { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; margin-left: 5px;}
       #send-button:hover { filter: brightness(1.1); }
+      #send-button { position: relative; touch-action: manipulation; }
+      #send-button::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; } /* зона нажатия чуть больше самой кнопки */
       
       #mic-btn.recording { color: #ff3b30; animation: pulse 1s infinite; }
       @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
@@ -2485,14 +2487,29 @@
     <script>
       (function () {
         const ta = document.getElementById("message-input");
-        const fit = () => { ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 140) + "px"; };
+        const fit = () => {
+            // Пока приложение скрыто (экран загрузки/входа), высоту не посчитать — иначе поле сплющится до 0
+            if (!ta.offsetParent) { ta.style.height = ""; return; }
+            ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 140) + "px";
+        };
         ta.addEventListener("input", fit);
         document.addEventListener("click", () => setTimeout(fit, 0)); // после отправки, смены чата, редактирования
         window.addEventListener("resize", fit); fit();
+        // Пересчитываем, когда поле стало видимым или изменило ширину (показ приложения после загрузки, открытие чата)
+        if (window.ResizeObserver) { let lastW = -1; new ResizeObserver(() => { const w = ta.clientWidth; if (w !== lastW) { lastW = w; fit(); } }).observe(ta); }
 
         // Кнопка «Отправить» не забирает фокус у поля — клавиатура остаётся открытой, экран не прыгает (как в Telegram/ВК)
         const send = document.getElementById("send-button");
-        ["pointerdown", "mousedown", "touchstart"].forEach(ev => send.addEventListener(ev, e => { if (document.activeElement === ta) e.preventDefault(); }, { passive: false }));
+        // Нельзя отменять touchstart: на iPhone это отменяет и сам «клик» — кнопка срабатывала через раз.
+        // Поэтому на касание отвечаем сами: в touchend отменяем смену фокуса и сразу отправляем.
+        send.addEventListener("mousedown", e => { if (document.activeElement === ta) e.preventDefault(); });
+        send.addEventListener("touchend", e => {
+            if (document.activeElement !== ta) return; // поле не в фокусе — обычный клик
+            const t = e.changedTouches[0], r = send.getBoundingClientRect(), pad = 16;
+            if (t && (t.clientX < r.left - pad || t.clientX > r.right + pad || t.clientY < r.top - pad || t.clientY > r.bottom + pad)) return; // палец увели с кнопки
+            e.preventDefault(); // клавиатура не закрывается, лишнего клика не будет
+            send.click();
+        }, { passive: false });
 
         // Клавиатура на iPhone. Пока печатаешь — iOS сам поднимает поле ввода, мы не вмешиваемся (только убираем лишний отступ).
         // Баг iOS в режиме «На экран Домой»: после закрытия клавиатуры высота окна остаётся уменьшенной до перезапуска,
