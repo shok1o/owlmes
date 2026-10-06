@@ -272,6 +272,33 @@
       .dev-sub { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .dev-side { text-align: right; font-size: 12px; color: var(--text-muted); flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; }
       .dev-side .on { color: #34c759; font-weight: 600; }
+      .banned-label { color: #ff3b30 !important; font-weight: 600; }
+      .ban-badge { font-size: 10px; font-weight: 700; background: #ff3b30; color: #fff; padding: 1px 6px; border-radius: 6px; letter-spacing: .3px; }
+      .dev-row.banned img { filter: grayscale(1); opacity: .6; }
+      .dev-ban-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #ff3b30; color: #ff3b30; background: transparent; border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: .2s; }
+      .dev-ban-btn:hover { background: rgba(255,59,48,.12); }
+      .dev-ban-btn.unban { border-color: var(--accent); color: var(--accent); }
+      .dev-ban-btn.unban:hover { background: rgba(82,136,193,.12); }
+      .dev-ban-btn:disabled { opacity: .5; cursor: default; }
+      @media (max-width: 560px) { .dev-ban-btn span { display: none; } .dev-ban-btn { padding: 7px; } }
+      #banned-screen { position: fixed; inset: 0; z-index: 20000; background: var(--bg-main); display: none; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+      #banned-screen .bn-box { max-width: 360px; text-align: center; color: var(--text-main); }
+      #banned-screen .bn-icon { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,59,48,.12); color: #ff3b30; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+      #banned-screen .bn-box { width: 100%; max-height: 100%; overflow-y: auto; }
+      #banned-screen .bn-reason { margin: 14px 0 18px; background: var(--input-bg); border-radius: 12px; padding: 12px; font-size: 14px; color: var(--text-main); white-space: pre-wrap; word-break: break-word; text-align: left; }
+      #banned-screen .bn-reason b { display: block; font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+      #banned-screen .bn-support { text-align: left; margin: 0 0 18px; }
+      #banned-screen .bn-support label { display: block; font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+      #appeal-text { width: 100%; box-sizing: border-box; min-height: 90px; resize: vertical; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font: inherit; font-size: 14px; outline: none; }
+      #appeal-text:focus { border-color: var(--accent); }
+      #appeal-status { font-size: 13px; margin-top: 8px; min-height: 18px; color: var(--text-muted); }
+      #appeal-status.ok { color: #34c759; }
+      #banned-screen .modal-btn.secondary { background: var(--input-bg); color: var(--text-main); }
+      .dev-appeal { margin-top: 4px; font-size: 12px; color: var(--text-main); background: rgba(82,136,193,.14); border-left: 3px solid var(--accent); border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      .dev-appeal b { color: var(--accent); }
+      #dev-tabs .tab .appeal-count { background: #ff3b30; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+      #banned-screen h2 { margin: 0 0 8px; font-size: 22px; }
+      #banned-screen p { margin: 0 0 6px; color: var(--text-muted); font-size: 15px; line-height: 1.4; }
       .new-badge { font-size: 10px; font-weight: 700; background: #34c759; color: #fff; padding: 1px 6px; border-radius: 6px; letter-spacing: .3px; }
       .dev-empty { text-align: center; color: var(--text-muted); padding: 30px 10px; font-size: 14px; }
       @media (max-width: 560px) { .dev-stats { grid-template-columns: repeat(2, 1fr); } .dev-side .dev-reg { display: none; } }
@@ -380,6 +407,7 @@
           <span id="public-admin-badge" class="admin-badge" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="16" height="16" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>
         </h2>
         
+        <p id="public-banned" class="banned-label" style="margin: 0 0 10px 0; font-size: 14px; display: none;">Пользователь заблокирован</p>
         <p id="public-email" style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 14px; display: none;">Email</p>
         
         <div class="profile-stats">
@@ -452,6 +480,24 @@
       </div>
     </div>
 
+    <!-- ЭКРАН БЛОКИРОВКИ (для забаненного пользователя) -->
+    <div id="banned-screen">
+      <div class="bn-box">
+        <div class="bn-icon"><svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg></div>
+        <h2>Аккаунт заблокирован</h2>
+        <p>Администратор Owl Messenger ограничил доступ к вашему аккаунту.</p>
+        <div class="bn-reason" id="banned-reason" style="display:none;"><b>Причина</b><span id="banned-reason-text"></span></div>
+        <div class="bn-support">
+          <label for="appeal-text">Бан выдан по ошибке? Напишите в поддержку</label>
+          <textarea id="appeal-text" maxlength="1000" placeholder="Опишите, почему считаете бан ошибкой..."></textarea>
+          <div id="appeal-status"></div>
+          <button id="appeal-send-btn" class="modal-btn">Отправить обращение</button>
+        </div>
+        <div style="height:4px;"></div>
+        <button id="banned-logout-btn" class="modal-btn secondary">Выйти из аккаунта</button>
+      </div>
+    </div>
+
     <!-- ПАНЕЛЬ РАЗРАБОТЧИКА (только админ) -->
     <div id="dev-panel-screen" class="modal-screen" style="display: none;">
       <div class="modal-box">
@@ -470,6 +516,7 @@
             <div class="tab active" data-f="online">На сайте</div>
             <div class="tab" data-f="new">Новые</div>
             <div class="tab" data-f="all">Все</div>
+            <div class="tab" data-f="banned">Баны <span class="appeal-count" id="dev-appeal-count" style="display:none;"></span></div>
           </div>
           <div class="dev-search"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" id="dev-search" placeholder="Ник или email..."></div>
         </div>
@@ -840,7 +887,10 @@
           return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
       }
 
+      // Аватарка заблокированного пользователя — мёртвая сова
+      const DEAD_OWL_AVATAR = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%232a2f37%22/%3E%3Cellipse cx=%2250%22 cy=%2213%22 rx=%2217%22 ry=%224.5%22 fill=%22none%22 stroke=%22%23e8c35a%22 stroke-width=%223%22 opacity=%22.9%22/%3E%3Cpath d=%22M27 34 L31 16 L42 29 Z M73 34 L69 16 L58 29 Z%22 fill=%22%236f7680%22/%3E%3Cellipse cx=%2250%22 cy=%2260%22 rx=%2231%22 ry=%2233%22 fill=%22%236f7680%22/%3E%3Cellipse cx=%2250%22 cy=%2247%22 rx=%2225%22 ry=%2218%22 fill=%22%238d949d%22/%3E%3Ccircle cx=%2239%22 cy=%2246%22 r=%229.5%22 fill=%22%23dfe3e8%22/%3E%3Ccircle cx=%2261%22 cy=%2246%22 r=%229.5%22 fill=%22%23dfe3e8%22/%3E%3Cpath d=%22M34 41 L44 51 M44 41 L34 51 M56 41 L66 51 M66 41 L56 51%22 stroke=%22%232a2f37%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M46 55 L54 55 L50 63 Z%22 fill=%22%23b8963a%22/%3E%3Cpath d=%22M50 63 q3 5 0 8 q-2 -3 0 -8%22 fill=%22%23c96a7a%22/%3E%3Cellipse cx=%2250%22 cy=%2280%22 rx=%2217%22 ry=%2212%22 fill=%22%238d949d%22/%3E%3Cpath d=%22M42 77 q4 4 8 0 q4 4 8 0 M44 84 q3 3 6 0 q3 3 6 0%22 fill=%22none%22 stroke=%22%236f7680%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E";
       function getAvatar(uid, fallbackName) {
+        if (uid && bansCache[uid]) return DEAD_OWL_AVATAR;
         let cached = usersCache[uid];
         if (cached && cached.photoURL && (cached.photoURL.startsWith('data:image') || cached.photoURL.startsWith('http'))) {
             return cached.photoURL;
@@ -1019,11 +1069,12 @@
       window.addEventListener("pagehide", () => { if (presenceTimer) writePresence(false); });
 
       function isUserOnline(u) {
-          if (!u || u.hideOnline || !u.online || !u.lastSeen) return false;
+          if (!u || bansCache[u.uid] || u.hideOnline || !u.online || !u.lastSeen) return false;
           return Date.now() - getTime(u.lastSeen) < ONLINE_TTL;
       }
       function formatLastSeen(u) {
           if (!u) return "Личные сообщения";
+          if (bansCache[u.uid]) return "пользователь заблокирован";
           if (u.hideOnline || !u.lastSeen) return "был(а) недавно";
           if (isUserOnline(u)) return "в сети";
           let t = getTime(u.lastSeen); let diff = Date.now() - t; let d = new Date(t);
@@ -1042,7 +1093,7 @@
           let el = document.getElementById("current-chat-status"); if (!el) return;
           if (currentTypers.length > 0) { el.innerText = currentTypers[0] + " печатает..."; el.style.color = "var(--accent)"; return; }
           let text = currentHeaderStatus; let color = "var(--text-muted)";
-          if (currentChatTargetUid) { let u = usersCache[currentChatTargetUid]; text = formatLastSeen(u); if (isUserOnline(u)) color = "var(--accent)"; }
+          if (currentChatTargetUid) { let u = usersCache[currentChatTargetUid]; text = formatLastSeen(u); if (isUserOnline(u)) color = "var(--accent)"; if (bansCache[currentChatTargetUid]) color = "#ff3b30"; }
           el.innerText = text; el.style.color = color;
       }
       setInterval(() => { refreshHeaderStatus(); renderDevPanel(); }, 30 * 1000);
@@ -1103,6 +1154,139 @@
           }
       }
 
+      // ===== БАНЫ =====
+      // bans/{uid} = { uid, bannedAt } — только факт бана, его читают все (для мёртвой совы и надписи).
+      // ban_reasons/{uid} = { reason, name, email, bannedBy, bannedAt } — причина, читает и пишет только админ.
+      // Профиль пользователь может менять сам, поэтому бан хранится не в нём (см. правила Firestore).
+      let bansCache = {};          // все баны (uid → { uid, bannedAt })
+      let banReasons = {};         // только у админа: uid → причина и подробности
+      let appeals = {};            // только у админа: uid → обращение в поддержку
+      let bansListener = null, myBanListener = null, reasonsListener = null, iAmBanned = false;
+      let myReasonListener = null, myAppealListener = null, appealsListener = null, appealsFirstSnap = true;
+      const isBanned = (uid) => !!bansCache[uid];
+      function startBanListeners() {
+          stopBanListeners(false);
+          if (!currentUser) return;
+          // Свой бан — слушаем всегда, чтобы заблокировать сразу, даже посреди переписки
+          myBanListener = onSnapshot(doc(db, "bans", currentUser.uid), (snap) => {
+              const wasBanned = iAmBanned;
+              iAmBanned = snap.exists() && !isAdmin;
+              const scr = document.getElementById("banned-screen");
+              if (iAmBanned) {
+                  scr.style.display = "flex";
+                  stopPresence();
+                  if (activeListener) { activeListener(); activeListener = null; }
+                  if (!myReasonListener) myReasonListener = onSnapshot(doc(db, "ban_reasons", currentUser.uid), (r) => {
+                      const why = r.exists() ? (r.data().reason || "") : "";
+                      document.getElementById("banned-reason").style.display = why ? "block" : "none";
+                      document.getElementById("banned-reason-text").innerText = why;
+                  }, (e) => console.log("ban_reasons (своя):", e.code));
+                  if (!myAppealListener) myAppealListener = onSnapshot(doc(db, "appeals", currentUser.uid), (a) => {
+                      const st = document.getElementById("appeal-status");
+                      if (a.exists()) {
+                          const d = a.data(); st.className = "ok";
+                          st.innerText = `Обращение отправлено ${formatRegDate(getTime(d.updatedAt))}. Администратор рассмотрит его. Можно дополнить и отправить снова.`;
+                          const ta = document.getElementById("appeal-text"); if (!ta.value) ta.value = d.text || "";
+                      } else { st.className = ""; st.innerText = ""; }
+                  }, (e) => console.log("appeals (своё):", e.code));
+              } else if (wasBanned) {
+                  scr.style.display = "none"; location.reload(); // разбанили — перезапускаем приложение начисто
+              }
+          }, (e) => console.log("bans:", e.code));
+          // Все баны — чтобы всем показывать мёртвую сову и «Пользователь заблокирован»
+          bansListener = onSnapshot(collection(db, "bans"), (snap) => {
+              const changed = new Set(Object.keys(bansCache));
+              bansCache = {}; snap.forEach(d => { bansCache[d.id] = d.data(); changed.add(d.id); });
+              if (isAdmin) migrateOldBanReasons(snap);
+              // Обновляем аватарки, уже нарисованные в переписке и профиле
+              changed.forEach(uid => document.querySelectorAll(`img[data-profile-target="${CSS.escape(uid)}"]`).forEach(img => { img.src = getAvatar(uid, usersCache[uid]?.name); }));
+              const pub = document.getElementById("public-profile-screen");
+              if (pub && pub.style.display === "flex") { const fb = document.getElementById("public-follow-btn").getAttribute("data-action-uid"); if (fb && changed.has(fb)) openPublicProfile(fb); }
+              renderChatList(document.getElementById("search-input").value);
+              refreshHeaderStatus(); renderDevPanel();
+          }, (e) => console.log("bans:", e.code));
+          if (isAdmin) {
+              appealsFirstSnap = true;
+              appealsListener = onSnapshot(collection(db, "appeals"), (snap) => {
+                  if (!appealsFirstSnap) snap.docChanges().forEach(ch => { if (ch.type !== "removed") { const d = ch.doc.data(); showToast(`Обращение по бану от ${d.name || "пользователя"}`, "mail"); } });
+                  appealsFirstSnap = false;
+                  appeals = {}; snap.forEach(d => { appeals[d.id] = d.data(); });
+                  renderDevPanel();
+              }, (e) => console.log("appeals:", e.code));
+              reasonsListener = onSnapshot(collection(db, "ban_reasons"), (snap) => {
+                  banReasons = {}; snap.forEach(d => { banReasons[d.id] = d.data(); });
+                  renderDevPanel();
+              }, (e) => console.log("ban_reasons:", e.code));
+          }
+      }
+      function stopBanListeners(resetState = true) {
+          if (bansListener) { bansListener(); bansListener = null; }
+          if (myBanListener) { myBanListener(); myBanListener = null; }
+          if (reasonsListener) { reasonsListener(); reasonsListener = null; }
+          if (myReasonListener) { myReasonListener(); myReasonListener = null; }
+          if (myAppealListener) { myAppealListener(); myAppealListener = null; }
+          if (appealsListener) { appealsListener(); appealsListener = null; }
+          if (!resetState) return;
+          bansCache = {}; banReasons = {}; appeals = {}; iAmBanned = false;
+          document.getElementById("banned-screen").style.display = "none";
+      }
+      // Старые баны хранили причину прямо в публичной записи — переносим её в ban_reasons и вычищаем
+      const migratedBans = new Set();
+      function migrateOldBanReasons(snap) {
+          snap.forEach(d => {
+              const b = d.data();
+              if (migratedBans.has(d.id) || !("reason" in b || "name" in b || "email" in b || "bannedBy" in b)) return;
+              migratedBans.add(d.id);
+              const batch = writeBatch(db);
+              batch.set(doc(db, "ban_reasons", d.id), { uid: d.id, reason: b.reason || "", name: b.name || "", email: b.email || "", bannedBy: b.bannedBy || "", bannedAt: b.bannedAt || new Date() }, { merge: true });
+              batch.update(d.ref, { reason: deleteField(), name: deleteField(), email: deleteField(), bannedBy: deleteField() });
+              batch.commit().catch(e => { migratedBans.delete(d.id); console.log("Перенос причины бана:", e.code); });
+          });
+      }
+      document.getElementById("banned-logout-btn").addEventListener("click", () => { stopPresence(false); signOut(auth); });
+      document.getElementById("appeal-send-btn").addEventListener("click", async () => {
+          if (!currentUser || !iAmBanned) return;
+          const ta = document.getElementById("appeal-text"), btn = document.getElementById("appeal-send-btn"), st = document.getElementById("appeal-status");
+          const text = ta.value.trim().slice(0, 1000);
+          if (text.length < 5) { st.className = ""; st.innerText = "Опишите ситуацию хотя бы парой слов."; return; }
+          btn.disabled = true;
+          try {
+              const me = usersCache[currentUser.uid] || {};
+              await setDoc(doc(db, "appeals", currentUser.uid), { uid: currentUser.uid, name: me.name || currentUser.displayName || "", email: currentUser.email || "", text: text, updatedAt: new Date() });
+          } catch (e) {
+              console.error(e); st.className = ""; st.innerText = "Не удалось отправить обращение. Попробуйте ещё раз чуть позже.";
+          }
+          btn.disabled = false;
+      });
+
+      async function toggleBan(uid, btn) {
+          if (!isAdmin || !uid || uid === currentUser.uid) return;
+          const u = usersCache[uid] || {}; const name = u.name || "пользователя";
+          if (u.email === ADMIN_EMAIL) return showToast("Нельзя забанить администратора", "alert");
+          btn.disabled = true;
+          try {
+              if (isBanned(uid)) {
+                  if (!confirm(`Разбанить ${name}?`)) { btn.disabled = false; return; }
+                  const batch = writeBatch(db);
+                  batch.delete(doc(db, "bans", uid)); batch.delete(doc(db, "ban_reasons", uid)); batch.delete(doc(db, "appeals", uid));
+                  await batch.commit();
+                  showToast(`${name} разбанен(а)`, "check");
+              } else {
+                  const reason = prompt(`Забанить ${name}?\n\nПользователь сразу потеряет доступ к приложению.\nПричина (необязательно, её увидит пользователь и разработчики):`, "");
+                  if (reason === null) { btn.disabled = false; return; } // «Отмена»
+                  const now = new Date(); const batch = writeBatch(db);
+                  batch.set(doc(db, "bans", uid), { uid: uid, bannedAt: now }); // публично — только факт бана
+                  batch.set(doc(db, "ban_reasons", uid), { uid: uid, reason: reason.trim().slice(0, 300), name: u.name || "", email: u.email || "", bannedBy: currentUser.uid, bannedAt: now });
+                  await batch.commit();
+                  showToast(`${name} забанен(а)`, "shield");
+              }
+          } catch (e) {
+              console.error(e);
+              showToast(e.code === "permission-denied" ? "Нет прав — добавьте правила для коллекций bans и ban_reasons в Firestore" : "Ошибка: " + e.message, "error");
+          }
+          btn.disabled = false;
+      }
+
       // ===== ПАНЕЛЬ РАЗРАБОТЧИКА =====
       const DAY_MS = 24 * 60 * 60 * 1000;
       let devFilter = "online";
@@ -1115,8 +1299,11 @@
           if (d.toDateString() === y.toDateString()) return `вчера в ${hm}`;
           return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
       }
+      const BAN_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>';
       function renderDevPanel() {
           const screen = document.getElementById("dev-panel-screen");
+          const ac = document.getElementById("dev-appeal-count"), nAppeals = Object.keys(appeals).filter(uid => bansCache[uid]).length;
+          if (ac) { ac.style.display = nAppeals ? "inline" : "none"; ac.innerText = nAppeals; }
           if (!isAdmin || !screen || screen.style.display === "none") return;
           const now = Date.now();
           const all = Object.values(usersCache).filter(u => u && u.uid && u.name && String(u.name) !== "undefined");
@@ -1129,27 +1316,35 @@
           let list;
           if (devFilter === "online") list = all.filter(isUserOnline).sort((a, b) => createdAtOf(b) - createdAtOf(a)); // свежие регистрации — сверху
           else if (devFilter === "new") list = all.filter(u => isNew(u, 7 * DAY_MS)).sort((a, b) => createdAtOf(b) - createdAtOf(a));
+          else if (devFilter === "banned") list = all.filter(u => isBanned(u.uid)).sort((a, b) => (!!appeals[b.uid] - !!appeals[a.uid]) || (getTime(bansCache[b.uid].bannedAt) - getTime(bansCache[a.uid].bannedAt))); // с обращениями — сверху
           else list = all.slice().sort((a, b) => createdAtOf(b) - createdAtOf(a));
           const q = document.getElementById("dev-search").value.trim().toLowerCase();
           if (q) list = list.filter(u => String(u.name).toLowerCase().includes(q) || String(u.email || "").toLowerCase().includes(q));
 
           const box = document.getElementById("dev-list");
           if (!list.length) {
-              box.innerHTML = `<div class="dev-empty">${q ? "Никого не найдено" : devFilter === "online" ? "Сейчас на сайте никого нет" : devFilter === "new" ? "За неделю новых пользователей нет" : "Пользователей пока нет"}</div>`;
+              box.innerHTML = `<div class="dev-empty">${q ? "Никого не найдено" : devFilter === "online" ? "Сейчас на сайте никого нет" : devFilter === "new" ? "За неделю новых пользователей нет" : devFilter === "banned" ? "Забаненных пользователей нет" : "Пользователей пока нет"}</div>`;
               return;
           }
           box.innerHTML = list.map(u => {
               const online = isUserOnline(u);
-              return `<div class="dev-row" data-dev-uid="${escapeHTML(u.uid)}">
+              const banned = isBanned(u.uid), ban = bansCache[u.uid];
+              const canBan = u.uid !== currentUser.uid && u.email !== ADMIN_EMAIL;
+              const banBtn = canBan ? `<button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(u.uid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button>` : '';
+              const why = banned ? (banReasons[u.uid]?.reason || ban.reason || "") : "";
+              const sub = banned ? `Бан ${formatRegDate(getTime(ban.bannedAt))}${why ? ' · ' + escapeHTML(why) : ''}` : escapeHTML(u.email || "");
+              return `<div class="dev-row${banned ? ' banned' : ''}" data-dev-uid="${escapeHTML(u.uid)}">
                   <span class="av-wrap"><img src="${getAvatar(u.uid, u.name)}">${online ? '<i class="online-dot"></i>' : ''}</span>
                   <div class="dev-main">
-                    <span class="dev-name">${escapeHTML(u.name)}${isNew(u, DAY_MS) ? '<span class="new-badge">NEW</span>' : ''}</span>
-                    <span class="dev-sub">${escapeHTML(u.email || "")}</span>
+                    <span class="dev-name">${escapeHTML(u.name)}${banned ? '<span class="ban-badge">БАН</span>' : isNew(u, DAY_MS) ? '<span class="new-badge">NEW</span>' : ''}</span>
+                    <span class="dev-sub">${sub}</span>
+                    ${banned && appeals[u.uid] ? `<span class="dev-appeal"><b>Обращение:</b> ${escapeHTML(appeals[u.uid].text || "")}</span>` : ''}
                   </div>
                   <div class="dev-side">
                     <span class="${online ? 'on' : ''}">${escapeHTML(formatLastSeen(u))}</span>
                     <span class="dev-reg">рег.: ${formatRegDate(createdAtOf(u))}</span>
                   </div>
+                  ${banBtn}
                 </div>`;
           }).join("");
       }
@@ -1169,6 +1364,8 @@
       });
       document.getElementById("dev-search").addEventListener("input", renderDevPanel);
       document.getElementById("dev-list").addEventListener("click", (e) => {
+          const banBtn = e.target.closest("[data-ban-uid]");
+          if (banBtn) { e.stopPropagation(); toggleBan(banBtn.getAttribute("data-ban-uid"), banBtn); return; }
           const row = e.target.closest("[data-dev-uid]"); if (!row) return;
           document.getElementById("dev-panel-screen").style.display = "none";
           openPublicProfile(row.getAttribute("data-dev-uid"));
@@ -1576,6 +1773,7 @@
 
         document.getElementById("public-avatar").src = getAvatar(uid, u.name);
         document.getElementById("public-name").innerText = u.name;
+        document.getElementById("public-banned").style.display = bansCache[uid] ? "block" : "none";
         
         let pAdminBadge = document.getElementById("public-admin-badge");
         if (pAdminBadge) pAdminBadge.style.display = (u.email === ADMIN_EMAIL) ? "inline-flex" : "none";
@@ -1745,7 +1943,8 @@
               }
 
               let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageText)) : (u.bio ? escapeHTML(u.bio) : "Статус не указан");
-              if (meta && meta.lastMessageSender && !isMyMeta(meta)) preview = escapeHTML(meta.lastMessageSender) + ": " + preview;
+              if (bansCache[u.uid]) preview = `<span class="banned-label">Пользователь заблокирован</span>`;
+              if (meta && meta.lastMessageSender && !isMyMeta(meta) && !bansCache[u.uid]) preview = escapeHTML(meta.lastMessageSender) + ": " + preview;
               
               let time = meta && meta.timestamp ? getTime(meta.timestamp) : 0;
               let unread = (meta && meta.unreadCount && !isMyMeta(meta)) ? meta.unreadCount : 0;
@@ -1890,6 +2089,7 @@
 
           startDatabaseListeners(); 
           startNotificationsListener();
+          startBanListeners();
           startPresence();
           if (user.displayName) ensureProfileMigrated(user);
 
@@ -1911,6 +2111,7 @@
           document.getElementById("app-container").style.display = "none";
           if(notificationsListener) notificationsListener(); 
           stopPresence(false);
+          stopBanListeners();
         }
       });
 
@@ -2269,7 +2470,7 @@
       });
 
       async function sendMessage(text, imageUrl = null, audioUrl = null) {
-        if (!currentUser) return;
+        if (!currentUser || iAmBanned) return;
         
         if (editingMsgId && text) {
             await updateDoc(doc(db, "messages", editingMsgId), { text: text, edited: true });
