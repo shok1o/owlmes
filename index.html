@@ -864,7 +864,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.26</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.27</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1139,7 +1139,7 @@
           if (!currentUser || isAdmin) return;
           const me = usersCache[currentUser.uid] || {};
           (me.following || []).forEach(watchUser);
-          (me.blocked || []).forEach(watchUser);
+          myBlockedSet.forEach(watchUser);
           Object.keys(chatsMetaCache).forEach(id => { const p = dmPeer(id); if (p) watchUser(p); });
           Object.values(groupsCache).forEach(g => (g.members || []).forEach(watchUser));
       }
@@ -1827,7 +1827,10 @@
           if (privateListener) { privateListener(); privateListener = null; }
           // ПРОФИЛИ. Админ (панель разработчика) слушает всех; остальные — только себя и своих собеседников
           // (watchUser). Раньше каждый скачивал профили всех пользователей.
-          window.__ingestUser = (u, quiet) => { ingestUser(u, quiet); if (u && currentUser && u.uid === currentUser.uid) watchContacts(); };
+          window.__ingestUser = (u, quiet) => {
+              ingestUser(u, quiet);
+              if (u && currentUser && u.uid === currentUser.uid) { watchContacts(); if (Array.isArray(u.blocked)) migrateBlockedList(u).catch(e => console.log("Перенос блокировок:", e.code || e)); }
+          };
           if (!isAdmin) { usersListener = null; watchUser(currentUser.uid); }
           else usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
             snapshot.docChanges().forEach(change => {
@@ -1923,7 +1926,7 @@
       }
       // Разовая миграция (запускает админ): email из публичных профилей → users_private; ник в нижнем регистре для поиска
       async function migrateEmails() {
-          const todo = Object.values(usersCache).filter(u => u && u.uid && ((u.email && u.email !== ADMIN_EMAIL) || (u.name && !u.nameLower)));
+          const todo = Object.values(usersCache).filter(u => u && u.uid && ((u.email && u.email !== ADMIN_EMAIL) || (u.name && !u.nameLower) || Array.isArray(u.blocked)));
           let moved = 0;
           for (const u of todo) {
               try {
@@ -1933,6 +1936,7 @@
                       privateEmails[u.uid] = u.email; upd.email = deleteField();
                   }
                   if (u.name && !u.nameLower) upd.nameLower = nickKey(u.name);
+                  if (Array.isArray(u.blocked)) await migrateBlockedList(u);
                   await setDoc(doc(db, "users", u.uid), upd, { merge: true });
                   moved++;
               } catch (e) { console.log("Перенос профиля " + u.uid + ":", e.code || e); }
@@ -2652,6 +2656,7 @@
           startDatabaseListeners(); 
           startNotificationsListener();
           startBanListeners();
+          startBlockListeners();
           startPresence();
           if (user.displayName) ensureProfileMigrated(user);
           if (pushEnabled()) serverPushSubscribe(); // привязываем устройство к аккаунту (и обновляем подписку)
@@ -2860,11 +2865,42 @@
       })();
 
       // ===== ЛИЧНАЯ БЛОКИРОВКА =====
-      // users/{я}.blocked — список тех, кого я заблокировал. Заблокированный не может писать мне в личку,
-      // его сообщения в беседах скрыты, уведомлений от него нет.
-      const myBlocked = () => (currentUser && usersCache[currentUser.uid]?.blocked) || [];
-      const iBlocked = (uid) => !!uid && myBlocked().includes(uid);
-      const blockedMe = (uid) => !!(currentUser && uid && (usersCache[uid]?.blocked || []).includes(currentUser.uid));
+      // blocks/{кто}_{кого} — закрытые записи: видят только эти двое (раньше список лежал в публичном профиле).
+      // Заблокированный не может писать мне в личку, его сообщения в беседах скрыты, уведомлений от него нет.
+      let myBlockedSet = new Set(), blocksListener = null;
+      let peerBlockListener = null, peerBlockUid = null, peerBlockedMe = false;
+      const myBlocked = () => [...myBlockedSet];
+      const iBlocked = (uid) => !!uid && myBlockedSet.has(uid);
+      const blockedMe = (uid) => !!uid && uid === peerBlockUid && peerBlockedMe;
+      function startBlockListeners() {
+          stopBlockListeners();
+          if (!currentUser) return;
+          blocksListener = onSnapshot(query(collection(db, "blocks"), where("blocker", "==", currentUser.uid)), (snap) => {
+              myBlockedSet = new Set(snap.docs.map(d => d.data().blocked));
+              applyBlockState(); watchContacts(); renderChatList(document.getElementById("search-input").value);
+          }, (e) => console.log("blocks:", e.code));
+      }
+      function stopBlockListeners() {
+          if (blocksListener) { blocksListener(); blocksListener = null; }
+          watchPeerBlock(null); myBlockedSet = new Set();
+      }
+      // Заблокировал ли меня собеседник в открытой личке
+      function watchPeerBlock(peer) {
+          if (peer === peerBlockUid) return;
+          if (peerBlockListener) { peerBlockListener(); peerBlockListener = null; }
+          peerBlockUid = peer || null; peerBlockedMe = false;
+          if (!peer || !currentUser) return;
+          peerBlockListener = onSnapshot(doc(db, "blocks", peer + "_" + currentUser.uid), (d) => { peerBlockedMe = d.exists(); applyBlockState(); }, (e) => console.log("blocks (собеседник):", e.code));
+      }
+      // Перенос старого списка из профиля в blocks (свой — при входе; админ переносит у всех)
+      async function migrateBlockedList(u) {
+          if (!u || !Array.isArray(u.blocked)) return false;
+          const batch = writeBatch(db);
+          u.blocked.forEach(b => { if (b) batch.set(doc(db, "blocks", u.uid + "_" + b), { blocker: u.uid, blocked: b, createdAt: new Date() }); });
+          batch.update(doc(db, "users", u.uid), { blocked: deleteField() });
+          await batch.commit();
+          return true;
+      }
       const dmPeer = (chatId) => (currentUser && chatId && chatId.includes("_")) ? chatId.split("_").find(id => id !== currentUser.uid) : null;
       async function toggleBlock(uid) {
           if (!currentUser || !uid || uid === currentUser.uid) return;
@@ -2872,9 +2908,10 @@
           const blocking = !iBlocked(uid);
           if (blocking && !confirm(`Заблокировать ${name}?\n\nОн не сможет писать вам в личные сообщения, а его сообщения в беседах будут скрыты. Он не узнает, что вы его заблокировали.`)) return;
           try {
-              await setDoc(doc(db, "users", currentUser.uid), { blocked: blocking ? arrayUnion(uid) : arrayRemove(uid) }, { merge: true });
-              const me = usersCache[currentUser.uid];
-              if (me) me.blocked = blocking ? [...new Set([...(me.blocked || []), uid])] : (me.blocked || []).filter(x => x !== uid);
+              const ref = doc(db, "blocks", currentUser.uid + "_" + uid);
+              if (blocking) await setDoc(ref, { blocker: currentUser.uid, blocked: uid, createdAt: new Date() });
+              else await deleteDoc(ref);
+              if (blocking) myBlockedSet.add(uid); else myBlockedSet.delete(uid);
               showToast(blocking ? `${name} заблокирован(а)` : `${name} разблокирован(а)`, "block");
               applyBlockState();
               if (document.getElementById("public-profile-screen").style.display === "flex") openPublicProfile(uid);
@@ -3053,6 +3090,7 @@
 
             document.getElementById("chat-box").innerHTML = ""; loadedMsgs = {};
             const isPrivateChat = !!dmPeer(chatId);
+            watchPeerBlock(isPrivateChat ? dmPeer(chatId) : null);
             applyBlockState();
 
             msgLimit = PAGE_SIZE; hasMoreMsgs = true; loadingOlder = false;
