@@ -280,6 +280,14 @@
       .dev-ban-btn.unban { border-color: var(--accent); color: var(--accent); }
       .dev-ban-btn.unban:hover { background: rgba(82,136,193,.12); }
       .dev-ban-btn:disabled { opacity: .5; cursor: default; }
+      .dev-del-btn { background: #ff3b30; color: #fff; border-color: #ff3b30; margin-left: 6px; }
+      .dev-del-btn:hover { background: #e0352b; }
+      .dev-actions { display: flex; flex-shrink: 0; align-items: center; }
+      #deleted-screen { position: fixed; inset: 0; z-index: 20001; background: var(--bg-main); display: none; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
+      #deleted-screen .bn-box { max-width: 360px; width: 100%; text-align: center; color: var(--text-main); }
+      #deleted-screen .bn-icon { width: 72px; height: 72px; border-radius: 50%; background: rgba(127,137,145,.15); color: var(--text-muted); display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+      #deleted-screen h2 { margin: 0 0 8px; font-size: 22px; }
+      #deleted-screen p { margin: 0 0 22px; color: var(--text-muted); font-size: 15px; line-height: 1.4; }
       @media (max-width: 560px) { .dev-ban-btn span { display: none; } .dev-ban-btn { padding: 7px; } }
       #banned-screen { position: fixed; inset: 0; z-index: 20000; background: var(--bg-main); display: none; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; }
       #banned-screen .bn-box { max-width: 360px; text-align: center; color: var(--text-main); }
@@ -477,6 +485,16 @@
            </button>
         </div>
         <div id="notifs-list" style="overflow-y:auto; flex-grow:1; display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- ЭКРАН «АККАУНТ УДАЛЁН» -->
+    <div id="deleted-screen">
+      <div class="bn-box">
+        <div class="bn-icon"><svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="18" y1="8" x2="23" y2="13"></line><line x1="23" y1="8" x2="18" y2="13"></line></svg></div>
+        <h2>Аккаунт удалён</h2>
+        <p>Этот аккаунт был удалён администратором Owl Messenger. Войти в него больше нельзя.</p>
+        <button id="deleted-ok-btn" class="modal-btn">Понятно</button>
       </div>
     </div>
 
@@ -1162,11 +1180,13 @@
       let banReasons = {};         // только у админа: uid → причина и подробности
       let appeals = {};            // только у админа: uid → обращение в поддержку
       let bansListener = null, myBanListener = null, reasonsListener = null, iAmBanned = false;
-      let myReasonListener = null, myAppealListener = null, appealsListener = null, appealsFirstSnap = true;
+      let myReasonListener = null, myAppealListener = null, appealsListener = null, appealsFirstSnap = true, myDeletedListener = null;
       const isBanned = (uid) => !!bansCache[uid];
       function startBanListeners() {
           stopBanListeners(false);
           if (!currentUser) return;
+          // Аккаунт удалили, пока человек в приложении
+          myDeletedListener = onSnapshot(doc(db, "deleted_accounts", currentUser.uid), (snap) => { if (snap.exists() && !isAdmin) showDeletedScreen(); }, () => {});
           // Свой бан — слушаем всегда, чтобы заблокировать сразу, даже посреди переписки
           myBanListener = onSnapshot(doc(db, "bans", currentUser.uid), (snap) => {
               const wasBanned = iAmBanned;
@@ -1226,6 +1246,7 @@
           if (myReasonListener) { myReasonListener(); myReasonListener = null; }
           if (myAppealListener) { myAppealListener(); myAppealListener = null; }
           if (appealsListener) { appealsListener(); appealsListener = null; }
+          if (myDeletedListener) { myDeletedListener(); myDeletedListener = null; }
           if (!resetState) return;
           bansCache = {}; banReasons = {}; appeals = {}; iAmBanned = false;
           document.getElementById("banned-screen").style.display = "none";
@@ -1258,6 +1279,70 @@
           }
           btn.disabled = false;
       });
+
+      // ===== УДАЛЕНИЕ АККАУНТА (разработчик) =====
+      // Учётную запись входа (email+пароль) из браузера удалить нельзя — это умеет только сервер (Cloud Functions).
+      // Поэтому: стираем все данные и ставим метку deleted_accounts/{uid}, по которой вход навсегда блокируется.
+      function showDeletedScreen() {
+          stopPresence(false);
+          document.getElementById("global-loader").style.display = "none";
+          document.getElementById("deleted-screen").style.display = "flex";
+      }
+      document.getElementById("deleted-ok-btn").addEventListener("click", () => {
+          document.getElementById("deleted-screen").style.display = "none";
+          signOut(auth);
+      });
+      async function deleteRefsInChunks(refs) {
+          for (let i = 0; i < refs.length; i += 400) {
+              const batch = writeBatch(db);
+              refs.slice(i, i + 400).forEach(r => batch.delete(r));
+              await batch.commit();
+          }
+      }
+      async function deleteUserAccount(uid, btn) {
+          if (!isAdmin || !uid || uid === currentUser.uid) return;
+          const u = usersCache[uid] || {}; const name = u.name || "";
+          if (u.email === ADMIN_EMAIL) return showToast("Нельзя удалить администратора", "alert");
+          const typed = prompt(`Удалить аккаунт «${name}» навсегда?\n\nБудут удалены профиль, ник, личные чаты и уведомления, а войти в аккаунт будет нельзя. Отменить это невозможно.\n\nДля подтверждения введите ник пользователя:`, "");
+          if (typed === null) return;
+          if (nickKey(typed) !== nickKey(name)) return showToast("Ник введён неверно — аккаунт не удалён", "alert");
+          const wipeMessages = confirm(`Удалить также ВСЕ сообщения «${name}» — в личных чатах, беседах и глобальном чате?\n\nОК — удалить сообщения\nОтмена — оставить их`);
+
+          btn.disabled = true; showToast(`Удаляем аккаунт «${name}»...`, "trash");
+          const failed = [];
+          const step = async (label, fn) => { try { await fn(); } catch (e) { console.error("Удаление аккаунта, шаг «" + label + "»:", e); failed.push(label); } };
+
+          // 1. Сначала блокируем вход — даже если дальше что-то не удалится, пользователь уже не войдёт
+          await step("блокировка входа", () => setDoc(doc(db, "deleted_accounts", uid), { uid: uid, name: name, email: u.email || "", deletedBy: currentUser.uid, deletedAt: new Date() }));
+          if (failed.length) { btn.disabled = false; return showToast("Нет прав на удаление — добавьте правила Firestore (deleted_accounts)", "error"); }
+
+          if (wipeMessages) await step("сообщения", async () => {
+              const snap = await getDocs(query(collection(db, "messages"), where("uid", "==", uid)));
+              await deleteRefsInChunks(snap.docs.map(d => d.ref));
+          });
+          await step("личные чаты", () => deleteRefsInChunks(Object.keys(chatsMetaCache).filter(id => id.includes("_") && id.split("_").includes(uid)).map(id => doc(db, "chats_metadata", id))));
+          await step("уведомления", async () => {
+              const snap = await getDocs(query(collection(db, "notifications"), where("toUid", "==", uid)));
+              await deleteRefsInChunks(snap.docs.map(d => d.ref));
+          });
+          await step("беседы", async () => {
+              const snap = await getDocs(query(collection(db, "groups"), where("members", "array-contains", uid)));
+              await Promise.all(snap.docs.map(d => updateDoc(d.ref, { members: arrayRemove(uid) })));
+          });
+          await step("ник", async () => {
+              const key = u.nameKey || nickKey(name); if (!key) return;
+              const ref = doc(db, "usernames", key); const snap = await getDoc(ref);
+              if (snap.exists() && snap.data().uid === uid) await deleteDoc(ref);
+          });
+          await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals"].map(c => doc(db, c, uid))));
+          await step("профиль", () => deleteDoc(doc(db, "users", uid)));
+          delete usersCache[uid];
+
+          btn.disabled = false;
+          renderDevPanel(); renderChatList(document.getElementById("search-input").value);
+          if (failed.length) showToast(`Аккаунт заблокирован, но удалено не всё: ${failed.join(", ")}. Проверьте правила Firestore.`, "alert");
+          else showToast(`Аккаунт «${name}» удалён`, "trash");
+      }
 
       async function toggleBan(uid, btn) {
           if (!isAdmin || !uid || uid === currentUser.uid) return;
@@ -1330,7 +1415,7 @@
               const online = isUserOnline(u);
               const banned = isBanned(u.uid), ban = bansCache[u.uid];
               const canBan = u.uid !== currentUser.uid && u.email !== ADMIN_EMAIL;
-              const banBtn = canBan ? `<button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(u.uid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button>` : '';
+              const banBtn = canBan ? `<div class="dev-actions"><button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(u.uid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button><button class="dev-ban-btn dev-del-btn" data-del-uid="${escapeHTML(u.uid)}" title="Удалить аккаунт"><svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Удалить</span></button></div>` : '';
               const why = banned ? (banReasons[u.uid]?.reason || ban.reason || "") : "";
               const sub = banned ? `Бан ${formatRegDate(getTime(ban.bannedAt))}${why ? ' · ' + escapeHTML(why) : ''}` : escapeHTML(u.email || "");
               return `<div class="dev-row${banned ? ' banned' : ''}" data-dev-uid="${escapeHTML(u.uid)}">
@@ -1366,6 +1451,8 @@
       document.getElementById("dev-list").addEventListener("click", (e) => {
           const banBtn = e.target.closest("[data-ban-uid]");
           if (banBtn) { e.stopPropagation(); toggleBan(banBtn.getAttribute("data-ban-uid"), banBtn); return; }
+          const delBtn = e.target.closest("[data-del-uid]");
+          if (delBtn) { e.stopPropagation(); deleteUserAccount(delBtn.getAttribute("data-del-uid"), delBtn); return; }
           const row = e.target.closest("[data-dev-uid]"); if (!row) return;
           document.getElementById("dev-panel-screen").style.display = "none";
           openPublicProfile(row.getAttribute("data-dev-uid"));
@@ -1379,6 +1466,7 @@
           let usersFirstSnap = true;
           usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
             snapshot.docChanges().forEach(change => {
+              if (change.type === "removed") { delete usersCache[change.doc.id]; return; } // профиль удалён
               let u = change.doc.data();
               if(u && u.uid) {
                   // Админу — уведомление о свежей регистрации (ник появляется чуть позже самого профиля)
@@ -2075,6 +2163,9 @@
         if (user) {
           currentUser = user; isAdmin = (user.email === ADMIN_EMAIL);
           if(isAdmin) { document.getElementById("admin-badge").style.display = "inline-flex"; document.getElementById("dev-panel-btn").style.display = "flex"; }
+
+          // Аккаунт удалён админом — профиль заново не создаём, показываем экран и выходим
+          try { if ((await getDoc(doc(db, "deleted_accounts", user.uid))).exists()) { showDeletedScreen(); return; } } catch (_) {}
 
           let safeName = user.displayName || "Загрузка...";
           // Ник пишем, только если он уже есть (при регистрации он появится чуть позже — его занимает claimNickname)
