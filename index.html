@@ -471,6 +471,9 @@
       /* Многострочные сообщения */
       #message-input { resize: none; box-sizing: border-box; max-height: 140px; line-height: 1.35; font-family: inherit; overflow-y: auto; display: block; }
       .msg-text-content { white-space: pre-wrap; word-break: break-word; }
+      .msg-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; word-break: break-all; }
+      .my-msg .msg-link { color: #fff; text-decoration-color: rgba(255,255,255,.7); }
+      .msg-link:hover { text-decoration-thickness: 2px; }
     </style>
   </head>
   <body>
@@ -864,7 +867,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.27</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.29</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1061,6 +1064,30 @@
       // Последнее сообщение чата моё? (по uid; старые записи — по имени)
       const isMyMeta = (meta) => meta.lastMessageSenderUid ? meta.lastMessageSenderUid === currentUser.uid : meta.lastMessageSender === currentUser.displayName;
 
+      // ===== ССЫЛКИ В СООБЩЕНИЯХ =====
+      // Находим https://…, www.… и «голые» адреса вида site.ru/… и делаем их кликабельными.
+      // Текст экранируется по кусочкам, поэтому HTML из сообщения по-прежнему не выполняется.
+      const LINK_RE = /(?:https?:\/\/|www\.)[^\s<>"']+|(?:[a-zа-яё0-9-]+\.)+(?:ru|рф|com|org|net|io|me|app|dev|su|info|tv|gg|by|kz|ua|online|site|store|pro|xyz|live|link)(?::\d+)?(?:\/[^\s<>"']*)?/gi;
+      function linkify(raw) {
+          raw = String(raw || ""); let out = "", last = 0;
+          for (const m of raw.matchAll(LINK_RE)) {
+              let url = m[0]; const i = m.index; const prev = raw[i - 1];
+              if (prev && /[\w@.\/-]/.test(prev)) continue; // часть e-mail или слова
+              let trail = "";
+              while (/[.,!?:;)\]}»…]$/.test(url)) {
+                  if (url.endsWith(")") && url.split("(").length > url.split(")").length - 1) break; // скобка из самой ссылки (Википедия)
+                  trail = url.slice(-1) + trail; url = url.slice(0, -1);
+              }
+              const href = /^https?:\/\//i.test(url) ? url : "https://" + url;
+              let host;
+              try { host = new URL(href).hostname.toLowerCase(); } catch (_) { continue; }
+              const internal = host === "owlmes.ru" || host === "www.owlmes.ru";
+              out += escapeHTML(raw.slice(last, i)) +
+                  `<a class="msg-link" href="${escapeHTML(href)}" target="_blank" rel="noopener noreferrer nofollow"${internal ? " data-owl-link" : ""}>${escapeHTML(url)}</a>` + escapeHTML(trail);
+              last = i + m[0].length;
+          }
+          return out + escapeHTML(raw.slice(last));
+      }
       function escapeHTML(str) {
         if (!str) return "";
         return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
@@ -2674,6 +2701,9 @@
           }, 1000);
 
         } else {
+          // Вышли из аккаунта — перезапускаем приложение начисто, чтобы данные и права
+          // прошлого аккаунта (например, панель разработчика) не достались следующему
+          if (currentUser) { location.reload(); return; }
           document.getElementById("global-loader").style.display = "none";
           document.getElementById("auth-screen").style.display = "flex"; 
           document.getElementById("app-container").style.display = "none";
@@ -3149,8 +3179,7 @@
 
                     let textEl = existingRow.querySelector('.msg-text-content');
                     if(textEl && msg.edited) {
-                         let safeText = escapeHTML(msg.text);
-                         if(textEl.innerHTML !== safeText) textEl.innerHTML = safeText;
+                         if (textEl.dataset.raw !== msg.text) { textEl.innerHTML = linkify(msg.text); textEl.dataset.raw = msg.text; }
                          let editedMarker = existingRow.querySelector('.edited-marker');
                          if(editedMarker && editedMarker.style.display === 'none') editedMarker.style.display = 'inline';
                     }
@@ -3185,7 +3214,7 @@
                     }
 
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
-                    if (msg.text) contentHtml += `<span class="msg-text-content">${escapeHTML(msg.text)}</span>`;
+                    if (msg.text) contentHtml += `<span class="msg-text-content">${linkify(msg.text)}</span>`;
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
                     if (msg.audioUrl) contentHtml += `<audio controls src="${escapeHTML(msg.audioUrl)}"></audio>`;
 
@@ -3248,6 +3277,18 @@
       };
 
       document.getElementById("chat-box").addEventListener("click", async (e) => {
+        let owlLink = e.target.closest("a[data-owl-link]");
+        if (owlLink) {
+           e.preventDefault();
+           try {
+               const u = new URL(owlLink.href), add = u.searchParams.get("add"), chat = u.searchParams.get("chat");
+               if (add) { window.__pendingAdd = add; openPendingInvite(); }
+               else if (chat) window.openChatById(chat);
+               else if (u.pathname.length > 1) window.open(u.href, "_blank", "noopener");
+           } catch (_) {}
+           return;
+        }
+        if (e.target.closest("a.msg-link")) return; // обычная ссылка — пусть браузер откроет
         let replyBtn = e.target.closest(".reply-btn");
         if (replyBtn) { startReply(replyBtn.getAttribute("data-id")); return; }
         let reportBtn = e.target.closest(".report-btn");
