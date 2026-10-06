@@ -956,12 +956,18 @@
       // <audio> телефон считает «медиа» и ставит музыку на паузу. Поэтому короткий сигнал синтезируем через Web Audio,
       // а на iOS включаем режим ambient — звук смешивается с музыкой (и уважает беззвучный режим).
       const audioSession = navigator.audioSession;
-      if (audioSession) { try { audioSession.type = "ambient"; } catch (_) {} }
+      const setAudioSession = (type) => { if (audioSession) try { audioSession.type = type; } catch (_) {} };
+      setAudioSession("ambient");
+      // Вернуться в «фоновый» режим, когда ничего не играет и не пишется (в ambient iOS запрещает запись с микрофона!)
+      function restoreAmbient() {
+          if (isRecording) return;
+          if (![...document.querySelectorAll("audio")].some(a => !a.paused)) setAudioSession("ambient");
+      }
       // Голосовые сообщения — полноценное воспроизведение, на это время переключаемся в playback
       document.addEventListener("play", (e) => { if (audioSession && e.target.tagName === "AUDIO") try { audioSession.type = "playback"; } catch (_) {} }, true);
       ["pause", "ended"].forEach(ev => document.addEventListener(ev, (e) => {
           if (!audioSession || e.target.tagName !== "AUDIO") return;
-          if (![...document.querySelectorAll("audio")].some(a => !a.paused)) try { audioSession.type = "ambient"; } catch (_) {}
+          restoreAmbient();
       }, true));
 
       let notifyCtx = null;
@@ -2599,6 +2605,8 @@
 
         if (!isRecording) {
           try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+            setAudioSession("play-and-record"); // в режиме ambient (для звуков уведомлений) iOS не даёт микрофон
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream); audioChunks = []; 
             mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
@@ -2610,12 +2618,23 @@
                  sendMessage(null, null, e.target.result);
               };
               reader.readAsDataURL(audioBlob); audioChunks = [];
+              restoreAmbient();
             };
             
             mediaRecorder.start(); isRecording = true;
             micBtn.classList.add("recording"); micBtn.innerHTML = stopIconSVG;
             msgInput.value = ""; msgInput.placeholder = "Идёт запись... (нажми стоп)"; msgInput.disabled = true;
-          } catch(err) { console.error(err); alert("Ошибка микрофона! Проверьте, дали ли вы доступ в браузере."); }
+          } catch(err) {
+            console.error(err); restoreAmbient();
+            const why = {
+              NotAllowedError: "Нет доступа к микрофону. Разрешите его: на iPhone — Настройки → Приложения → Safari → Микрофон, на компьютере — значок замка в адресной строке.",
+              SecurityError: "Нет доступа к микрофону. Разрешите его в настройках браузера для этого сайта.",
+              NotFoundError: "Микрофон не найден. Проверьте, что он подключён.",
+              NotReadableError: "Микрофон занят другим приложением (например, звонком). Завершите его и попробуйте снова.",
+              NotSupportedError: "Этот браузер не умеет записывать голосовые. Обновите его или откройте Owl в Safari/Chrome."
+            }[err && err.name] || ("Не удалось включить микрофон" + (err && err.name ? " (" + err.name + ")" : "") + ". Попробуйте ещё раз.");
+            alert(why);
+          }
         } else {
           if (mediaRecorder && mediaRecorder.state !== "inactive") { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
           isRecording = false; micBtn.classList.remove("recording"); micBtn.innerHTML = micIconSVG;
@@ -2931,47 +2950,6 @@
         }, 1500);
         // Смена темы — сразу перекрашиваем «подложку»
         new MutationObserver(() => setTimeout(syncCanvasColor, 350)).observe(document.body, { attributes: true, attributeFilter: ["data-theme", "style"] });
-      })();
-    </script>
-    <script>
-      // Диагностика размеров экрана: 5 быстрых нажатий на версию внизу. Нужна, чтобы разобраться с полосой снизу на iPhone.
-      (function () {
-        const ver = document.getElementById("app-version"); if (!ver) return;
-        let taps = [], box = null, timer = null;
-        try { localStorage.removeItem("owl-vp-extend"); } catch (_) {}
-        const px = (v) => Math.round(v * 10) / 10;
-        function safeArea() {
-          const t = document.createElement("div");
-          t.style.cssText = "position:fixed;left:0;top:0;visibility:hidden;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0";
-          document.body.appendChild(t); const cs = getComputedStyle(t); const r = [cs.paddingTop, cs.paddingBottom]; t.remove(); return r;
-        }
-        function render() {
-          const vv = window.visualViewport, [sat, sab] = safeArea(), de = document.documentElement;
-          const app = document.getElementById("app-container").getBoundingClientRect(), body = document.body.getBoundingClientRect();
-          box.innerText = [
-            "Owl — диагностика экрана",
-            "screen: " + screen.width + " × " + screen.height,
-            "window.inner: " + innerWidth + " × " + innerHeight,
-            "html.client: " + de.clientWidth + " × " + de.clientHeight,
-            "visualViewport: " + (vv ? px(vv.width) + " × " + px(vv.height) + "  offsetTop " + px(vv.offsetTop) : "нет"),
-            "body: top " + px(body.top) + "  h " + px(body.height),
-            "app: top " + px(app.top) + "  h " + px(app.height),
-            "safe-area: top " + sat + "  bottom " + sab,
-            "standalone: " + (navigator.standalone === true) + "  dpr " + devicePixelRatio,
-            "classes: " + (de.className || "—"),
-            "",
-            "Нажмите, чтобы закрыть"
-          ].join("\n");
-
-        }
-        ver.addEventListener("click", () => {
-          const now = Date.now(); taps = taps.filter(t => now - t < 2000); taps.push(now);
-          if (taps.length < 5) return; taps = [];
-          box = document.createElement("div");
-          box.style.cssText = "position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:30000;background:rgba(0,0,0,.85);color:#7CFC9A;font:12px/1.45 ui-monospace,Menlo,monospace;padding:12px;border-radius:12px;white-space:pre-wrap;";
-          box.addEventListener("click", () => { clearInterval(timer); box.remove(); box = null; });
-          document.body.appendChild(box); render(); timer = setInterval(render, 500);
-        });
       })();
     </script>
     <script>
