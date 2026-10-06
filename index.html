@@ -157,6 +157,16 @@
       .msg-time { font-size: 11px; opacity: 0.7; }
       .msg-ticks { display: inline-flex; align-items: center; opacity: 0.6; transition: color .2s, opacity .2s; }
       .msg-ticks svg { display: block; }
+      .msg-ticks.pending { opacity: .75; }
+      #net-banner { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 30000; transform: translate(-50%, -140%); transition: transform .3s cubic-bezier(.2,.8,.2,1), background .3s; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); padding: 8px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: #fff; background: rgba(40, 32, 64, .82); -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); box-shadow: 0 8px 26px rgba(0,0,0,.3); pointer-events: none; white-space: nowrap; }
+      #net-banner.show { transform: translate(-50%, 0); }
+      #net-banner.offline { background: rgba(214, 58, 48, .88); }
+      #net-banner.slow { background: rgba(196, 128, 18, .9); }
+      #net-banner.back { background: rgba(31, 157, 85, .9); }
+      #net-banner .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: net-spin .8s linear infinite; flex-shrink: 0; }
+      #net-banner.back .spin, #net-banner.offline .spin { display: none; }
+      #net-banner span { overflow: hidden; text-overflow: ellipsis; }
+      @keyframes net-spin { to { transform: rotate(360deg); } }
       .msg-ticks.read { opacity: 1; color: #ffc53d; filter: drop-shadow(0 0 3px rgba(255, 197, 61, .55)); } /* прочитано — золотые, как совиные глаза */
 
       /* ОТВЕТЫ НА СООБЩЕНИЯ */
@@ -740,6 +750,8 @@
       </div>
     </div>
 
+    <div id="net-banner" role="status" aria-live="polite"><i class="spin"></i><span id="net-banner-text"></span></div>
+
     <!-- ПЕРВЫЙ ЗАПУСК: приветствие для новых пользователей -->
     <div id="onboarding-screen" class="modal-screen" style="display: none;">
       <div class="modal-box">
@@ -852,7 +864,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.25</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.26</div>
       </div>
       
       <!-- ЧАТ -->
@@ -971,6 +983,14 @@
 
       const sendIconSVG = `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="transform: translateX(-1px);"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
       const tickOneSVG = `<svg viewBox="0 0 16 11" width="16" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 6 4.5 9 10.5 2"></polyline></svg>`;
+      const tickClockSVG = `<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2"></circle><polyline points="8 4.6 8 8 10.4 9.4"></polyline></svg>`;
+      const tickState = (m) => m._pending ? "pending" : (m.read ? "read" : "sent");
+      const TICK_VIEW = { pending: ["Отправляется…", tickClockSVG], sent: ["Отправлено", null], read: ["Прочитано", null] };
+      function ticksHtmlFor(m) {
+          const st = tickState(m);
+          const svg = st === "pending" ? tickClockSVG : st === "read" ? tickTwoSVG : tickOneSVG;
+          return `<span class="msg-ticks ${st}" data-state="${st}" title="${TICK_VIEW[st][0]}">${svg}</span>`;
+      }
       const tickTwoSVG = `<svg viewBox="0 0 16 11" width="16" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5 6 4.5 9 10.5 2"></polyline><polyline points="7.5 8 8.5 9 14.5 2"></polyline></svg>`;
       const replyIconSVG = `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>`;
       const checkIconSVG = `<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -2717,6 +2737,42 @@
       window.addEventListener("focus", markVisibleAsRead);
 
       const OFFICIAL_BADGE_13 = `<span style="display:inline-flex; align-items:center; margin-left:4px; transform:translateY(1px);" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="13" height="13" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>`;
+      // ===== СОЕДИНЕНИЕ: плашка «Нет соединения» =====
+      // offline — браузер говорит, что сети нет; slow — сеть вроде есть, но мои сообщения висят неотправленными
+      const pendingSince = {}; // id моего сообщения → когда заметили, что оно ещё не дошло до сервера
+      let netState = "ok", netBackTimer = null;
+      function trackPendingWrites(snapshot) {
+          snapshot.forEach(d => {
+              if (d.metadata.hasPendingWrites && d.data().uid === currentUser?.uid) { if (!pendingSince[d.id]) pendingSince[d.id] = Date.now(); }
+              else delete pendingSince[d.id];
+          });
+          evalNet();
+      }
+      function setNet(state) {
+          if (state === netState) return;
+          const prev = netState; netState = state;
+          const b = document.getElementById("net-banner"), t = document.getElementById("net-banner-text");
+          clearTimeout(netBackTimer);
+          b.classList.remove("offline", "slow", "back");
+          if (state === "ok") { b.classList.remove("show"); return; }
+          if (state === "back" && prev === "ok") { netState = "ok"; return; }
+          b.classList.add(state, "show");
+          t.innerText = state === "offline" ? "Нет сети — отправим позже"
+              : state === "slow" ? "Подключаемся…"
+              : "Соединение восстановлено";
+          if (state === "back") netBackTimer = setTimeout(() => setNet("ok"), 2200);
+      }
+      function evalNet() {
+          if (!navigator.onLine) return setNet("offline");
+          const times = Object.values(pendingSince);
+          if (times.length && Date.now() - Math.min(...times) > 6000) return setNet("slow");
+          if (netState === "offline" || netState === "slow") setNet("back");
+      }
+      window.addEventListener("online", evalNet);
+      window.addEventListener("offline", evalNet);
+      setInterval(evalNet, 2000);
+      evalNet();
+
       // ===== ПРИГЛАШЕНИЯ: owlmes.ru/?add=ник открывает профиль человека =====
       const inviteLink = () => "https://owlmes.ru/?add=" + encodeURIComponent(usersCache[currentUser.uid]?.name || currentUser.displayName || "");
       async function shareInvite(btn) {
@@ -2916,6 +2972,7 @@
       window.loadChat = (chatId, title, targetUid, isGroup = false) => {
         try {
             if (!chatId) return;
+            Object.keys(pendingSince).forEach(k => delete pendingSince[k]); // следим только за сообщениями открытого чата
             currentChatId = chatId; editingMsgId = null; cancelReply(); closeChatNotifications(chatId); updateUnreadIndicators(totalUnread());
             currentChatTargetUid = (targetUid && !isGroup && chatId !== 'global') ? targetUid : null; currentTypers = [];
 
@@ -3006,16 +3063,17 @@
             let firstSnap = true; // первый снимок (в т.ч. после подгрузки истории) — без звука
             
             // ВАЖНО: Умная отрисовка (Smart Render) работает БЕЗ морганий
-            activeListener = onSnapshot(q, (snapshot) => {
+            activeListener = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
               if (currentChatId !== chatId) return;
               let messages = [];
+              trackPendingWrites(snapshot);
 
-              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added") { let msg = change.doc.data(); if (msg.uid !== currentUser.uid && !iBlocked(msg.uid)) { playNotifySound(); } } });
+              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added" && !change.doc.metadata.hasPendingWrites) { let msg = change.doc.data(); if (msg.uid !== currentUser.uid && !iBlocked(msg.uid)) { playNotifySound(); } } });
               firstSnap = false;
 
               snapshot.forEach(docSnap => {
-                let msg = docSnap.data(); messages.push({ id: docSnap.id, ...msg });
-                loadedMsgs[docSnap.id] = { id: docSnap.id, ...msg };
+                let msg = { id: docSnap.id, ...docSnap.data(), _pending: docSnap.metadata.hasPendingWrites };
+                messages.push(msg); loadedMsgs[docSnap.id] = msg;
               });
               markVisibleAsRead();
               
@@ -3049,10 +3107,7 @@
                     }
 
                     let ticksEl = existingRow.querySelector('.msg-ticks');
-                    if (ticksEl && isMe && ticksEl.classList.contains('read') !== !!msg.read) {
-                        ticksEl.classList.toggle('read', !!msg.read); ticksEl.innerHTML = msg.read ? tickTwoSVG : tickOneSVG;
-                        ticksEl.title = msg.read ? "Прочитано" : "Отправлено";
-                    }
+                    if (ticksEl && isMe && ticksEl.getAttribute('data-state') !== tickState(msg)) ticksEl.outerHTML = ticksHtmlFor(msg);
 
                     let textEl = existingRow.querySelector('.msg-text-content');
                     if(textEl && msg.edited) {
@@ -3097,7 +3152,7 @@
                     if (msg.audioUrl) contentHtml += `<audio controls src="${escapeHTML(msg.audioUrl)}"></audio>`;
 
                     let editedHtml = `<span class="edited-marker" style="font-size:10px; opacity:0.5; margin-right:4px; display:${msg.edited ? 'inline' : 'none'};">(изм.)</span>`;
-                    let ticksHtml = isMe ? `<span class="msg-ticks${msg.read ? ' read' : ''}" title="${msg.read ? 'Прочитано' : 'Отправлено'}">${msg.read ? tickTwoSVG : tickOneSVG}</span>` : "";
+                    let ticksHtml = isMe ? ticksHtmlFor(msg) : "";
                     
                     contentHtml += `<div class="msg-meta">${editedHtml}<span class="msg-time">${timeString}</span>${ticksHtml}</div>`;
                     contentHtml += `<div class="reactions-list-container">${buildReactionsHtml(msg)}</div>`;
@@ -3257,7 +3312,12 @@
             timestamp: msgData.timestamp,
             unreadCount: (chatId === 'global' ? 0 : increment(1))
         }, { merge: true }).catch(e => console.log("Превью чата:", e));
-        await saving;
+        try { await saving; }
+        catch (err) {
+            delete pendingSince[msgRef.id]; evalNet();
+            console.error(err);
+            return showToast(err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз", "error");
+        }
         if (chatId !== "global") notifyPushServer(msgRef.id);
       }
       // Самое новое из загруженных сообщений открытого чата
