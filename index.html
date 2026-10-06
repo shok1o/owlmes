@@ -225,7 +225,7 @@
         /* Клавиатура открыта, или iOS не вернул высоту окна после неё (снизу полоска цвета панели) — запас под «домой» не нужен */
         html.kb-open .input-area, html.vp-stuck .input-area { padding-bottom: 12px; }
         /* Эксперимент: растянуть приложение вниз на высоту статус-бара (баг iOS 27: окно короче экрана на эту величину) */
-        html.vp-extend body { bottom: calc(-1 * env(safe-area-inset-top)); }
+        html.vp-extend body { height: auto; bottom: calc(-1 * env(safe-area-inset-top)); } /* height:auto — иначе 100dvh из базового стиля перебивает bottom */
         html.vp-extend.vp-stuck .input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         .message-content { max-width: 85%; }
         .chat-item-info { border-bottom: none; }
