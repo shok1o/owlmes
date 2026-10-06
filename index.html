@@ -2723,7 +2723,8 @@
           const url = inviteLink(), name = usersCache[currentUser.uid]?.name || currentUser.displayName || "";
           const text = `Привет! Я в Owl — пиши мне, мой ник ${name}`;
           try {
-              if (navigator.share) { await navigator.share({ title: "Owl Messenger", text, url }); return; }
+              // Ссылку кладём прямо в текст: многие приложения (мессенджеры, «Скопировать») при отдельном url берут только текст
+              if (navigator.share) { await navigator.share({ text: text + "\n" + url }); return; }
           } catch (e) { if (e && e.name === "AbortError") return; }
           try { await navigator.clipboard.writeText(text + "\n" + url); showToast("Ссылка скопирована", "check"); if (btn) { btn.classList.add("done"); btn.innerHTML = icon("check", 16) + "Скопировано"; } }
           catch (_) { prompt("Скопируйте ссылку:", url); }
