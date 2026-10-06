@@ -1,5 +1,5 @@
-const CACHE = 'owl-shell-v4';
-const SHELL = ['/', '/manifest.json', '/images/icon-192.png', '/images/icon-512.png', '/images/apple-touch-icon.png'];
+const CACHE = 'owl-shell-v5';
+const SHELL = ['/', '/manifest.json', '/images/icon-192.png', '/images/icon-512.png', '/images/apple-touch-icon.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
