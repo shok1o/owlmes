@@ -201,7 +201,7 @@
       @media (max-width: 768px) {
         /* iOS: страница не должна прокручиваться целиком — иначе после закрытия клавиатуры интерфейс остаётся сдвинутым */
         html { height: 100%; overflow: hidden; }
-        body { position: fixed; inset: 0; width: 100%; height: auto; overscroll-behavior: none; }
+        body { position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: var(--app-h, auto); width: 100%; overscroll-behavior: none; }
         #app-container { border-radius: 0; flex-direction: row; }
         #sidebar { width: 100%; flex-shrink: 0; display: flex; border-right: none;}
         #main-chat { width: 100%; flex-shrink: 0; display: none; }
@@ -2492,11 +2492,31 @@
         const send = document.getElementById("send-button");
         ["pointerdown", "mousedown", "touchstart"].forEach(ev => send.addEventListener(ev, e => { if (document.activeElement === ta) e.preventDefault(); }, { passive: false }));
 
-        // iOS иногда оставляет страницу прокрученной после закрытия клавиатуры — возвращаем на место
-        const keyboardOpen = () => window.visualViewport && window.visualViewport.height < window.innerHeight * 0.85;
-        const unshift = () => { if (keyboardOpen()) return; if (window.scrollY || document.documentElement.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; } };
-        ta.addEventListener("blur", () => setTimeout(unshift, 50));
-        if (window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(unshift, 50));
+        // Высота приложения на телефоне. iOS в режиме «На экран Домой» после закрытия клавиатуры
+        // не возвращает высоту окна — снизу остаётся пустая полоса.
+        // Пока клавиатура открыта, ничего не трогаем: iOS сам поднимает поле ввода над ней.
+        // Когда клавиатура закрылась — возвращаем приложению всю высоту экрана и сбрасываем сдвиг.
+        const root = document.documentElement;
+        const iosStandalone = navigator.standalone === true;
+        const isLandscape = () => (screen.orientation && screen.orientation.type) ? screen.orientation.type.startsWith("landscape") : Math.abs(window.orientation || 0) === 90;
+        const fullHeight = () => iosStandalone ? (isLandscape() ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height)) : window.innerHeight;
+        const typing = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && !["checkbox", "radio", "button", "file", "submit"].includes(a.type)) || a.isContentEditable); };
+        let raf = 0;
+        function applyAppHeight() {
+            raf = 0;
+            if (typing()) { root.style.removeProperty("--app-h"); return; } // клавиатура открыта — режим iOS по умолчанию
+            root.style.setProperty("--app-h", fullHeight() + "px");
+            if (window.scrollY || root.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); root.scrollTop = 0; document.body.scrollTop = 0; }
+        }
+        const schedule = () => { if (!raf) raf = setTimeout(applyAppHeight, 16); };
+        document.addEventListener("focusin", () => { if (typing()) root.style.removeProperty("--app-h"); });
+        document.addEventListener("focusout", () => { setTimeout(schedule, 50); setTimeout(schedule, 400); }); // после анимации закрытия клавиатуры
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", schedule);
+        window.addEventListener("resize", schedule);
+        window.addEventListener("orientationchange", () => setTimeout(schedule, 300));
+        window.addEventListener("pageshow", schedule);
+        document.addEventListener("visibilitychange", schedule);
+        applyAppHeight();
       })();
     </script>
     <script>
