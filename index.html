@@ -716,7 +716,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.16</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.16</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2931,6 +2931,45 @@
         }, 1500);
         // Смена темы — сразу перекрашиваем «подложку»
         new MutationObserver(() => setTimeout(syncCanvasColor, 350)).observe(document.body, { attributes: true, attributeFilter: ["data-theme", "style"] });
+      })();
+    </script>
+    <script>
+      // Диагностика размеров экрана: 5 быстрых нажатий на версию внизу. Нужна, чтобы разобраться с полосой снизу на iPhone.
+      (function () {
+        const ver = document.getElementById("app-version"); if (!ver) return;
+        let taps = [], box = null, timer = null;
+        const px = (v) => Math.round(v * 10) / 10;
+        function safeArea() {
+          const t = document.createElement("div");
+          t.style.cssText = "position:fixed;left:0;top:0;visibility:hidden;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0";
+          document.body.appendChild(t); const cs = getComputedStyle(t); const r = [cs.paddingTop, cs.paddingBottom]; t.remove(); return r;
+        }
+        function render() {
+          const vv = window.visualViewport, [sat, sab] = safeArea(), de = document.documentElement;
+          const app = document.getElementById("app-container").getBoundingClientRect(), body = document.body.getBoundingClientRect();
+          box.innerText = [
+            "Owl — диагностика экрана",
+            "screen: " + screen.width + " × " + screen.height,
+            "window.inner: " + innerWidth + " × " + innerHeight,
+            "html.client: " + de.clientWidth + " × " + de.clientHeight,
+            "visualViewport: " + (vv ? px(vv.width) + " × " + px(vv.height) + "  offsetTop " + px(vv.offsetTop) : "нет"),
+            "body: top " + px(body.top) + "  h " + px(body.height),
+            "app: top " + px(app.top) + "  h " + px(app.height),
+            "safe-area: top " + sat + "  bottom " + sab,
+            "standalone: " + (navigator.standalone === true) + "  dpr " + devicePixelRatio,
+            "classes: " + (de.className || "—"),
+            "",
+            "Нажмите, чтобы закрыть"
+          ].join("\n");
+        }
+        ver.addEventListener("click", () => {
+          const now = Date.now(); taps = taps.filter(t => now - t < 2000); taps.push(now);
+          if (taps.length < 5) return; taps = [];
+          box = document.createElement("div");
+          box.style.cssText = "position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:30000;background:rgba(0,0,0,.85);color:#7CFC9A;font:12px/1.45 ui-monospace,Menlo,monospace;padding:12px;border-radius:12px;white-space:pre-wrap;";
+          box.addEventListener("click", () => { clearInterval(timer); box.remove(); box = null; });
+          document.body.appendChild(box); render(); timer = setInterval(render, 500);
+        });
       })();
     </script>
     <script>
