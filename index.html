@@ -775,7 +775,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.20</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.21</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1199,7 +1199,7 @@
 
       // ===== ОНЛАЙН-СТАТУС =====
       const ONLINE_TTL = 3 * 60 * 1000;     // считаем онлайн, если пульс был не позже 3 мин назад
-      const HEARTBEAT_MS = 60 * 1000;
+      const HEARTBEAT_MS = 2 * 60 * 1000; // каждый пульс рассылается всем, кто слушает профили, — реже значит дешевле
       let presenceTimer = null; let presenceInit = false;
       const myHideOnline = () => !!(currentUser && usersCache[currentUser.uid]?.hideOnline);
 
@@ -2450,12 +2450,16 @@
           document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
       });
 
-      let typingTimer; let typingListener = null;
+      // «Печатает...» — пишем не на каждую букву, а не чаще раза в 3 секунды (раньше каждая буква = запись в базу)
+      let typingTimer; let typingListener = null; let lastTypingWrite = 0;
       document.getElementById("message-input").addEventListener("input", () => {
           if(!currentUser || !currentChatId || currentChatId === 'global') return;
           let docId = currentChatId + "_" + currentUser.uid;
-          setDoc(doc(db, "typing", docId), { chatId: currentChatId, uid: currentUser.uid, name: currentUser.displayName, isTyping: true, timestamp: new Date() }, {merge: true});
-          clearTimeout(typingTimer); typingTimer = setTimeout(() => { setDoc(doc(db, "typing", docId), { isTyping: false, timestamp: new Date() }, {merge: true}); }, 2000);
+          if (Date.now() - lastTypingWrite > 3000) {
+              lastTypingWrite = Date.now();
+              setDoc(doc(db, "typing", docId), { chatId: currentChatId, uid: currentUser.uid, name: currentUser.displayName, isTyping: true, timestamp: new Date() }, {merge: true}).catch(() => {});
+          }
+          clearTimeout(typingTimer); typingTimer = setTimeout(() => { lastTypingWrite = 0; setDoc(doc(db, "typing", docId), { isTyping: false, timestamp: new Date() }, {merge: true}).catch(() => {}); }, 3000);
       });
 
       // Хелпер для умной отрисовки реакций
