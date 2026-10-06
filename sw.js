@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v5';
+const CACHE = 'owl-shell-v6';
 const SHELL = ['/', '/manifest.json', '/images/icon-192.png', '/images/icon-512.png', '/images/apple-touch-icon.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -25,9 +25,9 @@ const offlineHtml = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Owl | Нет сети</title>
   <style>
-    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background-color: #0e1621; color: #ffffff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+    body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background-color: #0b0913; color: #ffffff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
     h1 { color: #ff3b30; margin-bottom: 10px; }
-    p { color: #7f8991; max-width: 280px; font-size: 15px; line-height: 1.4; }
+    p { color: #8c86a6; max-width: 280px; font-size: 15px; line-height: 1.4; }
     .icon { font-size: 60px; margin-bottom: 15px; opacity: 0.8; }
   </style>
 </head>
