@@ -775,7 +775,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.19</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.20</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2203,6 +2203,13 @@
          else { btn.innerHTML = pinOutlineSVG; btn.style.opacity = "0.7"; btn.style.color = "var(--text-main)"; }
       }
 
+      // Превью «Имя: текст» для общих чатов; от заблокированных — скрываем
+      function sharedPreview(meta) {
+          let sUid = meta.lastMessageSenderUid;
+          if (!sUid && meta.lastMessageSender) sUid = Object.values(usersCache).find(u => u && u.name === meta.lastMessageSender)?.uid; // старые превью без uid
+          if (sUid && sUid !== currentUser.uid && iBlocked(sUid)) return `<i>Сообщение скрыто</i>`;
+          return iconizePreview(escapeHTML(meta.lastMessageSender + ": " + meta.lastMessageText));
+      }
       function renderChatList(searchQuery = "") {
         if (!currentUser) return; 
         try {
@@ -2219,7 +2226,7 @@
             let chatItemsArray = [];
 
             let globalMeta = chatsMetaCache['global'];
-            let globalPreview = globalMeta && globalMeta.lastMessageText ? iconizePreview(escapeHTML(globalMeta.lastMessageSender + ": " + globalMeta.lastMessageText)) : "Доступен всем пользователям";
+            let globalPreview = globalMeta && globalMeta.lastMessageText ? sharedPreview(globalMeta) : "Доступен всем пользователям";
             let globalTime = globalMeta && globalMeta.timestamp ? getTime(globalMeta.timestamp) : 0;
             
             if (currentFilter === 'all') {
@@ -2234,7 +2241,7 @@
                if (g && g.members && g.members.includes(currentUser.uid)) {
                   if (isSearching && !String(g.name).toLowerCase().includes(val)) return;
                   let meta = chatsMetaCache[g.id];
-                  let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageSender + ": " + meta.lastMessageText)) : `${g.members.length} участников`;
+                  let preview = meta && meta.lastMessageText ? sharedPreview(meta) : `${g.members.length} участников`;
                   let time = meta && meta.timestamp ? getTime(meta.timestamp) : (g.createdAt ? getTime(g.createdAt) : 0);
                   let safeName = escapeHTML(g.name); let av = g.photoURL || generateAvatarSVG(g.name, true);
                   chatItemsArray.push({
@@ -2860,7 +2867,7 @@
            document.getElementById("message-input").focus(); document.getElementById("send-button").innerHTML = checkIconSVG; return;
         }
         let deleteBtn = e.target.closest(".delete-btn");
-        if (deleteBtn) { if(confirm(isAdmin && !e.target.closest('.my-msg') ? "[ADMIN] Удалить чужое сообщение?" : "Удалить сообщение?")) { await deleteDoc(doc(db, "messages", deleteBtn.getAttribute("data-id"))); } }
+        if (deleteBtn) { if(confirm(isAdmin && !e.target.closest('.my-msg') ? "[ADMIN] Удалить чужое сообщение?" : "Удалить сообщение?")) { const id = deleteBtn.getAttribute("data-id"); fixPreviewAfterDelete(id); await deleteDoc(doc(db, "messages", id)); } }
       });
 
       let mediaRecorder; let audioChunks = []; let isRecording = false;
@@ -2912,30 +2919,56 @@
         if (!currentUser || iAmBanned) return;
         { const peer = dmPeer(currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? "Вы заблокировали этого пользователя" : "Пользователь ограничил, кто может ему писать", "block"); } }
         
+        const chatId = currentChatId; // запоминаем сразу: пока идёт запись, человек может переключить чат
+
         if (editingMsgId && text) {
-            await updateDoc(doc(db, "messages", editingMsgId), { text: text, edited: true });
+            const editedId = editingMsgId;
             editingMsgId = null; document.getElementById("send-button").innerHTML = sendIconSVG;
-            await setDoc(doc(db, "chats_metadata", currentChatId), { lastMessageText: "✏️ " + text, timestamp: new Date() }, { merge: true });
+            const edit = updateDoc(doc(db, "messages", editedId), { text: text, edited: true });
+            // Превью меняем, только если отредактировали последнее сообщение чата
+            const latest = latestLoadedMsg();
+            if (latest && latest.id === editedId) setDoc(doc(db, "chats_metadata", chatId), { lastMessageText: "✏️ " + text }, { merge: true }).catch(e => console.log(e));
+            await edit;
             return;
         }
 
-        let msgData = { chatId: currentChatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false };
+        let msgData = { chatId: chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false };
         if (text) msgData.text = text; if (imageUrl) msgData.imageUrl = imageUrl; if (audioUrl) msgData.audioUrl = audioUrl; 
         if (replyingTo) { msgData.replyTo = replyingTo; cancelReply(); }
-        
-        const msgRef = await addDoc(collection(db, "messages"), msgData);
-        if (msgData.chatId !== "global") notifyPushServer(msgRef.id);
 
         let previewText = "";
         if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение";
 
-        await setDoc(doc(db, "chats_metadata", currentChatId), {
+        // Сообщение и превью пишем одновременно, не дожидаясь сервера: Firestore сразу обновляет
+        // локальную копию, поэтому список чатов меняется мгновенно, а не после ответа сервера
+        const msgRef = doc(collection(db, "messages"));
+        const saving = setDoc(msgRef, msgData);
+        setDoc(doc(db, "chats_metadata", chatId), {
             lastMessageText: previewText,
             lastMessageSender: currentUser.displayName,
             lastMessageSenderUid: currentUser.uid,
-            timestamp: new Date(),
-            unreadCount: (currentChatId === 'global' ? 0 : increment(1))
-        }, { merge: true });
+            lastMessageId: msgRef.id,
+            timestamp: msgData.timestamp,
+            unreadCount: (chatId === 'global' ? 0 : increment(1))
+        }, { merge: true }).catch(e => console.log("Превью чата:", e));
+        await saving;
+        if (chatId !== "global") notifyPushServer(msgRef.id);
+      }
+      // Самое новое из загруженных сообщений открытого чата
+      function latestLoadedMsg(exceptId) {
+          let best = null;
+          for (const m of Object.values(loadedMsgs)) { if (m.id !== exceptId && m.chatId === currentChatId && (!best || getTime(m.timestamp) > getTime(best.timestamp))) best = m; }
+          return best;
+      }
+      // Удалили последнее сообщение — превью переводим на предыдущее
+      function fixPreviewAfterDelete(deletedId) {
+          const latest = latestLoadedMsg();
+          if (!latest || latest.id !== deletedId || !currentChatId) return;
+          const prev = latestLoadedMsg(deletedId);
+          const data = prev
+              ? { lastMessageText: msgPreviewText(prev), lastMessageSender: prev.sender || "", lastMessageSenderUid: prev.uid || "", lastMessageId: prev.id }
+              : { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), lastMessageId: deleteField() };
+          setDoc(doc(db, "chats_metadata", currentChatId), data, { merge: true }).catch(e => console.log("Превью чата:", e));
       }
 
       let msgInput = document.getElementById("message-input");
