@@ -1,5 +1,5 @@
-const CACHE = 'owl-shell-v7';
-const SHELL = ['/', '/manifest.json', '/images/icon-192.png', '/images/icon-512.png', '/images/apple-touch-icon.png', '/apple-touch-icon.png'];
+const CACHE = 'owl-shell-v9';
+const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -45,9 +45,11 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET' || url.origin !== self.location.origin) return;
 
     if (req.mode === 'navigate') {
-        // Страницы: сначала сеть, при ошибке — кэш, затем заглушка
+        // Страницы: сначала сеть, при ошибке — кэш, затем заглушка.
+        // cache: 'no-cache' — всегда сверяемся с сервером (GitHub Pages разрешает кэшировать 10 минут,
+        // из-за этого приложение с экрана «Домой» показывало старую версию)
         event.respondWith(
-            fetch(req).then((res) => {
+            fetch(req, { cache: 'no-cache' }).then((res) => {
                 if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
                 return res;
             }).catch(() => caches.match(req).then((r) => r || caches.match('/')).then((r) => r || new Response(offlineHtml, {
