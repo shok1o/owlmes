@@ -357,6 +357,31 @@
       .turnstile-box { margin: 12px 0 5px 0; display: flex; justify-content: center; min-height: 65px; }
     
       #settings-screen .modal-box, #admin-global-screen .modal-box { max-height: 90vh; overflow-y: auto; }
+      #onboarding-screen { z-index: 1500; }
+      #onboarding-screen .modal-box { max-width: 380px; width: calc(100% - 32px); padding: 28px 22px 20px; text-align: center; overflow: hidden; }
+      .ob-viewport { overflow: hidden; }
+      .ob-track { display: flex; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+      .ob-slide { flex: 0 0 100%; padding: 0 4px; box-sizing: border-box; }
+      .ob-icon { width: 84px; height: 84px; margin: 0 auto 18px; border-radius: 26px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #8b5cf6, #5b3fb0); color: #fff; box-shadow: 0 12px 36px rgba(139,92,246,.35); }
+      .ob-icon img { width: 84px; height: 84px; border-radius: 26px; }
+      .ob-slide h2 { margin: 0 0 10px; font-size: 22px; color: var(--text-main); }
+      .ob-slide p { margin: 0 0 10px; color: var(--text-muted); font-size: 15px; line-height: 1.5; }
+      .ob-slide p b { color: var(--text-main); }
+      .ob-nick { display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 4px; padding: 8px 14px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); font-weight: 700; font-size: 16px; }
+      .ob-steps { text-align: left; margin: 6px 0 4px; padding: 0; list-style: none; counter-reset: ob; }
+      .ob-steps li { counter-increment: ob; display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; font-size: 14px; color: var(--text-main); line-height: 1.4; }
+      .ob-steps li::before { content: counter(ob); flex: 0 0 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .ob-mini-btn { background: var(--input-bg); color: var(--text-main); border: none; border-radius: 12px; padding: 10px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; display: inline-flex; align-items: center; gap: 8px; }
+      .ob-mini-btn.done { color: #34c759; }
+      .ob-dots { display: flex; justify-content: center; gap: 6px; margin: 18px 0 14px; }
+      .ob-dots i { width: 7px; height: 7px; border-radius: 4px; background: var(--border-color); transition: width .25s, background .25s; }
+      .ob-dots i.on { width: 20px; background: var(--accent); }
+      .ob-nav { display: flex; gap: 10px; }
+      .ob-nav .modal-btn { margin: 0; flex: 1; }
+      .ob-nav .ob-skip { flex: 0 0 auto; background: none; color: var(--text-muted); border: none; font: inherit; font-size: 14px; cursor: pointer; padding: 0 10px; }
+      .empty-hint { margin: 14px 12px; padding: 18px 16px; border-radius: 16px; background: var(--input-bg); text-align: center; color: var(--text-muted); font-size: 14px; line-height: 1.5; }
+      .empty-hint b { display: block; color: var(--text-main); font-size: 15px; margin-bottom: 4px; }
+      .empty-hint .ob-mini-btn { background: var(--accent); color: #fff; margin-top: 12px; }
       .legal-note { font-size: 12px; line-height: 1.45; color: var(--text-muted); margin: 14px 0 0; text-align: center; }
       .legal-note a { color: var(--accent); text-decoration: none; }
       .st-links { padding: 4px 14px; }
@@ -702,6 +727,7 @@
 
         <div class="st-sec">О приложении</div>
         <div class="st-card st-links">
+          <a href="#" id="st-invite">Пригласить друзей в Owl<span>›</span></a>
           <a href="/terms.html" target="_blank" rel="noopener">Пользовательское соглашение<span>›</span></a>
           <a href="/privacy.html" target="_blank" rel="noopener">Политика конфиденциальности<span>›</span></a>
         </div>
@@ -711,6 +737,44 @@
         
         
         <button id="delete-account-btn" class="modal-btn" style="background: transparent; color: #ff3b30; border: 1px solid #ff3b30; margin-top: 10px;">Удалить аккаунт навсегда</button>
+      </div>
+    </div>
+
+    <!-- ПЕРВЫЙ ЗАПУСК: приветствие для новых пользователей -->
+    <div id="onboarding-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <div class="ob-viewport"><div class="ob-track" id="ob-track">
+          <div class="ob-slide">
+            <div class="ob-icon"><img src="/icon-192.png" alt=""></div>
+            <h2 id="ob-hello">Добро пожаловать в Owl!</h2>
+            <p>Мессенджер для своих: быстрый, красивый и <b>без рекламы</b>. Здесь есть личные чаты, беседы, голосовые, фото и реакции.</p>
+            <p>Покажем главное — это займёт полминуты.</p>
+          </div>
+          <div class="ob-slide">
+            <div class="ob-icon"><svg viewBox="0 0 24 24" width="40" height="40" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg></div>
+            <h2>Найдите друзей</h2>
+            <p>Введите ник друга в <b>поиске</b> сверху и нажмите на него, чтобы написать или подписаться.</p>
+            <p>Ваш ник:</p>
+            <div class="ob-nick" id="ob-nick">@ник</div>
+            <div><button class="ob-mini-btn" id="ob-invite-btn"></button></div>
+          </div>
+          <div class="ob-slide" id="ob-install-slide">
+            <div class="ob-icon" id="ob-install-icon"><svg viewBox="0 0 24 24" width="40" height="40" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></div>
+            <h2 id="ob-install-title">Не пропускайте сообщения</h2>
+            <div id="ob-install-body"></div>
+          </div>
+          <div class="ob-slide">
+            <div class="ob-icon"><svg viewBox="0 0 24 24" width="40" height="40" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg></div>
+            <h2>Вы под защитой</h2>
+            <p>Ваша <b>почта скрыта</b> от других. Статус «в сети» можно скрыть в настройках.</p>
+            <p>Кто-то мешает? Откройте его профиль — там есть <b>«Заблокировать»</b> и <b>«Пожаловаться»</b>.</p>
+          </div>
+        </div></div>
+        <div class="ob-dots" id="ob-dots"><i class="on"></i><i></i><i></i><i></i></div>
+        <div class="ob-nav">
+          <button class="ob-skip" id="ob-skip">Пропустить</button>
+          <button class="modal-btn" id="ob-next">Далее</button>
+        </div>
       </div>
     </div>
 
@@ -788,7 +852,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.24</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.25</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1037,6 +1101,7 @@
           updatePinIcon(); refreshHeaderStatus(); applyBlockState(); renderDevPanel();
           if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
           if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
+          if (currentUser && usersCache[currentUser.uid]) { maybeShowOnboarding(); if (window.__pendingAdd) openPendingInvite(); }
       }
       const usersChanged = () => { if (!usersChangedTimer) usersChangedTimer = setTimeout(usersChangedNow, 60); };
       // Подписаться на профиль одного человека (не админ — админ и так слушает всех)
@@ -1766,7 +1831,13 @@
                   usersCache[u.uid] = u;
               } else return;
               
-              document.querySelectorAll(`img[data-uid='${u.uid}']`).forEach(img => { img.src = getAvatar(u.uid, u.name); });
+              // Профиль подгрузился уже после отрисовки (в чатах аватарки и значки рисуются сразу, по имени) — обновляем
+              const sel = CSS.escape(u.uid);
+              document.querySelectorAll(`img[data-uid="${sel}"], #chat-box img[data-profile-target="${sel}"]`).forEach(img => { const a = getAvatar(u.uid, u.name); if (img.getAttribute("src") !== a) img.src = a; });
+              document.querySelectorAll(`.official-slot[data-official-uid="${sel}"]`).forEach(el => {
+                  const off = u.email === ADMIN_EMAIL;
+                  if (off && !el.firstChild) { el.innerHTML = OFFICIAL_BADGE_13; el.parentElement.querySelectorAll(".verified-badge").forEach(v => v.remove()); }
+              });
               
               if (currentUser && u.uid === currentUser.uid) {
                 let displayN = u.name || currentUser.displayName || "Пользователь";
@@ -2439,6 +2510,13 @@
                   </div>
                 `;
             });
+            // Подсказки для пустого списка
+            const realChats = chatItemsArray.filter(i => i.id !== 'global').length;
+            const inviteBtn = `<br><button class="ob-mini-btn" data-invite>${icon("users", 16)}Пригласить друга</button>`;
+            if (isSearching && !realChats) html += `<div class="empty-hint"><b>Никого не нашли</b>Ник ищется по первым буквам — проверьте, как он пишется.${inviteBtn}</div>`;
+            else if (!isSearching && !isAdmin && !realChats) html += currentFilter === 'friends'
+                ? `<div class="empty-hint"><b>Вы пока ни на кого не подписаны</b>Найдите друга по нику в поиске сверху и подпишитесь — он появится здесь.${inviteBtn}</div>`
+                : `<div class="empty-hint"><b>Здесь появятся ваши чаты</b>Найдите друга по нику в поиске сверху или пригласите его в Owl.${inviteBtn}</div>`;
             list.innerHTML = html;
         } catch (error) { console.error("Ошибка рендера: ", error); }
       }
@@ -2495,7 +2573,7 @@
             }
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
             try {
-              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, email: email, followers: [], following: [], bio: "", createdAt: new Date() });
+              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, followers: [], following: [], bio: "", createdAt: new Date() });
               await updateProfile(userCred.user, { displayName: name });
             } catch (profileErr) {
               await deleteDoc(doc(db, "users", userCred.user.uid)).catch(() => {});
@@ -2637,6 +2715,92 @@
       }
       document.addEventListener("visibilitychange", markVisibleAsRead);
       window.addEventListener("focus", markVisibleAsRead);
+
+      const OFFICIAL_BADGE_13 = `<span style="display:inline-flex; align-items:center; margin-left:4px; transform:translateY(1px);" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="13" height="13" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>`;
+      // ===== ПРИГЛАШЕНИЯ: owlmes.ru/?add=ник открывает профиль человека =====
+      const inviteLink = () => "https://owlmes.ru/?add=" + encodeURIComponent(usersCache[currentUser.uid]?.name || currentUser.displayName || "");
+      async function shareInvite(btn) {
+          const url = inviteLink(), name = usersCache[currentUser.uid]?.name || currentUser.displayName || "";
+          const text = `Привет! Я в Owl — пиши мне, мой ник ${name}`;
+          try {
+              if (navigator.share) { await navigator.share({ title: "Owl Messenger", text, url }); return; }
+          } catch (e) { if (e && e.name === "AbortError") return; }
+          try { await navigator.clipboard.writeText(text + "\n" + url); showToast("Ссылка скопирована", "check"); if (btn) { btn.classList.add("done"); btn.innerHTML = icon("check", 16) + "Скопировано"; } }
+          catch (_) { prompt("Скопируйте ссылку:", url); }
+      }
+      try { const add = new URLSearchParams(location.search).get("add"); if (add) window.__pendingAdd = add; } catch (_) {}
+      async function openPendingInvite() {
+          const nick = window.__pendingAdd; if (!nick || !currentUser) return;
+          window.__pendingAdd = null;
+          try { history.replaceState(null, "", location.pathname); } catch (_) {}
+          const key = nickKey(nick);
+          let u = Object.values(usersCache).find(x => x && (x.nameLower === key || x.nameKey === key));
+          if (!u) {
+              try { const snap = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(1))); snap.forEach(d => { u = d.data(); usersCache[u.uid] = u; }); } catch (e) { console.log("Приглашение:", e.code || e); }
+          }
+          if (!u) return showToast("Пользователь " + nick + " не найден", "alert");
+          if (u.uid === currentUser.uid) return;
+          openPublicProfile(u.uid);
+      }
+
+      // ===== ПЕРВЫЙ ЗАПУСК =====
+      // Показываем новым аккаунтам (зарегистрированы меньше 3 дней назад) один раз; отметка — users/{я}.onboarded
+      let obShown = false, obIndex = 0;
+      const OB_COUNT = 4;
+      const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+      const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      function maybeShowOnboarding() {
+          if (obShown || !currentUser || isAdmin || iAmBanned) return;
+          const me = usersCache[currentUser.uid];
+          if (!me || me.onboarded || !me.name || me.name === "Загрузка...") return;
+          const created = createdAtOf(me);
+          if (!created || Date.now() - created > 3 * 24 * 60 * 60 * 1000) return;
+          obShown = true;
+          document.getElementById("ob-hello").innerText = `Добро пожаловать, ${me.name}!`;
+          document.getElementById("ob-nick").innerText = "@" + me.name;
+          const inv = document.getElementById("ob-invite-btn"); inv.innerHTML = icon("users", 16) + "Пригласить друга";
+          const body = document.getElementById("ob-install-body");
+          if (!isStandalone() && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent + (isIOS() ? "iPhone" : ""))) {
+              document.getElementById("ob-install-title").innerText = "Установите Owl на телефон";
+              document.getElementById("ob-install-icon").innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>';
+              body.innerHTML = isIOS()
+                  ? `<ul class="ob-steps"><li>Нажмите на меню у адреса в Safari (≡ или «•••»)</li><li>Выберите «Поделиться» → «На экран „Домой“»</li><li>Нажмите «Добавить» — Owl появится среди приложений, и придут уведомления</li></ul>`
+                  : `<ul class="ob-steps"><li>Нажмите на три точки ⋮ в Chrome</li><li>Выберите «Установить приложение» или «Добавить на главный экран»</li><li>Откройте Owl с иконки и включите уведомления</li></ul>`;
+          } else {
+              document.getElementById("ob-install-title").innerText = "Не пропускайте сообщения";
+              const on = pushEnabled();
+              body.innerHTML = `<p>Включите уведомления — сообщения будут приходить, даже когда Owl закрыт.</p><button class="ob-mini-btn${on ? " done" : ""}" id="ob-push-btn">${icon(on ? "check" : "bell", 16)}${on ? "Уведомления включены" : "Включить уведомления"}</button>`;
+              const pb = document.getElementById("ob-push-btn");
+              if (!on) pb.addEventListener("click", () => {
+                  const t = document.getElementById("push-toggle"); t.checked = true; t.dispatchEvent(new Event("change"));
+                  setTimeout(() => { if (pushEnabled()) { pb.classList.add("done"); pb.innerHTML = icon("check", 16) + "Уведомления включены"; } }, 1500);
+              });
+          }
+          obGo(0);
+          document.getElementById("onboarding-screen").style.display = "flex";
+      }
+      function obGo(i) {
+          obIndex = Math.max(0, Math.min(OB_COUNT - 1, i));
+          document.getElementById("ob-track").style.transform = `translateX(-${obIndex * 100}%)`;
+          document.querySelectorAll("#ob-dots i").forEach((d, k) => d.classList.toggle("on", k === obIndex));
+          document.getElementById("ob-next").innerText = obIndex === OB_COUNT - 1 ? "Начать общение" : "Далее";
+          document.getElementById("ob-skip").style.visibility = obIndex === OB_COUNT - 1 ? "hidden" : "visible";
+      }
+      function obFinish() {
+          document.getElementById("onboarding-screen").style.display = "none";
+          if (currentUser) setDoc(doc(db, "users", currentUser.uid), { onboarded: true }, { merge: true }).catch(e => console.log("onboarded:", e.code));
+      }
+      document.getElementById("ob-next").addEventListener("click", () => obIndex === OB_COUNT - 1 ? obFinish() : obGo(obIndex + 1));
+      document.getElementById("ob-skip").addEventListener("click", obFinish);
+      document.getElementById("st-invite").addEventListener("click", (e) => { e.preventDefault(); shareInvite(); });
+      document.getElementById("ob-invite-btn").addEventListener("click", (e) => shareInvite(e.currentTarget));
+      document.getElementById("chat-list").addEventListener("click", (e) => { const b = e.target.closest("[data-invite]"); if (b) { e.stopPropagation(); shareInvite(b); } }, true);
+      // Свайп по карточкам
+      (() => {
+          let x0 = null; const box = document.querySelector("#onboarding-screen .modal-box");
+          box.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+          box.addEventListener("touchend", (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) obGo(obIndex + (dx < 0 ? 1 : -1)); }, { passive: true });
+      })();
 
       // ===== ЛИЧНАЯ БЛОКИРОВКА =====
       // users/{я}.blocked — список тех, кого я заблокировал. Заблокированный не может писать мне в личку,
@@ -2922,7 +3086,7 @@
                         if (usersCache[msg.uid] && usersCache[msg.uid].email === ADMIN_EMAIL) { isMsgOfficial = true; } else if (msg.uid === currentUser.uid && isAdmin) { isMsgOfficial = true; }
                         let officialBadge = isMsgOfficial ? `<span style="display:inline-flex; align-items:center; margin-left:4px; transform:translateY(1px);" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="13" height="13" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>` : "";
                         let senderLabel = (isGroup && groupsCache[chatId] && groupsCache[chatId].adminUid === msg.uid) ? `<span style="font-size:9px; background:var(--accent); color:white; padding:2px 4px; border-radius:4px; margin-left:4px;">Админ</span>` : "";
-                        contentHtml += `<span class="sender-name chat-msg-name" data-profile-target="${escapeHTML(msg.uid)}" style="display:flex; align-items:center;">${escapeHTML(usersCache[msg.uid]?.name || msg.sender)}${officialBadge}${isMsgOfficial ? '' : verifiedBadge(msg.uid, 12)} ${senderLabel}</span>`;
+                        contentHtml += `<span class="sender-name chat-msg-name" data-profile-target="${escapeHTML(msg.uid)}" style="display:flex; align-items:center;">${escapeHTML(usersCache[msg.uid]?.name || msg.sender)}<span class="official-slot" data-official-uid="${escapeHTML(msg.uid)}" style="display:inline-flex;">${officialBadge}</span>${isMsgOfficial ? '' : verifiedBadge(msg.uid, 12)} ${senderLabel}</span>`;
                         contentHtml += `<span class="blocked-note">Сообщение скрыто — вы заблокировали автора</span>`;
                     }
 
