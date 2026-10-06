@@ -2781,8 +2781,17 @@
                   uids.slice(i, i + 400).forEach(uid => batch.set(doc(collection(db, "notifications")), { toUid: uid, text: text, timestamp: ts, read: false, type: "broadcast", fromUid: currentUser.uid }));
                   await batch.commit();
               }
+              // Push на все подписанные устройства (сервер отправляет порциями)
+              let pushed = 0, cursor = null, guard = 0;
+              try {
+                  do {
+                      const r = await (await pushPost("/broadcast", { text, cursor })).json();
+                      if (!r.ok) throw new Error(r.error || "push");
+                      pushed += r.sent || 0; cursor = r.cursor;
+                  } while (cursor && ++guard < 200);
+              } catch (e) { console.log("Push-рассылка:", e); showToast("Push-рассылка не удалась", "alert"); }
               bcText.value = ""; document.getElementById("broadcast-count").innerText = "0/1000";
-              showToast("Отправлено пользователям: " + uids.length, "megaphone");
+              showToast("Отправлено: " + uids.length + " пользователям, push: " + pushed, "megaphone");
           } catch (e) { console.error(e); showToast("Не удалось отправить: " + e.message, "error"); }
           bcBtn.disabled = false; bcBtn.innerText = orig;
       });
