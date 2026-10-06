@@ -775,7 +775,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.21</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.22</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1012,6 +1012,7 @@
       let usersListener = null;
       let groupsListener = null;
       let metaListener = null;
+      let globalMetaListener = null, groupMetaListeners = {};
 
       // ===== ЗВУК УВЕДОМЛЕНИЙ (не прерывает музыку) =====
       // <audio> телефон считает «медиа» и ставит музыку на паузу. Поэтому короткий сигнал синтезируем через Web Audio,
@@ -1503,7 +1504,10 @@
               const snap = await getDocs(query(collection(db, "messages"), where("uid", "==", uid)));
               await deleteRefsInChunks(snap.docs.map(d => d.ref));
           });
-          await step("личные чаты", () => deleteRefsInChunks(Object.keys(chatsMetaCache).filter(id => id.includes("_") && id.split("_").includes(uid)).map(id => doc(db, "chats_metadata", id))));
+          await step("личные чаты", async () => {
+              const snap = await getDocs(query(collection(db, "chats_metadata"), where("members", "array-contains", uid)));
+              await deleteRefsInChunks(snap.docs.map(d => d.ref));
+          });
           await step("уведомления", async () => {
               const snap = await getDocs(query(collection(db, "notifications"), where("toUid", "==", uid)));
               await deleteRefsInChunks(snap.docs.map(d => d.ref));
@@ -1684,6 +1688,9 @@
           if (usersListener) usersListener();
           if (groupsListener) groupsListener();
           if (metaListener) metaListener();
+          if (globalMetaListener) globalMetaListener();
+          Object.values(groupMetaListeners).forEach(u => u()); groupMetaListeners = {};
+          chatsMetaCache = {};
 
           let usersFirstSnap = true;
           usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
@@ -1731,22 +1738,56 @@
                 if(change.type === 'removed') delete groupsCache[docId];
                 else groupsCache[docId] = { id: docId, ...g };
             });
+            syncGroupMetaListeners();
             renderChatList(document.getElementById("search-input").value);
           });
 
-          let metaFirstSnap = true;
-          metaListener = onSnapshot(collection(db, "chats_metadata"), (snapshot) => {
-            snapshot.docChanges().forEach(change => {
-                let meta = change.doc.data();
-                let prev = chatsMetaCache[change.doc.id];
-                chatsMetaCache[change.doc.id] = meta;
-                if (!metaFirstSnap && change.type !== "removed") onChatMetaChanged(change.doc.id, meta, prev);
-            });
-            metaFirstSnap = false;
+          // ПРЕВЬЮ ЧАТОВ: загружаем только свои — личные (members содержит меня), свои беседы и глобальный чат.
+          // Раньше грузилась вся коллекция, т.е. превью чужих личных переписок.
+          const metaChanged = () => {
             updateUnreadIndicators(totalUnread());
             if (window.__pendingChat && Object.keys(usersCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
             renderChatList(document.getElementById("search-input").value);
-          });
+          };
+          const applyMeta = (id, meta, quiet) => {
+            const prev = chatsMetaCache[id];
+            if (meta) chatsMetaCache[id] = meta; else delete chatsMetaCache[id];
+            if (!quiet && meta) onChatMetaChanged(id, meta, prev);
+          };
+          let dmFirst = true;
+          metaListener = onSnapshot(query(collection(db, "chats_metadata"), where("members", "array-contains", currentUser.uid)), (snapshot) => {
+            snapshot.docChanges().forEach(change => applyMeta(change.doc.id, change.type === "removed" ? null : change.doc.data(), dmFirst));
+            dmFirst = false; metaChanged();
+          }, (e) => console.log("chats_metadata (личные):", e.code));
+          let globalFirst = true;
+          globalMetaListener = onSnapshot(doc(db, "chats_metadata", "global"), (d) => {
+            applyMeta("global", d.exists() ? d.data() : null, globalFirst); globalFirst = false; metaChanged();
+          }, (e) => console.log("chats_metadata (global):", e.code));
+          function syncGroupMetaListeners() {
+            for (const gid of Object.keys(groupMetaListeners)) if (!groupsCache[gid]) { groupMetaListeners[gid](); delete groupMetaListeners[gid]; delete chatsMetaCache[gid]; }
+            for (const gid of Object.keys(groupsCache)) {
+              if (groupMetaListeners[gid]) continue;
+              let first = true;
+              groupMetaListeners[gid] = onSnapshot(doc(db, "chats_metadata", gid), (d) => {
+                applyMeta(gid, d.exists() ? d.data() : null, first); first = false; metaChanged();
+              }, (e) => console.log("chats_metadata (беседа):", e.code));
+            }
+          }
+          if (isAdmin) migrateMetaMembers();
+      }
+      // Разовая миграция (запускает админ): старым превью личных чатов дописываем members,
+      // без этого они не попадут в выборку «мои чаты»
+      async function migrateMetaMembers() {
+          try {
+              const snap = await getDocs(collection(db, "chats_metadata"));
+              const todo = snap.docs.filter(d => d.id.includes("_") && !Array.isArray(d.data().members));
+              for (let i = 0; i < todo.length; i += 400) {
+                  const batch = writeBatch(db);
+                  todo.slice(i, i + 400).forEach(d => batch.update(d.ref, { members: d.id.split("_") }));
+                  await batch.commit();
+              }
+              if (todo.length) showToast("Превью чатов обновлены: " + todo.length, "check");
+          } catch (e) { console.log("Миграция превью:", e.code || e); }
       }
 
       let notificationsListener = null;
@@ -2177,7 +2218,7 @@
               }
               // Превью в списке чатов очищаем (удалить документ правила могут не разрешить — тогда просто обнуляем поля)
               await deleteDoc(doc(db, "chats_metadata", chatId)).catch(() =>
-                  setDoc(doc(db, "chats_metadata", chatId), { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
+                  setDoc(doc(db, "chats_metadata", chatId), { members: chatId.split("_"), lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
               delete chatsMetaCache[chatId];
               addDoc(collection(db, "notifications"), { toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, timestamp: new Date(), read: false }).catch(() => {});
               loadedMsgs = {}; document.getElementById("chat-box").innerHTML = "";
@@ -2620,7 +2661,7 @@
             currentChatTargetUid = (targetUid && !isGroup && chatId !== 'global') ? targetUid : null; currentTypers = [];
 
             if (chatId !== 'global') {
-                setDoc(doc(db, "chats_metadata", chatId), { unreadCount: 0 }, { merge: true }).catch(e=>console.log(e));
+                setDoc(doc(db, "chats_metadata", chatId), chatId.includes("_") ? { unreadCount: 0, members: chatId.split("_") } : { unreadCount: 0 }, { merge: true }).catch(e=>console.log(e));
             }
             updatePinIcon();
             
@@ -2948,6 +2989,7 @@
         const msgRef = doc(collection(db, "messages"));
         const saving = setDoc(msgRef, msgData);
         setDoc(doc(db, "chats_metadata", chatId), {
+            ...(chatId.includes("_") ? { members: chatId.split("_") } : {}),
             lastMessageText: previewText,
             lastMessageSender: currentUser.displayName,
             lastMessageSenderUid: currentUser.uid,
