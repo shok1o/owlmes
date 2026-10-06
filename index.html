@@ -716,7 +716,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.15</div>
+        <div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.16</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2878,7 +2878,16 @@
         const maxH = { portrait: 0, landscape: 0 };
         const orient = () => isLandscape() ? "landscape" : "portrait";
         const rememberHeight = () => { if (!typing()) maxH[orient()] = Math.max(maxH[orient()], window.innerHeight); };
-        const shrunk = () => maxH[orient()] - window.innerHeight > 4;
+        // Окно урезано: после клавиатуры (меньше, чем было) или уже при запуске (меньше экрана) — iOS 27 делает и так
+        const shrunk = () => maxH[orient()] - window.innerHeight > 4
+            || (iosStandalone && !isLandscape() && Math.max(screen.width, screen.height) - window.innerHeight > 20);
+        // Цвет «под» приложением = цвет нижней панели: если iOS оставит полоску, она сольётся с панелью
+        const themeMeta = document.querySelector('meta[name="theme-color"]');
+        function syncCanvasColor() {
+            if (!matchMedia("(max-width: 768px)").matches) { root.style.backgroundColor = ""; return; }
+            const c = getComputedStyle(document.body).getPropertyValue("--bg-panel").trim();
+            if (c && root.style.backgroundColor !== c) { root.style.backgroundColor = c; if (themeMeta) themeMeta.setAttribute("content", c); }
+        }
 
         function healViewport() {
             if (!iosStandalone || typing() || !shrunk()) return;
@@ -2899,6 +2908,7 @@
             root.classList.toggle("kb-open", kb);
             if (kb) { root.classList.remove("vp-stuck"); return; }
             rememberHeight();
+            syncCanvasColor();
             if (window.scrollY || root.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); root.scrollTop = 0; document.body.scrollTop = 0; }
             root.classList.toggle("vp-stuck", iosStandalone && shrunk());
         }
@@ -2911,6 +2921,16 @@
         window.addEventListener("pageshow", () => { schedule(); setTimeout(healViewport, 300); });
         document.addEventListener("visibilitychange", () => { schedule(); if (document.visibilityState === "visible") setTimeout(healViewport, 300); });
         applyKeyboardState();
+        // При запуске приложение показывается не сразу (экран загрузки) — несколько раз проверяем, не урезано ли окно
+        let startupChecks = 0, startupHeals = 0;
+        const startup = setInterval(() => {
+            schedule();
+            const app = document.getElementById("app-container");
+            if (startupHeals < 2 && app && app.style.display !== "none" && shrunk()) { startupHeals++; healViewport(); } // не больше двух попыток — без мигания
+            if (++startupChecks >= 8) clearInterval(startup);
+        }, 1500);
+        // Смена темы — сразу перекрашиваем «подложку»
+        new MutationObserver(() => setTimeout(syncCanvasColor, 350)).observe(document.body, { attributes: true, attributeFilter: ["data-theme", "style"] });
       })();
     </script>
     <script>
