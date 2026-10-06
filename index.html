@@ -369,6 +369,21 @@
       .st-bg { height: 66px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; color: #fff; font-size: 12px; display: flex; align-items: flex-end; justify-content: center; padding: 6px; box-sizing: border-box; text-shadow: 0 1px 3px rgba(0,0,0,.6); transition: .2s; }
       .st-bg.on { border-color: var(--accent); transform: scale(1.03); }
       .st-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--text-main); }
+      #report-screen .modal-box { text-align: left; }
+      .rp-target { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; word-break: break-word; }
+      .rp-target b { color: var(--text-main); }
+      .rp-quote { font-size: 13px; color: var(--text-main); background: var(--input-bg); border-left: 3px solid var(--accent); border-radius: 8px; padding: 6px 10px; margin: 0 0 12px; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      .rp-reasons { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; }
+      .rp-reasons label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--input-bg); cursor: pointer; font-size: 14px; color: var(--text-main); border: 1px solid transparent; }
+      .rp-reasons label:has(input:checked) { border-color: var(--accent); }
+      .rp-reasons input { accent-color: var(--accent); margin: 0; }
+      #report-comment { width: 100%; box-sizing: border-box; min-height: 64px; resize: vertical; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font: inherit; font-size: 14px; outline: none; margin-bottom: 12px; }
+      #report-comment:focus { border-color: var(--accent); }
+      .link-btn { background: none; border: none; color: var(--text-muted); font: inherit; font-size: 13px; cursor: pointer; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 4px; }
+      .link-btn:hover { color: #ff3b30; }
+      .dev-report { margin-top: 4px; font-size: 12px; color: var(--text-main); background: rgba(255,159,10,.12); border-left: 3px solid #ff9f0a; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+      .dev-report b { color: #ff9f0a; }
+      .dev-ok-btn { margin-left: 6px; }
       .bc-modes { display: flex; gap: 4px; padding: 4px; margin: 0 0 10px; background: var(--input-bg); border-radius: 12px; }
       .bc-modes label { flex: 1; text-align: center; padding: 8px 4px; font-size: 13px; border-radius: 9px; cursor: pointer; color: var(--text-muted); user-select: none; transition: background .15s, color .15s; }
       .bc-modes input { display: none; }
@@ -448,6 +463,30 @@
         
         <button id="public-follow-btn" class="modal-btn" style="background: var(--accent); margin-bottom: 10px;">Подписаться</button>
         <button id="public-msg-btn" class="modal-btn" style="background: var(--input-bg); color: var(--text-main);">Написать сообщение</button>
+        <button id="public-report-btn" class="link-btn" style="display:none;"></button>
+      </div>
+    </div>
+
+    <!-- ЖАЛОБА НА СООБЩЕНИЕ ИЛИ ПОЛЬЗОВАТЕЛЯ -->
+    <div id="report-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="report-close" style="position: absolute; top: 12px; right: 12px;">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <h2 style="margin-top: 0;">Пожаловаться</h2>
+        <p class="rp-target" id="report-target"></p>
+        <div class="rp-quote" id="report-quote" style="display:none;"></div>
+        <div class="rp-reasons">
+          <label><input type="radio" name="rp-reason" value="Спам или реклама">Спам или реклама</label>
+          <label><input type="radio" name="rp-reason" value="Оскорбления или травля">Оскорбления или травля</label>
+          <label><input type="radio" name="rp-reason" value="Мошенничество">Мошенничество</label>
+          <label><input type="radio" name="rp-reason" value="Недопустимый контент">Недопустимый контент (18+, насилие)</label>
+          <label><input type="radio" name="rp-reason" value="Выдаёт себя за другого">Выдаёт себя за другого</label>
+          <label><input type="radio" name="rp-reason" value="Другое">Другое</label>
+        </div>
+        <textarea id="report-comment" maxlength="500" placeholder="Подробности (необязательно)"></textarea>
+        <button id="report-send-btn" class="modal-btn" style="background:#ff3b30;">Отправить жалобу</button>
+        <p style="font-size:12px; color:var(--text-muted); margin:10px 0 0; text-align:center;">Жалобу увидит только администратор. Пользователь не узнает, кто её отправил.</p>
       </div>
     </div>
 
@@ -557,6 +596,7 @@
             <div class="tab" data-f="new">Новые</div>
             <div class="tab" data-f="all">Все</div>
             <div class="tab" data-f="banned">Баны <span class="appeal-count" id="dev-appeal-count" style="display:none;"></span></div>
+            <div class="tab" data-f="reports">Жалобы <span class="appeal-count" id="dev-report-count" style="display:none;"></span></div>
           </div>
           <div class="dev-search"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" id="dev-search" placeholder="Ник или email..."></div>
         </div>
@@ -726,7 +766,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.17</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.18</div>
       </div>
       
       <!-- ЧАТ -->
@@ -879,6 +919,7 @@
           crown: '<path d="M2 18h20"></path><path d="M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5L3 7z"></path>',
           logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
           pin: '<line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.5l-3.2-3.2V5a1.8 1.8 0 0 0-1.8-1.8H10A1.8 1.8 0 0 0 8.2 5v7.3L5 15.5V17z"></path>',
+          flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line>',
           shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
           mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>',
           clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
@@ -1295,6 +1336,7 @@
       let bansCache = {};          // все баны (uid → { uid, bannedAt })
       let banReasons = {};         // только у админа: uid → причина и подробности
       let appeals = {};            // только у админа: uid → обращение в поддержку
+      let reportsCache = {}, reportsListener = null, reportsFirstSnap = true; // только у админа: жалобы
       let bansListener = null, myBanListener = null, reasonsListener = null, iAmBanned = false;
       let myReasonListener = null, myAppealListener = null, appealsListener = null, appealsFirstSnap = true, myDeletedListener = null;
       const isBanned = (uid) => !!bansCache[uid];
@@ -1353,6 +1395,13 @@
                   appeals = {}; snap.forEach(d => { appeals[d.id] = d.data(); });
                   renderDevPanel();
               }, (e) => console.log("appeals:", e.code));
+              reportsFirstSnap = true;
+              reportsListener = onSnapshot(collection(db, "reports"), (snap) => {
+                  if (!reportsFirstSnap) snap.docChanges().forEach(ch => { if (ch.type === "added") { const d = ch.doc.data(); showToast(`Жалоба на ${d.targetName || "пользователя"}: ${d.reason}`, "flag"); } });
+                  reportsFirstSnap = false;
+                  reportsCache = {}; snap.forEach(d => { reportsCache[d.id] = d.data(); });
+                  renderDevPanel();
+              }, (e) => console.log("reports:", e.code));
               reasonsListener = onSnapshot(collection(db, "ban_reasons"), (snap) => {
                   banReasons = {}; snap.forEach(d => { banReasons[d.id] = d.data(); });
                   renderDevPanel();
@@ -1367,9 +1416,10 @@
           if (myReasonListener) { myReasonListener(); myReasonListener = null; }
           if (myAppealListener) { myAppealListener(); myAppealListener = null; }
           if (appealsListener) { appealsListener(); appealsListener = null; }
+          if (reportsListener) { reportsListener(); reportsListener = null; }
           if (myDeletedListener) { myDeletedListener(); myDeletedListener = null; }
           if (!resetState) return;
-          bansCache = {}; banReasons = {}; appeals = {}; iAmBanned = false;
+          bansCache = {}; banReasons = {}; appeals = {}; reportsCache = {}; iAmBanned = false;
           document.getElementById("banned-screen").style.display = "none";
       }
       // Старые баны хранили причину прямо в публичной записи — переносим её в ban_reasons и вычищаем
@@ -1510,6 +1560,8 @@
           const screen = document.getElementById("dev-panel-screen");
           const ac = document.getElementById("dev-appeal-count"), nAppeals = Object.keys(appeals).filter(uid => bansCache[uid]).length;
           if (ac) { ac.style.display = nAppeals ? "inline" : "none"; ac.innerText = nAppeals; }
+          const rc = document.getElementById("dev-report-count"), nReports = Object.keys(reportsCache).length;
+          if (rc) { rc.style.display = nReports ? "inline" : "none"; rc.innerText = nReports; }
           if (!isAdmin || !screen || screen.style.display === "none") return;
           const now = Date.now();
           const all = Object.values(usersCache).filter(u => u && u.uid && u.name && String(u.name) !== "undefined");
@@ -1519,6 +1571,7 @@
           document.getElementById("dev-new24").innerText = all.filter(u => isNew(u, DAY_MS)).length;
           document.getElementById("dev-new7").innerText = all.filter(u => isNew(u, 7 * DAY_MS)).length;
 
+          if (devFilter === "reports") return renderReports();
           let list;
           if (devFilter === "online") list = all.filter(isUserOnline).sort((a, b) => createdAtOf(b) - createdAtOf(a)); // свежие регистрации — сверху
           else if (devFilter === "new") list = all.filter(u => isNew(u, 7 * DAY_MS)).sort((a, b) => createdAtOf(b) - createdAtOf(a));
@@ -1554,6 +1607,38 @@
                 </div>`;
           }).join("");
       }
+      function renderReports() {
+          const box = document.getElementById("dev-list");
+          const q = document.getElementById("dev-search").value.trim().toLowerCase();
+          // Жалобы на одно и то же сообщение/человека собираем в одну карточку
+          const groups = {};
+          Object.entries(reportsCache).forEach(([id, r]) => {
+              const key = r.messageId ? "m_" + r.messageId : "u_" + r.targetUid;
+              (groups[key] = groups[key] || { id, r, list: [] }).list.push(r);
+          });
+          let cards = Object.values(groups).sort((a, b) => Math.max(...b.list.map(x => getTime(x.createdAt))) - Math.max(...a.list.map(x => getTime(x.createdAt))));
+          if (q) cards = cards.filter(c => [c.r.targetName, c.r.messageText, ...c.list.map(x => x.fromName + " " + x.reason + " " + (x.comment || ""))].join(" ").toLowerCase().includes(q));
+          if (!cards.length) { box.innerHTML = `<div class="dev-empty">${q ? "Ничего не найдено" : "Жалоб нет — всё спокойно"}</div>`; return; }
+          box.innerHTML = cards.map(({ id, r, list }) => {
+              const u = usersCache[r.targetUid] || { uid: r.targetUid, name: r.targetName };
+              const banned = isBanned(r.targetUid);
+              const who = list.map(x => `<b>${escapeHTML(x.reason)}</b> — ${escapeHTML(x.fromName || "пользователь")}${x.comment ? ": " + escapeHTML(x.comment) : ""}`).join("<br>");
+              return `<div class="dev-row${banned ? ' banned' : ''}" data-dev-uid="${escapeHTML(r.targetUid)}">
+                  <span class="av-wrap"><img src="${getAvatar(r.targetUid, u.name)}"></span>
+                  <div class="dev-main">
+                    <span class="dev-name">${escapeHTML(u.name || r.targetName || "Пользователь")}${banned ? '<span class="ban-badge">БАН</span>' : ''}${list.length > 1 ? `<span class="new-badge" style="background:#ff9f0a;">×${list.length}</span>` : ''}</span>
+                    <span class="dev-sub">${r.messageId ? "Жалоба на сообщение" : "Жалоба на пользователя"} · ${formatRegDate(getTime(r.createdAt))}</span>
+                    ${r.messageText ? `<span class="dev-appeal">${iconizePreview(escapeHTML(r.messageText))}</span>` : ''}
+                    <span class="dev-report">${who}</span>
+                  </div>
+                  <div class="dev-actions">
+                    ${r.targetUid !== currentUser.uid && u.email !== ADMIN_EMAIL ? `<button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(r.targetUid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button>` : ''}
+                    ${r.messageId ? `<button class="dev-ban-btn dev-del-btn" data-report-act="delmsg" data-report-id="${escapeHTML(id)}" title="Удалить сообщение">${icon("trash", 15)}<span>Удалить</span></button>` : ''}
+                    <button class="dev-ban-btn dev-ok-btn" data-report-act="close" data-report-id="${escapeHTML(id)}" title="Закрыть жалобу">${icon("check", 15)}<span>Закрыть</span></button>
+                  </div>
+                </div>`;
+          }).join("");
+      }
       function openDevPanel() {
           if (!isAdmin) return;
           document.getElementById("admin-global-screen").style.display = "none";
@@ -1572,6 +1657,8 @@
       document.getElementById("dev-list").addEventListener("click", (e) => {
           const banBtn = e.target.closest("[data-ban-uid]");
           if (banBtn) { e.stopPropagation(); toggleBan(banBtn.getAttribute("data-ban-uid"), banBtn); return; }
+          const repBtn = e.target.closest("[data-report-act]");
+          if (repBtn) { e.stopPropagation(); resolveReport(repBtn.getAttribute("data-report-id"), repBtn.getAttribute("data-report-act"), repBtn); return; }
           const verBtn = e.target.closest("[data-verify-uid]");
           if (verBtn) { e.stopPropagation(); toggleVerified(verBtn.getAttribute("data-verify-uid"), verBtn); return; }
           const delBtn = e.target.closest("[data-del-uid]");
@@ -1996,6 +2083,9 @@
         document.getElementById("public-followers").innerText = u.followers ? u.followers.length : 0;
 
         let followBtn = document.getElementById("public-follow-btn"); let msgBtn = document.getElementById("public-msg-btn");
+        const repBtn = document.getElementById("public-report-btn");
+        repBtn.style.display = (uid === currentUser.uid || isAdmin || u.email === ADMIN_EMAIL) ? "none" : "inline-flex";
+        repBtn.innerHTML = icon("flag", 14) + "Пожаловаться"; repBtn.setAttribute("data-action-uid", uid);
         if (uid === currentUser.uid) { followBtn.style.display = "none"; msgBtn.style.display = "none"; } else {
           followBtn.style.display = "block"; msgBtn.style.display = "block"; followBtn.setAttribute("data-action-uid", uid); msgBtn.setAttribute("data-action-uid", uid);
           let myFollowing = usersCache[currentUser.uid]?.following || [];
@@ -2386,6 +2476,60 @@
       document.addEventListener("visibilitychange", markVisibleAsRead);
       window.addEventListener("focus", markVisibleAsRead);
 
+      // ===== ЖАЛОБЫ =====
+      // reports/{кто}_{на что} — повторная жалоба на то же самое просто обновляет старую
+      let reportCtx = null;
+      window.openReport = ({ targetUid, message }) => {
+          if (!currentUser || !targetUid || targetUid === currentUser.uid) return;
+          reportCtx = { targetUid, message: message || null };
+          const name = usersCache[targetUid]?.name || message?.sender || "пользователь";
+          document.getElementById("report-target").innerHTML = message ? `Сообщение от <b>${escapeHTML(name)}</b>` : `Пользователь <b>${escapeHTML(name)}</b>`;
+          const q = document.getElementById("report-quote");
+          q.style.display = message ? "block" : "none";
+          if (message) q.innerHTML = iconizePreview(escapeHTML(msgPreviewText(message).slice(0, 300)));
+          document.querySelectorAll('input[name="rp-reason"]').forEach(r => r.checked = false);
+          document.getElementById("report-comment").value = "";
+          document.getElementById("public-profile-screen").style.display = "none";
+          document.getElementById("report-screen").style.display = "flex";
+      };
+      const closeReport = () => { document.getElementById("report-screen").style.display = "none"; reportCtx = null; };
+      document.getElementById("report-close").addEventListener("click", closeReport);
+      document.getElementById("public-report-btn").addEventListener("click", (e) => openReport({ targetUid: e.currentTarget.getAttribute("data-action-uid") }));
+      document.getElementById("report-send-btn").addEventListener("click", async (e) => {
+          if (!currentUser || !reportCtx) return;
+          const reason = (document.querySelector('input[name="rp-reason"]:checked') || {}).value;
+          if (!reason) return showToast("Выберите причину жалобы", "alert");
+          const btn = e.currentTarget; btn.disabled = true;
+          const { targetUid, message } = reportCtx;
+          const me = usersCache[currentUser.uid] || {};
+          const data = {
+              fromUid: currentUser.uid, fromName: me.name || currentUser.displayName || "",
+              targetUid, targetName: usersCache[targetUid]?.name || message?.sender || "",
+              reason, comment: document.getElementById("report-comment").value.trim().slice(0, 500),
+              createdAt: new Date()
+          };
+          if (message) Object.assign(data, { messageId: message.id, chatId: message.chatId || currentChatId || "", messageText: msgPreviewText(message).slice(0, 500) });
+          try {
+              await setDoc(doc(db, "reports", currentUser.uid + "_" + (message ? message.id : "u_" + targetUid)), data);
+              closeReport(); showToast("Жалоба отправлена. Спасибо!", "flag");
+          } catch (err) { console.error(err); showToast("Не удалось отправить жалобу", "error"); }
+          btn.disabled = false;
+      });
+      async function resolveReport(id, action, btn) {
+          const r = reportsCache[id]; if (!r || !isAdmin) return;
+          btn.disabled = true;
+          try {
+              if (action === "delmsg") {
+                  if (!confirm("Удалить это сообщение у всех?")) { btn.disabled = false; return; }
+                  await deleteDoc(doc(db, "messages", r.messageId)).catch(() => {});
+              }
+              // Закрываем все жалобы на то же сообщение (или на того же человека, если без сообщения)
+              const same = Object.entries(reportsCache).filter(([, x]) => r.messageId ? x.messageId === r.messageId : (!x.messageId && x.targetUid === r.targetUid)).map(([k]) => k);
+              await Promise.all(same.map(k => deleteDoc(doc(db, "reports", k))));
+              showToast(action === "delmsg" ? "Сообщение удалено, жалоба закрыта" : "Жалоба закрыта", "check");
+          } catch (err) { console.error(err); showToast("Не удалось: " + err.message, "error"); btn.disabled = false; }
+      }
+
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
       let replyingTo = null;
       function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : "Сообщение")); }
@@ -2563,6 +2707,7 @@
                     let actionsHtml = `<div class="msg-actions"><button class="msg-action-btn reply-btn" data-id="${msg.id}" title="Ответить">${replyIconSVG}</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '👍')">👍</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '❤')">❤️</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '😂')">😂</button>`;
                     if (isMe) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" data-text="${escapeHTML(msg.text || '')}" title="Редактировать">${editIconSVG}</button>`;
                     if (isMe || isAdmin) actionsHtml += `<button class="msg-action-btn delete-btn" data-id="${msg.id}" title="Удалить">${deleteIconSVG}</button>`;
+                    if (!isMe && !isAdmin) actionsHtml += `<button class="msg-action-btn report-btn" data-id="${msg.id}" title="Пожаловаться">${icon("flag", 16)}</button>`;
                     actionsHtml += `</div>`; contentHtml += actionsHtml;
 
                     if (!isMe) {
@@ -2639,6 +2784,8 @@
       document.getElementById("chat-box").addEventListener("click", async (e) => {
         let replyBtn = e.target.closest(".reply-btn");
         if (replyBtn) { startReply(replyBtn.getAttribute("data-id")); return; }
+        let reportBtn = e.target.closest(".report-btn");
+        if (reportBtn) { const m = loadedMsgs[reportBtn.getAttribute("data-id")]; if (m) openReport({ targetUid: m.uid, message: m }); return; }
         let quote = e.target.closest(".reply-quote");
         if (quote) {
            let target = document.getElementById("msg-" + quote.getAttribute("data-reply-id"));
