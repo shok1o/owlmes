@@ -4,7 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Не black-translucent: в iOS 27 с прозрачным статус-баром окно приложения короче экрана на его высоту, снизу пустая полоса -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     
     <title>Owl Messenger | PRO</title>
     <link rel="icon" href="data:image/png;base64,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" type="image/png">
@@ -224,9 +225,6 @@
         .input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         /* Клавиатура открыта, или iOS не вернул высоту окна после неё (снизу полоска цвета панели) — запас под «домой» не нужен */
         html.kb-open .input-area, html.vp-stuck .input-area { padding-bottom: 12px; }
-        /* Эксперимент: растянуть приложение вниз на высоту статус-бара (баг iOS 27: окно короче экрана на эту величину) */
-        html.vp-extend body { height: auto; bottom: calc(-1 * env(safe-area-inset-top)); } /* height:auto — иначе 100dvh из базового стиля перебивает bottom */
-        html.vp-extend.vp-stuck .input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         .message-content { max-width: 85%; }
         .chat-item-info { border-bottom: none; }
       }
@@ -2881,9 +2879,8 @@
         const maxH = { portrait: 0, landscape: 0 };
         const orient = () => isLandscape() ? "landscape" : "portrait";
         const rememberHeight = () => { if (!typing()) maxH[orient()] = Math.max(maxH[orient()], window.innerHeight); };
-        // Окно урезано: после клавиатуры (меньше, чем было) или уже при запуске (меньше экрана) — iOS 27 делает и так
-        const shrunk = () => maxH[orient()] - window.innerHeight > 4
-            || (iosStandalone && !isLandscape() && Math.max(screen.width, screen.height) - window.innerHeight > 20);
+        // Окно урезано после клавиатуры (стало меньше, чем было)
+        const shrunk = () => maxH[orient()] - window.innerHeight > 4;
         // Цвет «под» приложением = цвет нижней панели: если iOS оставит полоску, она сольётся с панелью
         const themeMeta = document.querySelector('meta[name="theme-color"]');
         function syncCanvasColor() {
@@ -2940,8 +2937,8 @@
       // Диагностика размеров экрана: 5 быстрых нажатий на версию внизу. Нужна, чтобы разобраться с полосой снизу на iPhone.
       (function () {
         const ver = document.getElementById("app-version"); if (!ver) return;
-        let taps = [], box = null, timer = null, btn = null;
-        try { if (localStorage.getItem("owl-vp-extend") === "1") document.documentElement.classList.add("vp-extend"); } catch (_) {}
+        let taps = [], box = null, timer = null;
+        try { localStorage.removeItem("owl-vp-extend"); } catch (_) {}
         const px = (v) => Math.round(v * 10) / 10;
         function safeArea() {
           const t = document.createElement("div");
@@ -2951,7 +2948,6 @@
         function render() {
           const vv = window.visualViewport, [sat, sab] = safeArea(), de = document.documentElement;
           const app = document.getElementById("app-container").getBoundingClientRect(), body = document.body.getBoundingClientRect();
-          btn.innerText = document.documentElement.classList.contains("vp-extend") ? "Тест: растягивание ВКЛ — нажмите, чтобы выключить" : "Тест: растянуть приложение вниз";
           box.innerText = [
             "Owl — диагностика экрана",
             "screen: " + screen.width + " × " + screen.height,
@@ -2964,22 +2960,14 @@
             "standalone: " + (navigator.standalone === true) + "  dpr " + devicePixelRatio,
             "classes: " + (de.className || "—"),
             "",
-            "Нажмите на чёрную панель, чтобы закрыть"
+            "Нажмите, чтобы закрыть"
           ].join("\n");
-          box.appendChild(btn);
+
         }
         ver.addEventListener("click", () => {
           const now = Date.now(); taps = taps.filter(t => now - t < 2000); taps.push(now);
           if (taps.length < 5) return; taps = [];
           box = document.createElement("div");
-          btn = document.createElement("button");
-          btn.style.cssText = "display:block;margin-top:10px;width:100%;padding:10px;border:0;border-radius:10px;background:#8b5cf6;color:#fff;font:600 14px -apple-system,sans-serif;";
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const on = document.documentElement.classList.toggle("vp-extend");
-            try { localStorage.setItem("owl-vp-extend", on ? "1" : "0"); } catch (_) {}
-            render();
-          });
           box.style.cssText = "position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:30000;background:rgba(0,0,0,.85);color:#7CFC9A;font:12px/1.45 ui-monospace,Menlo,monospace;padding:12px;border-radius:12px;white-space:pre-wrap;";
           box.addEventListener("click", () => { clearInterval(timer); box.remove(); box = null; });
           document.body.appendChild(box); render(); timer = setInterval(render, 500);
