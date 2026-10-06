@@ -224,6 +224,9 @@
         .input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         /* Клавиатура открыта, или iOS не вернул высоту окна после неё (снизу полоска цвета панели) — запас под «домой» не нужен */
         html.kb-open .input-area, html.vp-stuck .input-area { padding-bottom: 12px; }
+        /* Эксперимент: растянуть приложение вниз на высоту статус-бара (баг iOS 27: окно короче экрана на эту величину) */
+        html.vp-extend body { bottom: calc(-1 * env(safe-area-inset-top)); }
+        html.vp-extend.vp-stuck .input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         .message-content { max-width: 85%; }
         .chat-item-info { border-bottom: none; }
       }
@@ -2937,7 +2940,8 @@
       // Диагностика размеров экрана: 5 быстрых нажатий на версию внизу. Нужна, чтобы разобраться с полосой снизу на iPhone.
       (function () {
         const ver = document.getElementById("app-version"); if (!ver) return;
-        let taps = [], box = null, timer = null;
+        let taps = [], box = null, timer = null, btn = null;
+        try { if (localStorage.getItem("owl-vp-extend") === "1") document.documentElement.classList.add("vp-extend"); } catch (_) {}
         const px = (v) => Math.round(v * 10) / 10;
         function safeArea() {
           const t = document.createElement("div");
@@ -2947,6 +2951,7 @@
         function render() {
           const vv = window.visualViewport, [sat, sab] = safeArea(), de = document.documentElement;
           const app = document.getElementById("app-container").getBoundingClientRect(), body = document.body.getBoundingClientRect();
+          btn.innerText = document.documentElement.classList.contains("vp-extend") ? "Тест: растягивание ВКЛ — нажмите, чтобы выключить" : "Тест: растянуть приложение вниз";
           box.innerText = [
             "Owl — диагностика экрана",
             "screen: " + screen.width + " × " + screen.height,
@@ -2959,13 +2964,22 @@
             "standalone: " + (navigator.standalone === true) + "  dpr " + devicePixelRatio,
             "classes: " + (de.className || "—"),
             "",
-            "Нажмите, чтобы закрыть"
+            "Нажмите на чёрную панель, чтобы закрыть"
           ].join("\n");
+          box.appendChild(btn);
         }
         ver.addEventListener("click", () => {
           const now = Date.now(); taps = taps.filter(t => now - t < 2000); taps.push(now);
           if (taps.length < 5) return; taps = [];
           box = document.createElement("div");
+          btn = document.createElement("button");
+          btn.style.cssText = "display:block;margin-top:10px;width:100%;padding:10px;border:0;border-radius:10px;background:#8b5cf6;color:#fff;font:600 14px -apple-system,sans-serif;";
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const on = document.documentElement.classList.toggle("vp-extend");
+            try { localStorage.setItem("owl-vp-extend", on ? "1" : "0"); } catch (_) {}
+            render();
+          });
           box.style.cssText = "position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:30000;background:rgba(0,0,0,.85);color:#7CFC9A;font:12px/1.45 ui-monospace,Menlo,monospace;padding:12px;border-radius:12px;white-space:pre-wrap;";
           box.addEventListener("click", () => { clearInterval(timer); box.remove(); box = null; });
           document.body.appendChild(box); render(); timer = setInterval(render, 500);
