@@ -775,7 +775,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.22</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.23</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1013,6 +1013,38 @@
       let groupsListener = null;
       let metaListener = null;
       let globalMetaListener = null, groupMetaListeners = {};
+      let userWatchers = {}, privateListener = null; const privateEmails = {}; // email — только у админа
+      const emailOf = (u) => (u && (privateEmails[u.uid] || u.email)) || "";
+      const MAX_USER_WATCHERS = 400;
+      // После изменения профилей: перерисовать всё, что от них зависит (склеиваем частые изменения)
+      let usersChangedTimer = null;
+      function usersChangedNow() {
+          clearTimeout(usersChangedTimer); usersChangedTimer = null;
+          renderChatList(document.getElementById("search-input").value);
+          updatePinIcon(); refreshHeaderStatus(); applyBlockState(); renderDevPanel();
+          if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
+          if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
+      }
+      const usersChanged = () => { if (!usersChangedTimer) usersChangedTimer = setTimeout(usersChangedNow, 60); };
+      // Подписаться на профиль одного человека (не админ — админ и так слушает всех)
+      function watchUser(uid) {
+          if (!uid || !currentUser || isAdmin || uid === "global" || userWatchers[uid]) return;
+          if (Object.keys(userWatchers).length >= MAX_USER_WATCHERS) return;
+          userWatchers[uid] = onSnapshot(doc(db, "users", uid), (d) => {
+              if (!d.exists()) { delete usersCache[uid]; usersChanged(); return; }
+              if (window.__ingestUser) window.__ingestUser(d.data(), true);
+              usersChanged();
+          }, (e) => { console.log("users/" + uid + ":", e.code); });
+      }
+      // Мои люди: подписки, заблокированные, собеседники по личкам, участники бесед
+      function watchContacts() {
+          if (!currentUser || isAdmin) return;
+          const me = usersCache[currentUser.uid] || {};
+          (me.following || []).forEach(watchUser);
+          (me.blocked || []).forEach(watchUser);
+          Object.keys(chatsMetaCache).forEach(id => { const p = dmPeer(id); if (p) watchUser(p); });
+          Object.values(groupsCache).forEach(g => (g.members || []).forEach(watchUser));
+      }
 
       // ===== ЗВУК УВЕДОМЛЕНИЙ (не прерывает музыку) =====
       // <audio> телефон считает «медиа» и ставит музыку на паузу. Поэтому короткий сигнал синтезируем через Web Audio,
@@ -1288,7 +1320,7 @@
               if (e.code !== "permission-denied") throw e;
               // Правила Firestore ещё не пускают в usernames — проверяем хотя бы по профилям, чтобы регистрация не ломалась
               console.warn("Нет доступа к коллекции usernames — добавьте правило. Проверяю ник по users.", e);
-              const dup = await getDocs(query(collection(db, "users"), where("nameLower", "==", key)));
+              const dup = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(5)));
               if (dup.docs.some(d => d.id !== uid)) throw nickTakenError();
               await setDoc(doc(db, "users", uid), { name: newName, nameLower: key, ...extra }, { merge: true });
           }
@@ -1497,7 +1529,7 @@
           const step = async (label, fn) => { try { await fn(); } catch (e) { console.error("Удаление аккаунта, шаг «" + label + "»:", e); failed.push(label); } };
 
           // 1. Сначала блокируем вход — даже если дальше что-то не удалится, пользователь уже не войдёт
-          await step("блокировка входа", () => setDoc(doc(db, "deleted_accounts", uid), { uid: uid, name: name, email: u.email || "", deletedBy: currentUser.uid, deletedAt: new Date() }));
+          await step("блокировка входа", () => setDoc(doc(db, "deleted_accounts", uid), { uid: uid, name: name, email: emailOf(u), deletedBy: currentUser.uid, deletedAt: new Date() }));
           if (failed.length) { btn.disabled = false; return showToast("Нет прав на удаление — добавьте правила Firestore (deleted_accounts)", "error"); }
 
           if (wipeMessages) await step("сообщения", async () => {
@@ -1548,7 +1580,7 @@
                   if (reason === null) { btn.disabled = false; return; } // «Отмена»
                   const now = new Date(); const batch = writeBatch(db);
                   batch.set(doc(db, "bans", uid), { uid: uid, bannedAt: now }); // публично — только факт бана
-                  batch.set(doc(db, "ban_reasons", uid), { uid: uid, reason: reason.trim().slice(0, 300), name: u.name || "", email: u.email || "", bannedBy: currentUser.uid, bannedAt: now });
+                  batch.set(doc(db, "ban_reasons", uid), { uid: uid, reason: reason.trim().slice(0, 300), name: u.name || "", email: emailOf(u), bannedBy: currentUser.uid, bannedAt: now });
                   await batch.commit();
                   showToast(`${name} забанен(а)`, "shield");
               }
@@ -1594,7 +1626,7 @@
           else if (devFilter === "banned") list = all.filter(u => isBanned(u.uid)).sort((a, b) => (!!appeals[b.uid] - !!appeals[a.uid]) || (getTime(bansCache[b.uid].bannedAt) - getTime(bansCache[a.uid].bannedAt))); // с обращениями — сверху
           else list = all.slice().sort((a, b) => createdAtOf(b) - createdAtOf(a));
           const q = document.getElementById("dev-search").value.trim().toLowerCase();
-          if (q) list = list.filter(u => String(u.name).toLowerCase().includes(q) || String(u.email || "").toLowerCase().includes(q));
+          if (q) list = list.filter(u => String(u.name).toLowerCase().includes(q) || emailOf(u).toLowerCase().includes(q));
 
           const box = document.getElementById("dev-list");
           if (!list.length) {
@@ -1607,7 +1639,7 @@
               const canBan = u.uid !== currentUser.uid && u.email !== ADMIN_EMAIL;
               const banBtn = canBan ? `<div class="dev-actions"><button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(u.uid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button><button class="dev-ban-btn dev-verify-btn${verifiedCache[u.uid] ? ' on' : ''}" data-verify-uid="${escapeHTML(u.uid)}" title="${verifiedCache[u.uid] ? 'Снять серую галочку' : 'Выдать серую галочку'}">${VERIFIED_CHECK(14)}<span>${verifiedCache[u.uid] ? 'Снять' : 'Галочка'}</span></button><button class="dev-ban-btn dev-del-btn" data-del-uid="${escapeHTML(u.uid)}" title="Удалить аккаунт"><svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Удалить</span></button></div>` : '';
               const why = banned ? (banReasons[u.uid]?.reason || ban.reason || "") : "";
-              const sub = banned ? `Бан ${formatRegDate(getTime(ban.bannedAt))}${why ? ' · ' + escapeHTML(why) : ''}` : escapeHTML(u.email || "");
+              const sub = banned ? `Бан ${formatRegDate(getTime(ban.bannedAt))}${why ? ' · ' + escapeHTML(why) : ''}` : escapeHTML(emailOf(u));
               return `<div class="dev-row${banned ? ' banned' : ''}" data-dev-uid="${escapeHTML(u.uid)}">
                   <span class="av-wrap"><img src="${getAvatar(u.uid, u.name)}">${online ? '<i class="online-dot"></i>' : ''}</span>
                   <div class="dev-main">
@@ -1693,16 +1725,33 @@
           chatsMetaCache = {};
 
           let usersFirstSnap = true;
-          usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
+          Object.values(userWatchers).forEach(u => u()); userWatchers = {};
+          if (privateListener) { privateListener(); privateListener = null; }
+          // ПРОФИЛИ. Админ (панель разработчика) слушает всех; остальные — только себя и своих собеседников
+          // (watchUser). Раньше каждый скачивал профили всех пользователей.
+          window.__ingestUser = (u, quiet) => { ingestUser(u, quiet); if (u && currentUser && u.uid === currentUser.uid) watchContacts(); };
+          if (!isAdmin) { usersListener = null; watchUser(currentUser.uid); }
+          else usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
             snapshot.docChanges().forEach(change => {
               if (change.type === "removed") { delete usersCache[change.doc.id]; return; } // профиль удалён
-              let u = change.doc.data();
+              ingestUser(change.doc.data(), usersFirstSnap);
+            });
+            usersChangedNow();
+            usersFirstSnap = false;
+          });
+          if (isAdmin) {
+              privateListener = onSnapshot(collection(db, "users_private"), (snap) => {
+                  snap.forEach(d => { privateEmails[d.id] = d.data().email || ""; });
+                  renderDevPanel();
+              }, (e) => console.log("users_private:", e.code));
+          }
+          function ingestUser(u, quiet) {
               if(u && u.uid) {
                   // Админу — уведомление о свежей регистрации (ник появляется чуть позже самого профиля)
                   let prev = usersCache[u.uid];
-                  if (isAdmin && !usersFirstSnap && u.name && u.name !== "Загрузка..." && (!prev || !prev.name || prev.name === "Загрузка...") && Date.now() - createdAtOf(u) < 10 * 60 * 1000) showToast("Новый пользователь: " + u.name, "users");
+                  if (isAdmin && !quiet && u.name && u.name !== "Загрузка..." && (!prev || !prev.name || prev.name === "Загрузка...") && Date.now() - createdAtOf(u) < 10 * 60 * 1000) showToast("Новый пользователь: " + u.name, "users");
                   usersCache[u.uid] = u;
-              }
+              } else return;
               
               document.querySelectorAll(`img[data-uid='${u.uid}']`).forEach(img => { img.src = getAvatar(u.uid, u.name); });
               
@@ -1712,24 +1761,15 @@
                 
                 document.getElementById("my-name").innerText = displayN;
                 document.getElementById("my-avatar").src = displayAv;
-                document.getElementById("my-email-display").innerText = u.email;
+                document.getElementById("my-email-display").innerText = currentUser.email || "";
                 
                 document.getElementById("settings-avatar").src = displayAv;
                 document.getElementById("settings-bio").value = u.bio || "";
                 document.getElementById("settings-name").innerText = displayN;
-                document.getElementById("settings-email").innerText = u.email;
+                document.getElementById("settings-email").innerText = currentUser.email || "";
                 document.getElementById("hide-online-toggle").checked = !!u.hideOnline;
               }
-            });
-            renderChatList(document.getElementById("search-input").value);
-            updatePinIcon();
-            refreshHeaderStatus();
-            applyBlockState();
-            renderDevPanel();
-            usersFirstSnap = false;
-            if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
-            if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
-          });
+          }
 
           groupsListener = onSnapshot(query(collection(db, "groups"), where("members", "array-contains", currentUser.uid)), (snapshot) => {
             snapshot.docChanges().forEach(change => {
@@ -1739,12 +1779,14 @@
                 else groupsCache[docId] = { id: docId, ...g };
             });
             syncGroupMetaListeners();
+            watchContacts();
             renderChatList(document.getElementById("search-input").value);
           });
 
           // ПРЕВЬЮ ЧАТОВ: загружаем только свои — личные (members содержит меня), свои беседы и глобальный чат.
           // Раньше грузилась вся коллекция, т.е. превью чужих личных переписок.
           const metaChanged = () => {
+            watchContacts();
             updateUnreadIndicators(totalUnread());
             if (window.__pendingChat && Object.keys(usersCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
             renderChatList(document.getElementById("search-input").value);
@@ -1773,7 +1815,25 @@
               }, (e) => console.log("chats_metadata (беседа):", e.code));
             }
           }
-          if (isAdmin) migrateMetaMembers();
+          if (isAdmin) { migrateMetaMembers(); setTimeout(migrateEmails, 4000); }
+      }
+      // Разовая миграция (запускает админ): email из публичных профилей → users_private; ник в нижнем регистре для поиска
+      async function migrateEmails() {
+          const todo = Object.values(usersCache).filter(u => u && u.uid && ((u.email && u.email !== ADMIN_EMAIL) || (u.name && !u.nameLower)));
+          let moved = 0;
+          for (const u of todo) {
+              try {
+                  const upd = {};
+                  if (u.email && u.email !== ADMIN_EMAIL) {
+                      await setDoc(doc(db, "users_private", u.uid), { uid: u.uid, email: u.email }, { merge: true });
+                      privateEmails[u.uid] = u.email; upd.email = deleteField();
+                  }
+                  if (u.name && !u.nameLower) upd.nameLower = nickKey(u.name);
+                  await setDoc(doc(db, "users", u.uid), upd, { merge: true });
+                  moved++;
+              } catch (e) { console.log("Перенос профиля " + u.uid + ":", e.code || e); }
+          }
+          if (moved) showToast("Профили обновлены: " + moved, "shield");
       }
       // Разовая миграция (запускает админ): старым превью личных чатов дописываем members,
       // без этого они не попадут в выборку «мои чаты»
@@ -2068,6 +2128,7 @@
       });
 
       window.openPublicProfile = (uid) => {
+        watchUser(uid);
         if(!uid || uid === 'global' || uid === 'admin-settings') return;
         
         if (groupsCache[uid]) {
@@ -2132,7 +2193,8 @@
         document.getElementById("public-verified-badge").setAttribute("data-verified-uid", uid); syncVerifiedBadges();
 
         let emailEl = document.getElementById("public-email");
-        if (isAdmin || uid === currentUser.uid) { emailEl.style.display = "block"; emailEl.innerText = u.email; } else { emailEl.style.display = "none"; }
+        const shownEmail = uid === currentUser.uid ? currentUser.email : (isAdmin ? emailOf(u) : "");
+        if (shownEmail) { emailEl.style.display = "block"; emailEl.innerText = shownEmail; } else { emailEl.style.display = "none"; }
         document.getElementById("public-bio").innerText = u.bio ? u.bio : "Статус не указан";
         document.getElementById("public-followers").innerText = u.followers ? u.followers.length : 0;
 
@@ -2176,7 +2238,23 @@
 
       document.getElementById("tab-all").addEventListener("click", (e) => { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); e.currentTarget.classList.add('active'); currentFilter = 'all'; renderChatList(document.getElementById("search-input").value); });
       document.getElementById("tab-friends").addEventListener("click", (e) => { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); e.currentTarget.classList.add('active'); currentFilter = 'friends'; renderChatList(document.getElementById("search-input").value); });
-      document.getElementById("search-input").addEventListener("input", (e) => renderChatList(e.target.value));
+      // Поиск людей: ищем в базе по началу ника (раньше искали в скачанном списке всех пользователей)
+      let searchTimer = null, searchSeq = 0;
+      document.getElementById("search-input").addEventListener("input", (e) => {
+          renderChatList(e.target.value);
+          clearTimeout(searchTimer);
+          const v = nickKey(e.target.value);
+          if (isAdmin || v.length < 2) return;
+          searchTimer = setTimeout(async () => {
+              const seq = ++searchSeq;
+              try {
+                  const snap = await getDocs(query(collection(db, "users"), where("nameLower", ">=", v), where("nameLower", "<=", v + "\uf8ff"), limit(15)));
+                  if (seq !== searchSeq) return;
+                  snap.forEach(d => { const u = d.data(); if (u && u.uid && !usersCache[u.uid]) usersCache[u.uid] = u; });
+                  renderChatList(document.getElementById("search-input").value);
+              } catch (err) { console.log("Поиск:", err.code || err); }
+          }, 300);
+      });
 
       document.getElementById("chat-list").addEventListener("click", (e) => {
         if (e.target.closest("[data-profile-target]")) return; 
@@ -2448,7 +2526,10 @@
 
           let safeName = user.displayName || "Загрузка...";
           // Ник пишем, только если он уже есть (при регистрации он появится чуть позже — его занимает claimNickname)
-          let baseProfile = { uid: user.uid, email: user.email };
+          // Email храним в закрытой users_private (видят только сам человек и админ). В публичном профиле он
+          // остаётся только у официального аккаунта — по нему рисуется синяя галочка.
+          let baseProfile = { uid: user.uid, email: (user.email === ADMIN_EMAIL) ? user.email : deleteField() };
+          setDoc(doc(db, "users_private", user.uid), { uid: user.uid, email: user.email || "" }, { merge: true }).catch(e => console.log("users_private:", e.code));
           if (user.displayName) { baseProfile.name = user.displayName; baseProfile.nameLower = nickKey(user.displayName); }
           await setDoc(doc(db, "users", user.uid), baseProfile, { merge: true });
 
@@ -2811,6 +2892,7 @@
                     messageRow.className = isMe ? "message-row my-msg" : "message-row other-msg";
                     messageRow.setAttribute("data-msg-id", msg.id);
                     messageRow.setAttribute("data-uid", msg.uid || "");
+                    watchUser(msg.uid);
                     if (!isMe && !isPrivateChat && iBlocked(msg.uid)) messageRow.classList.add("from-blocked");
 
                     let avatarHtml = `<img src="${avatarUrl}" class="avatar chat-msg-avatar" data-profile-target="${escapeHTML(msg.uid)}" title="Смотреть профиль">`;
