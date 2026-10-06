@@ -369,6 +369,10 @@
       .st-bg { height: 66px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; color: #fff; font-size: 12px; display: flex; align-items: flex-end; justify-content: center; padding: 6px; box-sizing: border-box; text-shadow: 0 1px 3px rgba(0,0,0,.6); transition: .2s; }
       .st-bg.on { border-color: var(--accent); transform: scale(1.03); }
       .st-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--text-main); }
+      .bc-modes { display: flex; gap: 4px; padding: 4px; margin: 0 0 10px; background: var(--input-bg); border-radius: 12px; }
+      .bc-modes label { flex: 1; text-align: center; padding: 8px 4px; font-size: 13px; border-radius: 9px; cursor: pointer; color: var(--text-muted); user-select: none; transition: background .15s, color .15s; }
+      .bc-modes input { display: none; }
+      .bc-modes label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 600; }
       .st-toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
       .st-toggle input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
       .st-toggle span { position: absolute; inset: 0; background: var(--bg-main); border-radius: 13px; transition: .2s; }
@@ -568,6 +572,11 @@
         </button>
         <h2 style="margin-top: 0; color: #ff3b30;">Настройки (Админ)</h2>
         <label class="settings-label" style="display:flex; align-items:center; gap:6px; text-align:left;"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"></path><path d="M16 8.5a5 5 0 0 1 0 7"></path><path d="M19 5.5a9 9 0 0 1 0 13"></path></svg>Рассылка всем пользователям</label>
+        <div class="bc-modes" id="broadcast-mode">
+            <label><input type="radio" name="bc-mode" value="both" checked>Везде</label>
+            <label><input type="radio" name="bc-mode" value="push">Только push</label>
+            <label><input type="radio" name="bc-mode" value="bell">Колокольчик</label>
+        </div>
         <textarea id="broadcast-text" rows="5" maxlength="1000" placeholder="Обновление Owl: что нового..."></textarea>
         <div id="broadcast-count" style="text-align:right; font-size:11px; color:var(--text-muted); margin:4px 0 10px;">0/1000</div>
         <button id="broadcast-btn" class="modal-btn" style="margin-bottom: 25px;">Отправить всем</button>
@@ -2765,33 +2774,44 @@
     
       // Рассылка уведомлений всем пользователям (только админ)
       const bcBtn = document.getElementById("broadcast-btn"), bcText = document.getElementById("broadcast-text");
-      bcText.addEventListener("input", () => { document.getElementById("broadcast-count").innerText = bcText.value.length + "/1000"; });
+      // Куда отправлять: push на телефоны, колокольчик в приложении или оба
+      const bcMode = () => (document.querySelector('input[name="bc-mode"]:checked') || {}).value || "both";
+      const PUSH_LIMIT = 180; // столько текста помещается в push, дальше сервер обрежет
+      function updateBroadcastCount() {
+          const n = bcText.value.length, el = document.getElementById("broadcast-count");
+          if (bcMode() === "push") { el.innerText = n + "/" + PUSH_LIMIT + (n > PUSH_LIMIT ? " — длиннее обрежется" : ""); el.style.color = n > PUSH_LIMIT ? "#ff9f0a" : "var(--text-muted)"; }
+          else { el.innerText = n + "/1000"; el.style.color = "var(--text-muted)"; }
+      }
+      bcText.addEventListener("input", updateBroadcastCount);
+      document.querySelectorAll('input[name="bc-mode"]').forEach(r => r.addEventListener("change", updateBroadcastCount));
       bcBtn.addEventListener("click", async () => {
           if (!currentUser || !isAdmin) return;
           const text = bcText.value.trim();
           if (!text) return showToast("Введите текст рассылки", "alert");
+          const mode = bcMode(), toBell = mode !== "push", toPush = mode !== "bell";
           const uids = Object.keys(usersCache);
-          if (!uids.length) return showToast("Список пользователей ещё загружается", "clock");
-          if (!confirm("Отправить уведомление " + uids.length + " пользователям?")) return;
+          if (toBell && !uids.length) return showToast("Список пользователей ещё загружается", "clock");
+          const where = mode === "push" ? "push-уведомление всем подписанным устройствам" : mode === "bell" ? "уведомление в колокольчик " + uids.length + " пользователям" : "push и уведомление в колокольчик " + uids.length + " пользователям";
+          if (!confirm("Отправить " + where + "?")) return;
           bcBtn.disabled = true; const orig = bcBtn.innerText; bcBtn.innerText = "Отправка...";
           try {
               const ts = new Date();
-              for (let i = 0; i < uids.length; i += 400) {
+              if (toBell) for (let i = 0; i < uids.length; i += 400) {
                   const batch = writeBatch(db);
                   uids.slice(i, i + 400).forEach(uid => batch.set(doc(collection(db, "notifications")), { toUid: uid, text: text, timestamp: ts, read: false, type: "broadcast", fromUid: currentUser.uid }));
                   await batch.commit();
               }
               // Push на все подписанные устройства (сервер отправляет порциями)
               let pushed = 0, cursor = null, guard = 0;
-              try {
+              if (toPush) try {
                   do {
                       const r = await (await pushPost("/broadcast", { text, cursor })).json();
                       if (!r.ok) throw new Error(r.error || "push");
                       pushed += r.sent || 0; cursor = r.cursor;
                   } while (cursor && ++guard < 200);
               } catch (e) { console.log("Push-рассылка:", e); showToast("Push-рассылка не удалась", "alert"); }
-              bcText.value = ""; document.getElementById("broadcast-count").innerText = "0/1000";
-              showToast("Отправлено: " + uids.length + " пользователям, push: " + pushed, "megaphone");
+              bcText.value = ""; updateBroadcastCount();
+              showToast(mode === "push" ? "Push доставлено на устройства: " + pushed : mode === "bell" ? "Отправлено пользователям: " + uids.length : "Отправлено: " + uids.length + " пользователям, push: " + pushed, "megaphone");
           } catch (e) { console.error(e); showToast("Не удалось отправить: " + e.message, "error"); }
           bcBtn.disabled = false; bcBtn.innerText = orig;
       });
