@@ -630,7 +630,7 @@
         <div class="st-sec">Уведомления</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div>
           <div class="st-row" style="margin-top:12px;"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>Уведомления на устройстве</span><label class="st-toggle"><input type="checkbox" id="push-toggle"><span></span></label></div>
-          <div id="push-hint" style="font-size:12px; color:var(--text-muted); margin-top:6px;">Новые сообщения и счётчик непрочитанных — даже когда вкладка свёрнута.</div></div>
+          <div id="push-hint" style="font-size:12px; color:var(--text-muted); margin-top:6px;">Новые сообщения — даже когда Owl закрыт. На iPhone работает, если Owl установлен на экран «Домой».</div></div>
 
         <div class="st-sec">Конфиденциальность</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
@@ -717,7 +717,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.16</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.17</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1071,6 +1071,48 @@
           else showSystemNotification(chatId, meta);
       }
 
+      // ===== PUSH-УВЕДОМЛЕНИЯ ЧЕРЕЗ СЕРВЕР (приходят, даже когда Owl закрыт) =====
+      // Сервер — Cloudflare Worker owl-push (код в push-server/worker.js)
+      const PUSH_SERVER = "https://push.owlmes.ru";
+      const b64uToBytes = (str) => { str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "="; const bin = atob(str); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
+      const bytesToB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      const serverPushSupported = () => "PushManager" in window && !!navigator.serviceWorker;
+      async function pushPost(path, data) {
+          const token = await currentUser.getIdToken();
+          // text/plain — без лишнего CORS-запроса; сервер всё равно разбирает JSON
+          return fetch(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token }), keepalive: true });
+      }
+      async function serverPushSubscribe() {
+          if (!currentUser || !serverPushSupported()) return false;
+          try {
+              const reg = await navigator.serviceWorker.ready;
+              const { key } = await fetch(PUSH_SERVER + "/vapid").then(r => r.json());
+              let sub = await reg.pushManager.getSubscription();
+              const oldKey = sub && sub.options && sub.options.applicationServerKey;
+              if (sub && oldKey && bytesToB64u(oldKey) !== key) { await sub.unsubscribe().catch(() => {}); sub = null; }
+              if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(key) });
+              return (await pushPost("/subscribe", { subscription: sub.toJSON() })).ok;
+          } catch (e) { console.log("Push-подписка не удалась:", e); return false; }
+      }
+      async function serverPushUnsubscribe() {
+          try {
+              const reg = await navigator.serviceWorker?.getRegistration(); if (!reg || !reg.pushManager) return;
+              const sub = await reg.pushManager.getSubscription(); if (!sub) return;
+              if (currentUser) await pushPost("/unsubscribe", { endpoint: sub.endpoint }).catch(() => {});
+              await sub.unsubscribe().catch(() => {});
+          } catch (_) {}
+      }
+      function notifyPushServer(messageId) {
+          if (!currentUser || !messageId) return;
+          pushPost("/notify", { messageId }).catch(() => {});
+      }
+      // Выход из аккаунта: отвязываем устройство, чтобы чужие сообщения сюда не приходили
+      async function logoutEverywhere(sendOffline = true) {
+          stopPresence(sendOffline);
+          await Promise.race([serverPushUnsubscribe(), new Promise(r => setTimeout(r, 2500))]);
+          signOut(auth);
+      }
+
       document.getElementById("push-toggle").addEventListener("change", async (e) => {
           const hint = document.getElementById("push-hint");
           if (!("Notification" in window)) { e.target.checked = false; hint.innerText = "Этот браузер не поддерживает уведомления. На iPhone добавьте Owl на экран «Домой» (iOS 16.4+)."; return; }
@@ -1079,10 +1121,16 @@
               if (perm === "default") perm = await Notification.requestPermission();
               if (perm !== "granted") { e.target.checked = false; hint.innerText = "Уведомления запрещены в настройках браузера — разрешите их для этого сайта."; return; }
               try { localStorage.setItem("owl-push", "on"); } catch (_) {}
-              hint.innerText = "Готово! Придут, когда вкладка свёрнута или открыт другой чат.";
+              hint.innerText = "Подключаем уведомления…";
               updateUnreadIndicators(totalUnread());
+              const ok = await serverPushSubscribe();
+              hint.innerText = ok ? "Готово! Сообщения будут приходить, даже когда Owl закрыт."
+                  : serverPushSupported() ? "Уведомления включены, пока Owl открыт. Сервер уведомлений недоступен — попробуйте позже."
+                  : "Уведомления включены, пока Owl открыт. Чтобы получать их при закрытом приложении, установите Owl на экран «Домой».";
           } else {
               try { localStorage.setItem("owl-push", "off"); } catch (_) {}
+              hint.innerText = "Уведомления выключены.";
+              serverPushUnsubscribe();
           }
       });
       document.getElementById("push-toggle").checked = pushEnabled();
@@ -1328,7 +1376,7 @@
               batch.commit().catch(e => { migratedBans.delete(d.id); console.log("Перенос причины бана:", e.code); });
           });
       }
-      document.getElementById("banned-logout-btn").addEventListener("click", () => { stopPresence(false); signOut(auth); });
+      document.getElementById("banned-logout-btn").addEventListener("click", () => logoutEverywhere(false));
       document.getElementById("appeal-send-btn").addEventListener("click", async () => {
           if (!currentUser || !iAmBanned) return;
           const ta = document.getElementById("appeal-text"), btn = document.getElementById("appeal-send-btn"), st = document.getElementById("appeal-status");
@@ -1714,7 +1762,7 @@
 
       document.getElementById("logout-btn-header").addEventListener("click", (e) => {
         e.preventDefault(); e.stopPropagation(); 
-        if(confirm("Вы уверены, что хотите выйти из аккаунта?")) { stopPresence(); signOut(auth); }
+        if(confirm("Вы уверены, что хотите выйти из аккаунта?")) logoutEverywhere();
       });
 
       // Смена никнейма
@@ -2251,6 +2299,7 @@
           startBanListeners();
           startPresence();
           if (user.displayName) ensureProfileMigrated(user);
+          if (pushEnabled()) serverPushSubscribe(); // привязываем устройство к аккаунту (и обновляем подписку)
 
           renderChatList();
           if(window.innerWidth > 768) { window.loadChat('global', 'Глобальный чат', null); }
@@ -2656,7 +2705,8 @@
         if (text) msgData.text = text; if (imageUrl) msgData.imageUrl = imageUrl; if (audioUrl) msgData.audioUrl = audioUrl; 
         if (replyingTo) { msgData.replyTo = replyingTo; cancelReply(); }
         
-        await addDoc(collection(db, "messages"), msgData);
+        const msgRef = await addDoc(collection(db, "messages"), msgData);
+        if (msgData.chatId !== "global") notifyPushServer(msgRef.id);
 
         let previewText = "";
         if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение";

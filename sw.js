@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v9';
+const CACHE = 'owl-shell-v10';
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -82,6 +82,29 @@ self.addEventListener('notificationclick', (event) => {
                 return client.focus();
             }
             return clients.openWindow(chatId ? '/?chat=' + encodeURIComponent(chatId) : '/');
+        })
+    );
+});
+
+// Push с сервера owl-push — показываем уведомление, даже когда приложение закрыто
+self.addEventListener('push', (event) => {
+    let d = {};
+    try { d = event.data ? event.data.json() : {}; } catch (_) { d = { body: event.data ? event.data.text() : '' }; }
+    const tag = d.tag || 'owl';
+    const opts = {
+        body: d.body || 'Новое сообщение',
+        icon: '/icon-192.png', badge: '/icon-192.png',
+        tag: tag, renotify: true,
+        data: { chatId: d.chatId || null }
+    };
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+            // Owl открыт на экране — уведомление покажет само приложение.
+            // Safari требует показывать уведомление на каждый push, поэтому показываем и сразу убираем.
+            const inApp = list.some((c) => c.visibilityState === 'visible' && c.focused);
+            return self.registration.showNotification(d.title || 'Owl Messenger', opts).then(() => {
+                if (inApp) return self.registration.getNotifications({ tag: tag }).then((ns) => ns.forEach((n) => n.close()));
+            });
         })
     );
 });
