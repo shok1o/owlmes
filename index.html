@@ -2495,38 +2495,49 @@
         ["pointerdown", "mousedown", "touchstart"].forEach(ev => send.addEventListener(ev, e => { if (document.activeElement === ta) e.preventDefault(); }, { passive: false }));
 
         // Клавиатура на iPhone. Пока печатаешь — iOS сам поднимает поле ввода, мы не вмешиваемся (только убираем лишний отступ).
-        // В режиме «На экран Домой» iOS после закрытия клавиатуры иногда не возвращает высоту окна:
-        // снизу остаётся полоска. Приложение всегда вписано в видимую область (ничего не обрезается),
-        // полоска закрашена цветом нижней панели, а окно мы пробуем «встряхнуть», чтобы iOS пересчитал размер.
+        // Баг iOS в режиме «На экран Домой»: после закрытия клавиатуры высота окна остаётся уменьшенной до перезапуска,
+        // снизу пустая полоса. Лечится так: на миг скрыть и показать элемент на весь экран — WebKit пересчитывает размер окна.
+        // (прокрутка и правка meta viewport не помогают). Если не помогло — полоска закрашена цветом нижней панели.
         const root = document.documentElement, vv = window.visualViewport;
         const iosStandalone = navigator.standalone === true;
         const isLandscape = () => (screen.orientation && screen.orientation.type) ? screen.orientation.type.startsWith("landscape") : Math.abs(window.orientation || 0) === 90;
         const typing = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && !["checkbox", "radio", "button", "file", "submit"].includes(a.type)) || a.isContentEditable); };
+        // Наибольшая высота окна без клавиатуры — отдельно для портретной и альбомной ориентации
+        const maxH = { portrait: 0, landscape: 0 };
+        const orient = () => isLandscape() ? "landscape" : "portrait";
+        const rememberHeight = () => { if (!typing()) maxH[orient()] = Math.max(maxH[orient()], window.innerHeight); };
+        const shrunk = () => maxH[orient()] - window.innerHeight > 4;
+
+        function healViewport() {
+            if (!iosStandalone || typing() || !shrunk()) return;
+            const app = document.getElementById("app-container");
+            if (!app || app.style.display === "none") return; // экран входа — приложение скрыто, не трогаем
+            const keep = ["chat-box", "chat-list"].map(id => { const el = document.getElementById(id); return el ? [el, el.scrollTop] : null; }).filter(Boolean);
+            app.style.display = "none";
+            void app.offsetHeight; // синхронный пересчёт вёрстки
+            app.style.display = "";
+            keep.forEach(([el, top]) => { el.scrollTop = top; });
+            schedule();
+        }
+
         let timer = 0;
         function applyKeyboardState() {
             timer = 0;
             const kb = typing();
             root.classList.toggle("kb-open", kb);
             if (kb) { root.classList.remove("vp-stuck"); return; }
+            rememberHeight();
             if (window.scrollY || root.scrollTop || document.body.scrollTop) { window.scrollTo(0, 0); root.scrollTop = 0; document.body.scrollTop = 0; }
-            const visibleH = vv ? vv.height : window.innerHeight;
-            root.classList.toggle("vp-stuck", iosStandalone && !isLandscape() && visibleH < Math.max(screen.width, screen.height) - 20);
+            root.classList.toggle("vp-stuck", iosStandalone && shrunk());
         }
         const schedule = () => { if (!timer) timer = setTimeout(applyKeyboardState, 16); };
-        function nudgeViewport() {
-            if (!iosStandalone || typing()) return;
-            const meta = document.querySelector('meta[name="viewport"]'); if (!meta) return;
-            const orig = meta.getAttribute("content");
-            meta.setAttribute("content", orig + ", maximum-scale=1");
-            setTimeout(() => { meta.setAttribute("content", orig); window.scrollTo(0, 0); schedule(); }, 80);
-        }
         document.addEventListener("focusin", schedule);
-        document.addEventListener("focusout", () => { setTimeout(schedule, 50); setTimeout(() => { nudgeViewport(); schedule(); }, 400); });
+        document.addEventListener("focusout", () => { setTimeout(schedule, 50); setTimeout(healViewport, 140); setTimeout(healViewport, 600); });
         if (vv) vv.addEventListener("resize", schedule);
         window.addEventListener("resize", schedule);
-        window.addEventListener("orientationchange", () => setTimeout(schedule, 300));
-        window.addEventListener("pageshow", schedule);
-        document.addEventListener("visibilitychange", schedule);
+        window.addEventListener("orientationchange", () => setTimeout(schedule, 700));
+        window.addEventListener("pageshow", () => { schedule(); setTimeout(healViewport, 300); });
+        document.addEventListener("visibilitychange", () => { schedule(); if (document.visibilityState === "visible") setTimeout(healViewport, 300); });
         applyKeyboardState();
       })();
     </script>
