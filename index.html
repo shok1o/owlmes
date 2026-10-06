@@ -284,6 +284,11 @@
       .dev-side { text-align: right; font-size: 12px; color: var(--text-muted); flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; }
       .dev-side .on { color: #34c759; font-weight: 600; }
       .banned-label { color: #ff3b30 !important; font-weight: 600; }
+      .verified-badge { display: inline-flex; align-items: center; margin-left: 4px; color: #9a97a8; flex-shrink: 0; }
+      .verified-badge svg { display: block; }
+      .dev-verify-btn { border-color: #9a97a8; color: #9a97a8; margin-left: 6px; }
+      .dev-verify-btn:hover { background: rgba(154,151,168,.14); }
+      .dev-verify-btn.on { background: #9a97a8; color: #fff; }
       .ban-badge { font-size: 10px; font-weight: 700; background: #ff3b30; color: #fff; padding: 1px 6px; border-radius: 6px; letter-spacing: .3px; }
       .dev-row.banned img { filter: grayscale(1); opacity: .6; }
       .dev-ban-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #ff3b30; color: #ff3b30; background: transparent; border-radius: 10px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: .2s; }
@@ -423,6 +428,7 @@
         
         <h2 style="margin: 0 0 5px 0; color: var(--text-main); display: flex; align-items: center; justify-content: center;">
           <span id="public-name">Имя</span>
+          <span id="public-verified-badge" class="verified-badge" title="Подтверждённый пользователь" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
           <span id="public-admin-badge" class="admin-badge" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="16" height="16" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>
         </h2>
         
@@ -587,6 +593,7 @@
         
         <h2 style="margin: 0 0 5px 0; color: var(--text-main); display: flex; align-items: center; justify-content: center;">
           <span id="settings-name">Имя</span>
+          <span id="settings-verified-badge" class="verified-badge" title="Подтверждённый пользователь" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
           <span id="settings-admin-badge" class="admin-badge" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="16" height="16" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>
           <button id="edit-name-btn" class="icon-btn" title="Изменить никнейм"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg></button>
         </h2>
@@ -689,6 +696,7 @@
             <div class="sph-name">
                 <div style="display:flex; align-items:center;">
                    <span id="my-name">...</span> 
+                   <span id="my-verified-badge" class="verified-badge" title="Подтверждённый пользователь" style="display:none; color: rgba(255,255,255,.75);"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
                    <span id="admin-badge" class="admin-badge" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="16" height="16" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>
                 </div>
             </div>
@@ -1183,6 +1191,39 @@
           }
       }
 
+      // ===== СЕРАЯ ГАЛОЧКА ДОВЕРЕННЫХ ПОЛЬЗОВАТЕЛЕЙ =====
+      // verified/{uid} — выдаёт и снимает только разработчик; у официального аккаунта своя синяя галочка
+      let verifiedCache = {}, verifiedListener = null;
+      const VERIFIED_CHECK = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      const isVerified = (uid) => !!verifiedCache[uid] && usersCache[uid]?.email !== ADMIN_EMAIL;
+      // Бейдж всегда выводится с data-verified-uid — потом его можно показать/скрыть без перерисовки
+      function verifiedBadge(uid, size = 14) {
+          if (!uid || usersCache[uid]?.email === ADMIN_EMAIL) return "";
+          return `<span class="verified-badge" data-verified-uid="${escapeHTML(uid)}" title="Подтверждённый пользователь" style="${isVerified(uid) ? '' : 'display:none;'}">${VERIFIED_CHECK(size)}</span>`;
+      }
+      function syncVerifiedBadges() {
+          document.querySelectorAll("[data-verified-uid]").forEach(el => { el.style.display = isVerified(el.getAttribute("data-verified-uid")) ? "" : "none"; });
+      }
+      async function toggleVerified(uid, btn) {
+          if (!isAdmin || !uid) return;
+          const name = usersCache[uid]?.name || "пользователя";
+          btn.disabled = true;
+          try {
+              if (verifiedCache[uid]) {
+                  if (!confirm(`Снять серую галочку у ${name}?`)) { btn.disabled = false; return; }
+                  await deleteDoc(doc(db, "verified", uid));
+                  showToast(`Галочка снята: ${name}`, "check");
+              } else {
+                  await setDoc(doc(db, "verified", uid), { uid: uid, grantedBy: currentUser.uid, grantedAt: new Date() });
+                  showToast(`${name} получил(а) галочку`, "check");
+              }
+          } catch (e) {
+              console.error(e);
+              showToast(e.code === "permission-denied" ? "Нет прав — добавьте правило для коллекции verified в Firestore" : "Ошибка: " + e.message, "error");
+          }
+          btn.disabled = false;
+      }
+
       // ===== БАНЫ =====
       // bans/{uid} = { uid, bannedAt } — только факт бана, его читают все (для мёртвой совы и надписи).
       // ban_reasons/{uid} = { reason, name, email, bannedBy, bannedAt } — причина, читает и пишет только админ.
@@ -1225,6 +1266,10 @@
               }
           }, (e) => console.log("bans:", e.code));
           // Все баны — чтобы всем показывать мёртвую сову и «Пользователь заблокирован»
+          verifiedListener = onSnapshot(collection(db, "verified"), (snap) => {
+              verifiedCache = {}; snap.forEach(d => { verifiedCache[d.id] = d.data(); });
+              syncVerifiedBadges(); renderChatList(document.getElementById("search-input").value); renderDevPanel();
+          }, (e) => console.log("verified:", e.code));
           bansListener = onSnapshot(collection(db, "bans"), (snap) => {
               const changed = new Set(Object.keys(bansCache));
               bansCache = {}; snap.forEach(d => { bansCache[d.id] = d.data(); changed.add(d.id); });
@@ -1254,6 +1299,7 @@
           if (bansListener) { bansListener(); bansListener = null; }
           if (myBanListener) { myBanListener(); myBanListener = null; }
           if (reasonsListener) { reasonsListener(); reasonsListener = null; }
+          if (verifiedListener) { verifiedListener(); verifiedListener = null; }
           if (myReasonListener) { myReasonListener(); myReasonListener = null; }
           if (myAppealListener) { myAppealListener(); myAppealListener = null; }
           if (appealsListener) { appealsListener(); appealsListener = null; }
@@ -1345,7 +1391,7 @@
               const ref = doc(db, "usernames", key); const snap = await getDoc(ref);
               if (snap.exists() && snap.data().uid === uid) await deleteDoc(ref);
           });
-          await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals"].map(c => doc(db, c, uid))));
+          await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals", "verified"].map(c => doc(db, c, uid))));
           await step("профиль", () => deleteDoc(doc(db, "users", uid)));
           delete usersCache[uid];
 
@@ -1426,13 +1472,13 @@
               const online = isUserOnline(u);
               const banned = isBanned(u.uid), ban = bansCache[u.uid];
               const canBan = u.uid !== currentUser.uid && u.email !== ADMIN_EMAIL;
-              const banBtn = canBan ? `<div class="dev-actions"><button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(u.uid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button><button class="dev-ban-btn dev-del-btn" data-del-uid="${escapeHTML(u.uid)}" title="Удалить аккаунт"><svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Удалить</span></button></div>` : '';
+              const banBtn = canBan ? `<div class="dev-actions"><button class="dev-ban-btn${banned ? ' unban' : ''}" data-ban-uid="${escapeHTML(u.uid)}" title="${banned ? 'Разбанить' : 'Забанить'}">${BAN_ICON}<span>${banned ? 'Разбанить' : 'Забанить'}</span></button><button class="dev-ban-btn dev-verify-btn${verifiedCache[u.uid] ? ' on' : ''}" data-verify-uid="${escapeHTML(u.uid)}" title="${verifiedCache[u.uid] ? 'Снять серую галочку' : 'Выдать серую галочку'}">${VERIFIED_CHECK(14)}<span>${verifiedCache[u.uid] ? 'Снять' : 'Галочка'}</span></button><button class="dev-ban-btn dev-del-btn" data-del-uid="${escapeHTML(u.uid)}" title="Удалить аккаунт"><svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg><span>Удалить</span></button></div>` : '';
               const why = banned ? (banReasons[u.uid]?.reason || ban.reason || "") : "";
               const sub = banned ? `Бан ${formatRegDate(getTime(ban.bannedAt))}${why ? ' · ' + escapeHTML(why) : ''}` : escapeHTML(u.email || "");
               return `<div class="dev-row${banned ? ' banned' : ''}" data-dev-uid="${escapeHTML(u.uid)}">
                   <span class="av-wrap"><img src="${getAvatar(u.uid, u.name)}">${online ? '<i class="online-dot"></i>' : ''}</span>
                   <div class="dev-main">
-                    <span class="dev-name">${escapeHTML(u.name)}${banned ? '<span class="ban-badge">БАН</span>' : isNew(u, DAY_MS) ? '<span class="new-badge">NEW</span>' : ''}</span>
+                    <span class="dev-name">${escapeHTML(u.name)}${verifiedBadge(u.uid, 13)}${banned ? '<span class="ban-badge">БАН</span>' : isNew(u, DAY_MS) ? '<span class="new-badge">NEW</span>' : ''}</span>
                     <span class="dev-sub">${sub}</span>
                     ${banned && appeals[u.uid] ? `<span class="dev-appeal"><b>Обращение:</b> ${escapeHTML(appeals[u.uid].text || "")}</span>` : ''}
                   </div>
@@ -1462,6 +1508,8 @@
       document.getElementById("dev-list").addEventListener("click", (e) => {
           const banBtn = e.target.closest("[data-ban-uid]");
           if (banBtn) { e.stopPropagation(); toggleBan(banBtn.getAttribute("data-ban-uid"), banBtn); return; }
+          const verBtn = e.target.closest("[data-verify-uid]");
+          if (verBtn) { e.stopPropagation(); toggleVerified(verBtn.getAttribute("data-verify-uid"), verBtn); return; }
           const delBtn = e.target.closest("[data-del-uid]");
           if (delBtn) { e.stopPropagation(); deleteUserAccount(delBtn.getAttribute("data-del-uid"), delBtn); return; }
           const row = e.target.closest("[data-dev-uid]"); if (!row) return;
@@ -1876,6 +1924,7 @@
         
         let pAdminBadge = document.getElementById("public-admin-badge");
         if (pAdminBadge) pAdminBadge.style.display = (u.email === ADMIN_EMAIL) ? "inline-flex" : "none";
+        document.getElementById("public-verified-badge").setAttribute("data-verified-uid", uid); syncVerifiedBadges();
 
         let emailEl = document.getElementById("public-email");
         if (isAdmin || uid === currentUser.uid) { emailEl.style.display = "block"; emailEl.innerText = u.email; } else { emailEl.style.display = "none"; }
@@ -2052,7 +2101,7 @@
               let isOfficial = (u.email === ADMIN_EMAIL);
 
               chatItemsArray.push({
-                  id: chatId, targetUid: escapeHTML(u.uid), isGroup: false, isFriend: isFriend, name: escapeHTML(u.name), subtext: preview, namePrefix: isFriendIcon,
+                  id: chatId, uid: u.uid, targetUid: escapeHTML(u.uid), isGroup: false, isFriend: isFriend, name: escapeHTML(u.name), subtext: preview, namePrefix: isFriendIcon,
                   avatarHtml: `<span class="av-wrap"><img src="${avatarUrl}" data-profile-target="${escapeHTML(u.uid)}" title="Открыть профиль">${isUserOnline(u) ? '<i class="online-dot"></i>' : ''}</span>`, time: time, unread: unread, isOfficial: isOfficial, isPinned: myPinned.includes(chatId)
               });
             });
@@ -2073,7 +2122,7 @@
                     ${item.avatarHtml}
                     <div class="chat-item-info" style="pointer-events: none;">
                       <div class="chat-item-top">
-                        <span class="chat-item-name" style="color: ${item.isFriend ? 'var(--accent)' : 'inherit'}; display:flex; align-items:center;">${item.namePrefix || ''}${item.name}${officialHtml}${pinHtml}</span>
+                        <span class="chat-item-name" style="color: ${item.isFriend ? 'var(--accent)' : 'inherit'}; display:flex; align-items:center;">${item.namePrefix || ''}${item.name}${officialHtml}${item.uid ? verifiedBadge(item.uid, 13) : ''}${pinHtml}</span>
                         ${badgeHtml}
                       </div>
                       <span class="chat-item-subtext">${item.subtext}</span>
@@ -2174,6 +2223,7 @@
         if (user) {
           currentUser = user; isAdmin = (user.email === ADMIN_EMAIL);
           if(isAdmin) { document.getElementById("admin-badge").style.display = "inline-flex"; document.getElementById("dev-panel-btn").style.display = "flex"; }
+          ["my-verified-badge", "settings-verified-badge"].forEach(id => document.getElementById(id).setAttribute("data-verified-uid", user.uid));
 
           // Аккаунт удалён админом — профиль заново не создаём, показываем экран и выходим
           try { if ((await getDoc(doc(db, "deleted_accounts", user.uid))).exists()) { showDeletedScreen(); return; } } catch (_) {}
@@ -2347,6 +2397,7 @@
                         titleHtml += `<span style="display:inline-flex; align-items:center; margin-left:4px; transform:translateY(2px);" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="16" height="16" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>`;
                     }
                 }
+                if (targetUid) titleHtml += verifiedBadge(targetUid, 15);
                 statusHtml = "Личные сообщения"; headerTrigger.setAttribute("data-profile-target", targetUid); headerTrigger.style.cursor = "pointer"; 
             }
 
@@ -2454,7 +2505,7 @@
                         if (usersCache[msg.uid] && usersCache[msg.uid].email === ADMIN_EMAIL) { isMsgOfficial = true; } else if (msg.uid === currentUser.uid && isAdmin) { isMsgOfficial = true; }
                         let officialBadge = isMsgOfficial ? `<span style="display:inline-flex; align-items:center; margin-left:4px; transform:translateY(1px);" title="Официальный аккаунт"><svg viewBox="0 0 24 24" width="13" height="13" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>` : "";
                         let senderLabel = (isGroup && groupsCache[chatId] && groupsCache[chatId].adminUid === msg.uid) ? `<span style="font-size:9px; background:var(--accent); color:white; padding:2px 4px; border-radius:4px; margin-left:4px;">Админ</span>` : "";
-                        contentHtml += `<span class="sender-name chat-msg-name" data-profile-target="${escapeHTML(msg.uid)}" style="display:flex; align-items:center;">${escapeHTML(usersCache[msg.uid]?.name || msg.sender)}${officialBadge} ${senderLabel}</span>`;
+                        contentHtml += `<span class="sender-name chat-msg-name" data-profile-target="${escapeHTML(msg.uid)}" style="display:flex; align-items:center;">${escapeHTML(usersCache[msg.uid]?.name || msg.sender)}${officialBadge}${isMsgOfficial ? '' : verifiedBadge(msg.uid, 12)} ${senderLabel}</span>`;
                     }
 
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
