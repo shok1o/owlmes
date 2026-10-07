@@ -471,6 +471,18 @@
       /* Многострочные сообщения */
       #message-input { resize: none; box-sizing: border-box; max-height: 140px; line-height: 1.35; font-family: inherit; overflow-y: auto; display: block; }
       .msg-text-content { white-space: pre-wrap; word-break: break-word; }
+      .day-sep { align-self: center; margin: 8px 0 2px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text-main); background: color-mix(in srgb, var(--bg-panel) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid var(--border-color); user-select: none; }
+      #to-bottom-btn { position: absolute; right: 16px; z-index: 20; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border-color); background: color-mix(in srgb, var(--bg-panel) 85%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; transform: translateY(10px) scale(.9); pointer-events: none; transition: opacity .2s, transform .2s; }
+      #to-bottom-btn.show { opacity: 1; transform: none; pointer-events: auto; }
+      #to-bottom-btn b { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; display: none; align-items: center; justify-content: center; }
+      #to-bottom-btn b.on { display: flex; }
+      #photo-viewer { position: fixed; inset: 0; z-index: 25000; background: rgba(5, 4, 12, .94); display: none; align-items: center; justify-content: center; padding: calc(env(safe-area-inset-top) + 56px) 12px calc(env(safe-area-inset-bottom) + 24px); box-sizing: border-box; touch-action: pinch-zoom; }
+      #photo-viewer.on { display: flex; animation: pv-in .18s ease-out; }
+      #photo-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+      #photo-viewer .pv-top { position: absolute; top: calc(env(safe-area-inset-top) + 10px); left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; color: #fff; }
+      #photo-viewer .pv-top span { flex: 1; font-size: 14px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #photo-viewer button { width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,.12); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+      @keyframes pv-in { from { opacity: 0; } to { opacity: 1; } }
       .msg-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; word-break: break-all; }
       .my-msg .msg-link { color: #fff; text-decoration-color: rgba(255,255,255,.7); }
       .msg-link:hover { text-decoration-thickness: 2px; }
@@ -753,6 +765,13 @@
       </div>
     </div>
 
+    <div id="photo-viewer">
+      <div class="pv-top"><span id="pv-caption"></span>
+        <button id="pv-save" title="Сохранить"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>
+        <button id="pv-close" title="Закрыть"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+      </div>
+      <img id="pv-img" alt="">
+    </div>
     <div id="net-banner" role="status" aria-live="polite"><i class="spin"></i><span id="net-banner-text"></span></div>
 
     <!-- ПЕРВЫЙ ЗАПУСК: приветствие для новых пользователей -->
@@ -867,7 +886,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.29</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.30</div>
       </div>
       
       <!-- ЧАТ -->
@@ -904,6 +923,7 @@
         </div>
 
         <div id="chat-box"></div>
+        <button id="to-bottom-btn" title="К последним сообщениям"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg><b id="to-bottom-count"></b></button>
 
         <div id="reply-bar" class="reply-bar">
           <span class="rb-icon"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg></span>
@@ -1063,6 +1083,66 @@
 
       // Последнее сообщение чата моё? (по uid; старые записи — по имени)
       const isMyMeta = (meta) => meta.lastMessageSenderUid ? meta.lastMessageSenderUid === currentUser.uid : meta.lastMessageSender === currentUser.displayName;
+
+      // ===== РАЗДЕЛИТЕЛИ ПО ДАТАМ =====
+      function dayLabel(ts) {
+          const d = new Date(ts), today = new Date(), y = new Date(); y.setDate(today.getDate() - 1);
+          if (d.toDateString() === today.toDateString()) return "Сегодня";
+          if (d.toDateString() === y.toDateString()) return "Вчера";
+          return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+      }
+      function placeDaySeparators(box) {
+          let lastDay = null;
+          for (const row of Array.from(box.children)) {
+              if (!row.classList.contains("message-row")) continue;
+              const ts = Number(row.getAttribute("data-ts")) || 0; if (!ts) continue;
+              const day = new Date(ts).toDateString();
+              if (day !== lastDay) {
+                  const sep = document.createElement("div"); sep.className = "day-sep"; sep.textContent = dayLabel(ts);
+                  box.insertBefore(sep, row); lastDay = day;
+              }
+          }
+      }
+
+      // ===== КНОПКА «ВНИЗ» =====
+      let newBelow = 0;
+      function updateToBottom() {
+          const box = document.getElementById("chat-box"), btn = document.getElementById("to-bottom-btn");
+          if (!box || !btn) return;
+          const far = box.scrollHeight - box.clientHeight - box.scrollTop > 300;
+          if (!far) newBelow = 0;
+          btn.style.bottom = (box.parentElement.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 14) + "px";
+          btn.classList.toggle("show", far);
+          const c = document.getElementById("to-bottom-count");
+          c.textContent = newBelow > 99 ? "99+" : String(newBelow); c.classList.toggle("on", newBelow > 0);
+      }
+      document.getElementById("chat-box").addEventListener("scroll", updateToBottom, { passive: true });
+      window.addEventListener("resize", updateToBottom);
+      document.getElementById("to-bottom-btn").addEventListener("click", () => {
+          const box = document.getElementById("chat-box"); newBelow = 0;
+          box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+      });
+
+      // ===== ПРОСМОТР ФОТО =====
+      function openPhoto(src, caption) {
+          document.getElementById("pv-img").src = src;
+          document.getElementById("pv-caption").textContent = caption || "";
+          document.getElementById("photo-viewer").classList.add("on");
+      }
+      const closePhoto = () => { document.getElementById("photo-viewer").classList.remove("on"); document.getElementById("pv-img").removeAttribute("src"); };
+      document.getElementById("pv-close").addEventListener("click", (e) => { e.stopPropagation(); closePhoto(); });
+      document.getElementById("photo-viewer").addEventListener("click", (e) => { if (e.target.id === "photo-viewer") closePhoto(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && document.getElementById("photo-viewer").classList.contains("on")) closePhoto(); });
+      document.getElementById("pv-save").addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const src = document.getElementById("pv-img").src; if (!src) return;
+          try {
+              const blob = await (await fetch(src)).blob();
+              const file = new File([blob], "owl-photo.jpg", { type: blob.type || "image/jpeg" });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+              const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "owl-photo.jpg"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+          } catch (err) { if (err && err.name !== "AbortError") showToast("Не удалось сохранить фото", "error"); }
+      });
 
       // ===== ССЫЛКИ В СООБЩЕНИЯХ =====
       // Находим https://…, www.… и «голые» адреса вида site.ru/… и делаем их кликабельными.
@@ -3118,7 +3198,7 @@
                 });
             }
 
-            document.getElementById("chat-box").innerHTML = ""; loadedMsgs = {};
+            document.getElementById("chat-box").innerHTML = ""; loadedMsgs = {}; newBelow = 0; updateToBottom();
             const isPrivateChat = !!dmPeer(chatId);
             watchPeerBlock(isPrivateChat ? dmPeer(chatId) : null);
             applyBlockState();
@@ -3136,6 +3216,7 @@
               let messages = [];
               trackPendingWrites(snapshot);
 
+              const firstLoad = firstSnap;
               if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added" && !change.doc.metadata.hasPendingWrites) { let msg = change.doc.data(); if (msg.uid !== currentUser.uid && !iBlocked(msg.uid)) { playNotifySound(); } } });
               firstSnap = false;
 
@@ -3153,9 +3234,10 @@
               // Запоминаем верхнее видимое сообщение, чтобы экран не прыгал при вставке старых сверху
               let anchorRow = null, anchorOffset = 0;
               if (!isScrolledToBottom) {
-                  for (const r of chatBox.children) { if (r.offsetTop + r.offsetHeight > chatBox.scrollTop) { anchorRow = r; anchorOffset = r.offsetTop - chatBox.scrollTop; break; } }
+                  for (const r of chatBox.children) { if (!r.classList.contains("message-row")) continue; if (r.offsetTop + r.offsetHeight > chatBox.scrollTop) { anchorRow = r; anchorOffset = r.offsetTop - chatBox.scrollTop; break; } }
               }
 
+              chatBox.querySelectorAll(".day-sep").forEach(el => el.remove()); // расставим заново после раскладки
               let currentIds = [];
               let prevRow = null;
 
@@ -3192,6 +3274,7 @@
                     messageRow.className = isMe ? "message-row my-msg" : "message-row other-msg";
                     messageRow.setAttribute("data-msg-id", msg.id);
                     messageRow.setAttribute("data-uid", msg.uid || "");
+                    messageRow.setAttribute("data-ts", String(getTime(msg.timestamp) || 0));
                     watchUser(msg.uid);
                     if (!isMe && !isPrivateChat && iBlocked(msg.uid)) messageRow.classList.add("from-blocked");
 
@@ -3238,6 +3321,11 @@
               Array.from(chatBox.children).forEach(child => {
                   if (!currentIds.includes(child.id)) child.remove();
               });
+              placeDaySeparators(chatBox);
+              if (!firstLoad && !isScrolledToBottom) {
+                  const fresh = snapshot.docChanges().filter(c => c.type === "added" && !c.doc.metadata.hasPendingWrites && c.doc.data().uid !== currentUser.uid && getTime(c.doc.data().timestamp) > Date.now() - 60000).length;
+                  if (fresh) { newBelow += fresh; updateToBottom(); }
+              }
 
               // Пока ответ пришёл только из локального кэша и он неполный — ждём сервер, чтобы не решить, что истории больше нет
               if (!snapshot.metadata.fromCache || snapshot.size >= msgLimit) { hasMoreMsgs = snapshot.size >= msgLimit; loadingOlder = false; }
@@ -3289,6 +3377,13 @@
            return;
         }
         if (e.target.closest("a.msg-link")) return; // обычная ссылка — пусть браузер откроет
+        const photo = e.target.closest(".message-content > img");
+        if (photo) {
+           const row = photo.closest(".message-row"), m = row && loadedMsgs[row.getAttribute("data-msg-id")];
+           const who = m ? (usersCache[m.uid]?.name || m.sender || "") : "";
+           openPhoto(photo.src, who + (m && m.timestamp ? " · " + dayLabel(getTime(m.timestamp)) + ", " + new Date(getTime(m.timestamp)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""));
+           return;
+        }
         let replyBtn = e.target.closest(".reply-btn");
         if (replyBtn) { startReply(replyBtn.getAttribute("data-id")); return; }
         let reportBtn = e.target.closest(".report-btn");
