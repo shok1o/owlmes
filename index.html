@@ -586,6 +586,36 @@
       #chat-placeholder b { font-size: 17px; color: var(--text-main); }
       #chat-placeholder span { font-size: 13.5px; color: var(--text-muted); max-width: 240px; }
       .st-card.pv-card { padding: 0; overflow: hidden; }
+      /* «Совиный взгляд» — кто видит мои данные */
+      .eye-entry { display: flex; align-items: center; gap: 12px; width: 100%; border: none; cursor: pointer; color: var(--text-main); font: inherit; margin-bottom: 10px; }
+      .eye-entry .eye-mini { color: var(--accent); flex-shrink: 0; }
+      .eye-entry span:not(.eye-chev) { display: flex; flex-direction: column; flex: 1; text-align: left; }
+      .eye-entry small { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+      .eye-chev { color: var(--text-muted); font-size: 20px; }
+      #owl-eye-screen .modal-box { max-width: 420px; width: calc(100% - 32px); max-height: min(720px, 90vh); overflow-y: auto; text-align: left; }
+      .eye-hero { text-align: center; padding: 6px 0 4px; }
+      .eye-hero h2 { margin: 8px 0 2px; font-size: 20px; }
+      .eye-hero p { margin: 0; color: var(--text-muted); font-size: 13px; }
+      .eye-white { fill: #f6f3ff; }
+      .eye-pupil { fill: #1b1630; }
+      .eye-ring { fill: none; stroke: var(--accent); stroke-width: 3; }
+      .eye-lid { fill: color-mix(in srgb, var(--accent) 70%, #1b1630); transition: height .5s cubic-bezier(.3,1.3,.5,1); }
+      #eye-art .eye-l, #eye-art .eye-r { animation: eyeLook 6s ease-in-out infinite; }
+      @keyframes eyeLook { 0%, 40%, 100% { transform: translateX(0); } 50%, 60% { transform: translateX(-3px); } 70%, 80% { transform: translateX(3px); } }
+      @media (prefers-reduced-motion: reduce) { #eye-art .eye-l, #eye-art .eye-r { animation: none; } }
+      .eye-row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--border-color); }
+      .eye-row:last-child { border-bottom: none; }
+      .eye-row .eye-ico { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--input-bg); color: var(--accent); }
+      .eye-row .eye-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .eye-row .eye-txt b { font-size: 14px; font-weight: 600; color: var(--text-main); }
+      .eye-row .eye-txt span { font-size: 12.5px; color: var(--text-muted); }
+      .eye-row .eye-txt span.closed { color: #34c759; }
+      .eye-row .eye-txt span.open { color: var(--text-muted); }
+      .eye-row .st-sel { flex-shrink: 0; max-width: 128px; }
+      .eye-db { display: inline-flex; vertical-align: -2px; color: var(--accent); }
+      .eye-stealth { width: 100%; margin: 12px 0 6px; padding: 12px; border: none; border-radius: 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+      .eye-stealth.back { background: var(--input-bg); color: var(--text-main); }
+      .eye-legend { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.4; }
       .pv-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; border: none; background: none; color: var(--text-main); font: inherit; font-size: 15px; cursor: pointer; text-align: left; }
       .pv-head .st-label { flex: 1; }
       .pv-sum { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
@@ -973,6 +1003,10 @@
           <div id="push-test-result" style="font-size:12px; color:var(--text-muted); margin-top:8px; white-space:pre-line;"></div></div>
 
         <div class="st-sec">Конфиденциальность</div>
+        <button type="button" class="st-card eye-entry" id="owl-eye-open">
+          <svg class="eye-mini" viewBox="0 0 64 28" width="46" height="20" aria-hidden="true"><circle cx="16" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="48" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="14" r="5" fill="currentColor"/><circle cx="48" cy="14" r="5" fill="currentColor"/></svg>
+          <span><b>Совиный взгляд</b><small>Кто видит мои данные — наглядно</small></span><span class="eye-chev">›</span>
+        </button>
         <div class="st-card pv-card">
           <button type="button" class="pv-head" id="pv-toggle"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Настройки приватности</span><span class="pv-sum" id="pv-sum"></span><svg class="pv-chev" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
           <div class="pv-body" id="pv-body"><div class="pv-inner">
@@ -1013,6 +1047,26 @@
 
     <div id="msg-menu"><div class="mm-sheet" id="mm-sheet"><div class="mm-reacts" id="mm-reacts"></div><div class="mm-actions" id="mm-actions"></div></div></div>
 
+    <div id="owl-eye-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="owl-eye-close" style="position: absolute; top: 12px; right: 12px;" title="Закрыть"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <div class="eye-hero">
+          <svg id="eye-art" viewBox="0 0 120 52" width="132" height="58" aria-hidden="true">
+            <defs><clipPath id="eye-clip-l"><circle cx="30" cy="26" r="21"/></clipPath><clipPath id="eye-clip-r"><circle cx="90" cy="26" r="21"/></clipPath></defs>
+            <circle cx="30" cy="26" r="21" class="eye-white"/><circle cx="90" cy="26" r="21" class="eye-white"/>
+            <g class="eye-l" clip-path="url(#eye-clip-l)"><circle cx="30" cy="27" r="10" class="eye-pupil"/><circle cx="34" cy="22" r="3" fill="#fff"/></g>
+            <g class="eye-r" clip-path="url(#eye-clip-r)"><circle cx="90" cy="27" r="10" class="eye-pupil"/><circle cx="94" cy="22" r="3" fill="#fff"/></g>
+            <rect id="eye-lid-l" x="8" y="4" width="44" height="0" class="eye-lid" clip-path="url(#eye-clip-l)"/><rect id="eye-lid-r" x="68" y="4" width="44" height="0" class="eye-lid" clip-path="url(#eye-clip-r)"/>
+            <circle cx="30" cy="26" r="21" class="eye-ring"/><circle cx="90" cy="26" r="21" class="eye-ring"/>
+          </svg>
+          <h2 id="eye-level">Совиный взгляд</h2>
+          <p id="eye-sub"></p>
+        </div>
+        <div id="eye-list"></div>
+        <button type="button" id="eye-stealth" class="eye-stealth"></button>
+        <p class="eye-legend"><span class="eye-db" id="eye-legend-ico"></span> — гарантирует база данных: даже в обход приложения эти данные не увидит никто лишний. Остальное соблюдает приложение.</p>
+      </div>
+    </div>
     <div id="follow-screen" class="modal-screen" style="display: none;">
       <div class="modal-box">
         <button class="icon-btn" id="follow-close" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -1165,7 +1219,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.49</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.50</div>
       </div>
       
       <!-- ЧАТ -->
@@ -4003,7 +4057,7 @@
           document.querySelectorAll("[data-privacy-bool]").forEach(cb => { cb.checked = privacyOf(me, cb.getAttribute("data-privacy-bool")); });
           document.getElementById("pv-sum").textContent = `В сети: ${PV_SHORT[privacyOf(me, "lastSeen")]} · Писать: ${PV_SHORT[privacyOf(me, "canMessage")]}`;
       }
-      async function savePrivacy(key, val) {
+      async function savePrivacy(key, val, quiet = false) {
           const me = usersCache[currentUser.uid];
           const patch = { privacy: { [key]: val } };
           const b = writeBatch(db), rRef = R_FIELDS[key] && doc(db, "restricted", currentUser.uid + "_" + key);
@@ -4021,10 +4075,89 @@
           try {
               await b.commit();
               if (me) { me.privacy = { ...(me.privacy || {}), [key]: val }; if (key === "lastSeen") me.hideOnline = val === "nobody"; }
-              renderPrivacySettings();
-              showToast("Сохранено", "shield");
-          } catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); renderPrivacySettings(); }
+              renderPrivacySettings(); renderOwlEye();
+              if (!quiet) showToast("Сохранено", "shield");
+              return true;
+          } catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); renderPrivacySettings(); renderOwlEye(); return false; }
       }
+
+      // ===== «СОВИНЫЙ ВЗГЛЯД»: кто видит мои данные — наглядно, с отметкой, что гарантирует база =====
+      const EYE_ROWS = [
+          { key: "photo", title: "Фото профиля", ico: "camera", db: true, opts: ["all", "following"] },
+          { key: "bio", title: "«О себе»", ico: "pencil", db: true, opts: ["all", "following", "nobody"] },
+          { key: "lastSeen", title: "Когда я в сети", ico: "clock", db: true, opts: ["all", "following", "nobody"] },
+          { key: "showFollowers", title: "Список подписчиков", ico: "users", db: true, opts: ["all", "following", "nobody"] },
+          { key: "showFollowing", title: "Список подписок", ico: "users", db: true, opts: ["all", "following", "nobody"] },
+          { key: "canMessage", title: "Кто может мне писать", ico: "mail", db: true, opts: ["all", "following"], verb: "могут" },
+          { key: "groupAdd", title: "Кто может звать в беседы", ico: "users", db: true, opts: ["all", "following", "nobody"], verb: "могут" },
+          { key: "searchable", title: "Находят по нику", ico: "search", db: false, bool: true },
+          { key: "readReceipts", title: "Видят, что я прочитал", ico: "check", db: false, bool: true },
+          { key: "typing", title: "Видят «печатает…»", ico: "pencil", db: false, bool: true },
+      ];
+      const EYE_OPT = { all: "Все", following: "Подписки", nobody: "Никто" };
+      // Режим невидимки: что закрываем (прежние значения сохраняем в users_private.prevPrivacy, чтобы вернуть одной кнопкой)
+      const STEALTH = { photo: "following", bio: "following", lastSeen: "nobody", showFollowers: "nobody", showFollowing: "nobody", searchable: false };
+      function eyeAudience(r, v) {
+          const n = (usersCache[currentUser.uid]?.following || []).length;
+          if (r.bool) return v ? { t: "Да", c: "open" } : { t: "Нет — скрыто", c: "closed" };
+          if (v === "all") return { t: r.verb ? "Все пользователи Owl" : "Все пользователи Owl", c: "open" };
+          if (v === "following") return { t: `Только мои подписки · ${n} ${n % 10 === 1 && n % 100 !== 11 ? "человек" : "чел."}`, c: "closed" };
+          return { t: "Никто, кроме меня", c: "closed" };
+      }
+      function renderOwlEye() {
+          const screen = document.getElementById("owl-eye-screen");
+          if (!currentUser || screen.style.display === "none") return;
+          const me = usersCache[currentUser.uid] || {};
+          let closed = 0;
+          const rows = EYE_ROWS.map(r => {
+              const v = privacyOf(me, r.key), a = eyeAudience(r, v);
+              if (a.c === "closed") closed++;
+              const ctl = r.bool
+                  ? `<label class="st-toggle"><input type="checkbox" data-eye-bool="${r.key}" ${v ? "checked" : ""}><span></span></label>`
+                  : `<select class="st-sel" data-eye="${r.key}">${r.opts.map(o => `<option value="${o}" ${o === v ? "selected" : ""}>${EYE_OPT[o]}</option>`).join("")}</select>`;
+              return `<div class="eye-row"><span class="eye-ico">${icon(r.ico, 17)}</span><span class="eye-txt"><b>${r.title} ${r.db ? `<span class="eye-db" title="Гарантирует база данных">${icon("shield", 13)}</span>` : ""}</b><span class="${a.c}">${a.t}</span></span>${ctl}</div>`;
+          });
+          rows.unshift(`<div class="eye-row"><span class="eye-ico">${icon("mail", 17)}</span><span class="eye-txt"><b>Почта <span class="eye-db" title="Гарантирует база данных">${icon("shield", 13)}</span></b><span class="closed">Только я — всегда</span></span></div>`);
+          document.getElementById("eye-list").innerHTML = rows.join("");
+          document.getElementById("eye-legend-ico").innerHTML = icon("shield", 13);
+          const total = EYE_ROWS.length, ratio = closed / total;
+          const lvl = ratio >= .7 ? ["Сова-невидимка", "Почти всё о вас скрыто от посторонних"] : ratio >= .3 ? ["Осторожная сова", "Часть данных видят только ваши подписки"] : ["Открытая сова", "Большинство данных видят все пользователи"];
+          document.getElementById("eye-level").textContent = lvl[0];
+          document.getElementById("eye-sub").textContent = `${lvl[1]} · скрыто ${closed} из ${total}`;
+          const lid = Math.round(3 + ratio * 19); // веки прикрываются тем сильнее, чем закрытее профиль
+          ["eye-lid-l", "eye-lid-r"].forEach(id => document.getElementById(id).setAttribute("height", lid));
+          const prev = myPrivate && myPrivate.prevPrivacy, st = document.getElementById("eye-stealth");
+          st.classList.toggle("back", !!prev);
+          st.textContent = prev ? "Вернуть как было" : "Режим невидимки — скрыть всё разом";
+      }
+      async function toggleStealth(btn) {
+          const me = usersCache[currentUser.uid] || {}, prev = myPrivate && myPrivate.prevPrivacy;
+          btn.disabled = true;
+          try {
+              if (prev) {
+                  for (const [k, v] of Object.entries(prev)) if (privacyOf(me, k) !== v) await savePrivacy(k, v, true);
+                  await setDoc(doc(db, "users_private", currentUser.uid), { prevPrivacy: deleteField() }, { merge: true });
+                  if (myPrivate) delete myPrivate.prevPrivacy;
+                  showToast("Настройки возвращены", "eye");
+              } else {
+                  const saved = {}; Object.keys(STEALTH).forEach(k => { saved[k] = privacyOf(me, k); });
+                  await setDoc(doc(db, "users_private", currentUser.uid), { prevPrivacy: saved }, { merge: true });
+                  if (myPrivate) myPrivate.prevPrivacy = saved;
+                  for (const [k, v] of Object.entries(STEALTH)) if (privacyOf(me, k) !== v) await savePrivacy(k, v, true);
+                  showToast("Режим невидимки включён 🦉", "eye");
+              }
+          } catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); }
+          btn.disabled = false; renderOwlEye();
+      }
+      document.getElementById("owl-eye-open").addEventListener("click", () => { document.getElementById("owl-eye-screen").style.display = "flex"; renderOwlEye(); });
+      document.getElementById("owl-eye-close").addEventListener("click", () => { document.getElementById("owl-eye-screen").style.display = "none"; });
+      document.getElementById("owl-eye-screen").addEventListener("click", (e) => { if (e.target.id === "owl-eye-screen") e.target.style.display = "none"; });
+      document.getElementById("eye-list").addEventListener("change", (e) => {
+          const sel = e.target.closest("[data-eye]"), cb = e.target.closest("[data-eye-bool]");
+          if (sel) savePrivacy(sel.getAttribute("data-eye"), sel.value);
+          if (cb) savePrivacy(cb.getAttribute("data-eye-bool"), cb.checked);
+      });
+      document.getElementById("eye-stealth").addEventListener("click", (e) => toggleStealth(e.currentTarget));
       document.querySelectorAll("[data-privacy]").forEach(sel => sel.addEventListener("change", () => savePrivacy(sel.getAttribute("data-privacy"), sel.value)));
       document.querySelectorAll("[data-privacy-bool]").forEach(cb => cb.addEventListener("change", () => savePrivacy(cb.getAttribute("data-privacy-bool"), cb.checked)));
       document.getElementById("pv-toggle").addEventListener("click", (e) => e.currentTarget.closest(".pv-card").classList.toggle("open"));
