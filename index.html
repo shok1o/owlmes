@@ -1060,7 +1060,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.39</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.40</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1324,9 +1324,16 @@
               document.querySelectorAll(".vp audio").forEach(a => a.playbackRate = voiceSpeed);
           } else if (e.target.closest(".vp-wave")) {
               const r = el.querySelector(".vp-wave").getBoundingClientRect(), d = vpDuration(el, audio);
-              if (d) { audio.currentTime = Math.max(0, Math.min(.999, (e.clientX - r.left) / r.width)) * d; vpProgress(el, audio); if (audio.paused) { audio.playbackRate = voiceSpeed; audio.play().catch(() => {}); } }
+              if (d) { audio.currentTime = Math.max(0, Math.min(.999, (e.clientX - r.left) / r.width)) * d; vpProgress(el, audio); if (audio.paused) { setAudioSession("playback"); audio.playbackRate = voiceSpeed; audio.play().catch(() => {}); } }
           } else {
-              if (audio.paused) { document.querySelectorAll(".vp audio").forEach(a => { if (a !== audio) a.pause(); }); audio.playbackRate = voiceSpeed; audio.play().catch(err => showToast("Не удалось воспроизвести голосовое", "error")); }
+              if (audio.paused) {
+                  document.querySelectorAll(".vp audio").forEach(a => { if (a !== audio) a.pause(); });
+                  // iPhone: звуковой режим переключаем ДО старта, прямо в нажатии — иначе iOS играет «без звука» до перемотки
+                  setAudioSession("playback");
+                  audio.dataset.nudge = "1";
+                  audio.playbackRate = voiceSpeed;
+                  audio.play().catch(err => showToast("Не удалось воспроизвести голосовое", "error"));
+              }
               else audio.pause();
           }
           return true;
@@ -1335,6 +1342,8 @@
           const a = e.target; if (!a || a.tagName !== "AUDIO") return;
           const el = a.closest(".vp"); if (!el) return;
           if (ev === "play") el.querySelector(".vp-play").innerHTML = VP_PAUSE;
+          // Подстраховка для iPhone: микро-перемотка на то же место в первый момент воспроизведения «будит» звук
+          if (ev === "timeupdate" && a.dataset.nudge && a.currentTime > 0) { delete a.dataset.nudge; if (isIOS()) { try { a.currentTime = a.currentTime; } catch (_) {} } }
           if (ev === "pause" || ev === "ended") el.querySelector(".vp-play").innerHTML = VP_PLAY;
           if (ev === "ended") { a.currentTime = 0; }
           vpProgress(el, a);
