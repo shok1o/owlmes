@@ -575,6 +575,14 @@
       .fl-row:hover { background: var(--input-bg); }
       .fl-row img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
       .fl-row b { font-size: 15px; color: var(--text-main); }
+      #group-invites { flex-shrink: 0; }
+      #group-invites:empty { display: none; }
+      .gi-card { margin: 6px 12px; padding: 10px 12px; border-radius: 14px; background: var(--input-bg); border: 1px solid var(--border-color); font-size: 13px; color: var(--text-main); }
+      .gi-card p { margin: 0 0 8px; line-height: 1.35; }
+      .gi-card .gi-actions { display: flex; gap: 8px; }
+      .gi-card button { flex: 1; border: none; border-radius: 10px; padding: 7px 10px; font: inherit; font-weight: 600; cursor: pointer; }
+      .gi-card .gi-ok { background: var(--accent); color: #fff; }
+      .gi-card .gi-no { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); }
       .st-sel { appearance: none; -webkit-appearance: none; border: none; border-radius: 10px; padding: 7px 28px 7px 10px; font: inherit; font-size: 14px; color: var(--text-main); background: color-mix(in srgb, var(--bg-panel) 70%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 9px center; cursor: pointer; max-width: 46%; }
       .st-row + .st-hint { font-size: 12px; color: var(--text-muted); margin: 4px 0 10px; }
       .chat-list.swipe-in-left { animation: listInL .22s ease-out; }
@@ -1120,8 +1128,9 @@
           </div>
         </div>
         
+        <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.46</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.47</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1787,6 +1796,49 @@
               await setDoc(doc(db, "users", targetUid), { followers: arrayRemove(uid) }, { merge: true }).catch(e => console.log("followers:", e.code));
           }
       }
+      // ПРИГЛАШЕНИЯ В БЕСЕДЫ (этап 3а): group_invites/{беседа}_{кого}. В беседу человек попадает, только приняв
+      // приглашение; правила базы проверяют его настройку «Кто может добавлять в беседы».
+      let myInvites = [];
+      async function sendGroupInvites(gid, groupName, uids) {
+          let sent = 0;
+          await Promise.all(uids.map(async (to) => {
+              try {
+                  await setDoc(doc(db, "group_invites", gid + "_" + to), { gid, groupName: String(groupName || "Беседа").slice(0, 100), toUid: to, fromUid: currentUser.uid, fromName: (currentUser.displayName || "").slice(0, 64), createdAt: new Date() });
+                  sent++;
+                  addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: to, text: `${currentUser.displayName} приглашает вас в беседу «${groupName}»`, timestamp: new Date(), read: false }).catch(() => {});
+              } catch (e) { console.log("Приглашение " + to + ":", e.code || e); }
+          }));
+          return sent;
+      }
+      function renderGroupInvites() {
+          const box = document.getElementById("group-invites");
+          box.innerHTML = myInvites.filter(i => !bansCache[i.fromUid] && !iBlocked(i.fromUid)).map(i => `<div class="gi-card" data-gi="${escapeHTML(i.id)}">
+              <p><b>${escapeHTML(i.fromName || "Пользователь")}</b> приглашает вас в беседу «<b>${escapeHTML(i.groupName || "Беседа")}</b>»</p>
+              <div class="gi-actions"><button class="gi-no" data-gi-act="no">Отклонить</button><button class="gi-ok" data-gi-act="ok">Вступить</button></div></div>`).join("");
+      }
+      document.getElementById("group-invites").addEventListener("click", async (e) => {
+          const btn = e.target.closest("[data-gi-act]"); if (!btn) return;
+          const id = btn.closest("[data-gi]").getAttribute("data-gi"), inv = myInvites.find(i => i.id === id); if (!inv) return;
+          btn.disabled = true;
+          try {
+              if (btn.getAttribute("data-gi-act") === "ok") {
+                  const b = writeBatch(db);
+                  b.update(doc(db, "groups", inv.gid), { members: arrayUnion(currentUser.uid) });
+                  b.delete(doc(db, "group_invites", id));
+                  await b.commit();
+                  showToast("Вы вступили в беседу «" + (inv.groupName || "Беседа") + "»", "users");
+                  window.loadChat(inv.gid, inv.groupName || "Беседа", inv.gid, true);
+              } else {
+                  await deleteDoc(doc(db, "group_invites", id));
+                  showToast("Приглашение отклонено", "info");
+              }
+          } catch (err) {
+              console.error(err); btn.disabled = false;
+              // беседу удалили или приглашение отозвали — просто убираем карточку
+              if (err.code === "not-found" || err.code === "permission-denied") { deleteDoc(doc(db, "group_invites", id)).catch(() => {}); showToast("Приглашение больше не действует", "alert"); }
+              else showToast("Не удалось ответить на приглашение", "error");
+          }
+      });
       // Число подписчиков/подписок из публичного профиля (старые профили — по длине массива)
       const followCount = (u, key) => {
           if (currentUser && u.uid === currentUser.uid) {
@@ -2593,6 +2645,8 @@
               Object.values(usersCache).forEach(ensureRestrictedWatch);
               watchContacts(); usersChanged();
           };
+          ownListeners.push(onSnapshot(query(collection(db, "group_invites"), where("toUid", "==", uid)), (s) => { myInvites = s.docs.map(d => ({ id: d.id, ...d.data() })); renderGroupInvites(); },
+              (e) => { console.log("group_invites:", e.code); }));
           ownListeners.push(onSnapshot(doc(db, "users_private", uid), (d) => { myPrivate = d.exists() ? d.data() : {}; changed(); },
               (e) => { console.log("users_private/я:", e.code); myPrivate = myPrivate || {}; changed(); }));
           ownListeners.push(onSnapshot(query(collection(db, "follows"), where("from", "==", uid)), (s) => { myFollowsOut = new Set(s.docs.map(d => d.data().to)); changed(); },
@@ -3085,11 +3139,13 @@
           if(!name) return alert("Введите название беседы!");
           let selected = []; document.querySelectorAll('.group-friend-check:checked').forEach(cb => selected.push(cb.value));
           if(selected.length === 0) { if(!confirm("Вы не выбрали ни одного участника. Создать пустую беседу?")) return; }
-          selected.push(currentUser.uid);
 
           try {
-              const docRef = await addDoc(collection(db, "groups"), { name: name, members: selected, adminUid: currentUser.uid, photoURL: generateAvatarSVG(name, true), createdAt: new Date() });
-              document.getElementById("create-group-screen").style.display = "none"; showToast("Беседа успешно создана!", "users");
+              // Участников не добавляем сразу — каждому уходит приглашение, в беседу он попадёт, только приняв его
+              const docRef = await addDoc(collection(db, "groups"), { name: name, members: [currentUser.uid], adminUid: currentUser.uid, photoURL: generateAvatarSVG(name, true), createdAt: new Date() });
+              const sent = await sendGroupInvites(docRef.id, name, selected);
+              document.getElementById("create-group-screen").style.display = "none";
+              showToast(selected.length ? `Беседа создана. Приглашений отправлено: ${sent}` : "Беседа успешно создана!", "users");
               window.loadChat(docRef.id, name, docRef.id, true);
           } catch(e) { console.error(e); alert("Ошибка при создании беседы."); }
       });
@@ -3181,10 +3237,10 @@
                         addListEl.innerHTML += `<label class="friend-checkbox-item"><input type="checkbox" value="${u.uid}" class="add-group-friend-check"><img src="${av}"><span style="font-size:14px; font-weight:bold;">${escapeHTML(u.name)}</span></label>`;
                     }
                 });
-                if (!canAdd) addListEl.innerHTML = `<p style="color:var(--text-muted); font-size:13px; text-align:center;">Все ваши подписки уже добавлены в эту беседу.</p>`;
+                if (!canAdd) addListEl.innerHTML = `<p style="color:var(--text-muted); font-size:13px; text-align:center;">Все ваши подписки уже в этой беседе или приглашены.</p>`;
                 document.getElementById("add-members-submit-btn").onclick = async () => {
                     let selected = []; document.querySelectorAll('.add-group-friend-check:checked').forEach(cb => selected.push(cb.value));
-                    if(selected.length > 0) { await setDoc(doc(db, "groups", g.id), { members: arrayUnion(...selected) }, { merge: true }); showToast("Новые участники добавлены!", "check"); openPublicProfile(g.id); }
+                    if(selected.length > 0) { const sent = await sendGroupInvites(g.id, g.name, selected); showToast(sent ? `Приглашений отправлено: ${sent}` : "Не удалось отправить приглашения", sent ? "check" : "error"); openPublicProfile(g.id); }
                 };
                 document.getElementById("delete-group-btn").onclick = async () => {
                     if(confirm("ВЫ УВЕРЕНЫ? Это навсегда удалит беседу и всю переписку в ней для всех участников!")) {
