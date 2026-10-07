@@ -550,6 +550,21 @@
       #chat-placeholder img { width: 64px; height: 64px; border-radius: 18px; margin-bottom: 6px; }
       #chat-placeholder b { font-size: 17px; color: var(--text-main); }
       #chat-placeholder span { font-size: 13.5px; color: var(--text-muted); max-width: 240px; }
+      .profile-stats .stat-item.clickable { cursor: pointer; border-radius: 12px; padding: 4px 12px; transition: background .15s; }
+      .profile-stats .stat-item.clickable:hover { background: var(--input-bg); }
+      .profile-stats { display: flex; justify-content: center; gap: 18px; }
+      #follow-screen .modal-box { max-width: 400px; width: calc(100% - 32px); max-height: min(600px, 86vh); display: flex; flex-direction: column; text-align: left; }
+      #follow-list { overflow-y: auto; flex: 1; margin: 6px -8px 0; min-height: 120px; }
+      .fl-row { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; cursor: pointer; }
+      .fl-row:hover { background: var(--input-bg); }
+      .fl-row img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+      .fl-row b { font-size: 15px; color: var(--text-main); }
+      .st-sel { appearance: none; -webkit-appearance: none; border: none; border-radius: 10px; padding: 7px 28px 7px 10px; font: inherit; font-size: 14px; color: var(--text-main); background: color-mix(in srgb, var(--bg-panel) 70%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 9px center; cursor: pointer; max-width: 46%; }
+      .st-row + .st-hint { font-size: 12px; color: var(--text-muted); margin: 4px 0 10px; }
+      .chat-list.swipe-in-left { animation: listInL .22s ease-out; }
+      .chat-list.swipe-in-right { animation: listInR .22s ease-out; }
+      @keyframes listInL { from { transform: translateX(30px); opacity: .3; } to { transform: none; opacity: 1; } }
+      @keyframes listInR { from { transform: translateX(-30px); opacity: .3; } to { transform: none; opacity: 1; } }
       /* Опросы */
       .poll { min-width: 230px; max-width: 300px; }
       .poll-q { font-weight: 700; font-size: 15px; margin-bottom: 2px; word-break: break-word; }
@@ -659,7 +674,8 @@
         <p id="public-email" style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 14px; display: none;">Email</p>
         
         <div class="profile-stats">
-          <div class="stat-item"><span class="stat-num" id="public-followers">0</span><span class="stat-label">Подписчиков</span></div>
+          <div class="stat-item clickable" data-follow-tab="followers"><span class="stat-num" id="public-followers">0</span><span class="stat-label">Подписчиков</span></div>
+          <div class="stat-item clickable" data-follow-tab="following"><span class="stat-num" id="public-following">0</span><span class="stat-label">Подписок</span></div>
         </div>
 
         <p id="public-bio" style="margin: 0 0 20px 0; font-size: 14px; color: var(--text-main); white-space: pre-wrap;"></p>
@@ -899,7 +915,12 @@
 
         <div class="st-sec">Конфиденциальность</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Другие увидят «был(а) недавно» вместо точного времени.</div></div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Другие увидят «был(а) недавно» вместо точного времени.</div>
+          <div class="st-row" style="margin-top:14px;"><span class="st-label">Кто видит моих подписчиков и подписки</span><select class="st-sel" data-privacy="showFollows"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+          <div class="st-row" style="margin-top:12px;"><span class="st-label">Кто может мне писать</span><select class="st-sel" data-privacy="canMessage"><option value="all">Все</option><option value="following">Мои подписки</option></select></div>
+          <div class="st-hint">«Мои подписки» — люди, на которых подписаны вы. С остальными сохранится старая переписка, но новые сообщения они отправить не смогут.</div>
+          <div class="st-row"><span class="st-label">Кто может добавлять меня в беседы</span><select class="st-sel" data-privacy="groupAdd"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+        </div>
 
         <div class="st-sec">О приложении</div>
         <div class="st-card st-links">
@@ -917,6 +938,15 @@
     </div>
 
     <div id="msg-menu"><div class="mm-sheet" id="mm-sheet"><div class="mm-reacts" id="mm-reacts"></div><div class="mm-actions" id="mm-actions"></div></div></div>
+
+    <div id="follow-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="follow-close" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <h2 style="margin-top: 0;" id="follow-title">Подписчики</h2>
+        <div class="tabs-container" id="follow-tabs" style="margin:0;padding:0;"><div class="tab active" data-ft="followers">Подписчики</div><div class="tab" data-ft="following">Подписки</div></div>
+        <div id="follow-list"></div>
+      </div>
+    </div>
 
     <div id="poll-screen" class="modal-screen" style="display: none;">
       <div class="modal-box">
@@ -1060,7 +1090,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.40</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.41</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2477,6 +2507,7 @@
                 document.getElementById("settings-email").innerText = currentUser.email || "";
                 document.getElementById("hide-online-toggle").checked = !!u.hideOnline;
                 renderQuickReactionSetting();
+                renderPrivacySettings();
               }
           }
 
@@ -2769,7 +2800,7 @@
           let friendsAdded = false;
 
           Object.values(usersCache).forEach(u => {
-              if (u.uid !== currentUser.uid && myFollowing.includes(u.uid)) {
+              if (u.uid !== currentUser.uid && myFollowing.includes(u.uid) && canAddToGroup(u.uid)) {
                   friendsAdded = true;
                   let av = getAvatar(u.uid, u.name);
                   listEl.innerHTML += `<label class="friend-checkbox-item"><input type="checkbox" value="${u.uid}" class="group-friend-check"><img src="${av}"><span style="font-size:14px; font-weight:bold;">${escapeHTML(u.name)}</span></label>`;
@@ -2876,7 +2907,7 @@
                 let addListEl = document.getElementById("add-group-friends-list"); addListEl.innerHTML = "";
                 let myFollowing = usersCache[currentUser.uid]?.following || []; let canAdd = false;
                 Object.values(usersCache).forEach(u => {
-                    if (u.uid !== currentUser.uid && myFollowing.includes(u.uid) && (!g.members || !g.members.includes(u.uid))) {
+                    if (u.uid !== currentUser.uid && myFollowing.includes(u.uid) && canAddToGroup(u.uid) && (!g.members || !g.members.includes(u.uid))) {
                         canAdd = true; let av = getAvatar(u.uid, u.name);
                         addListEl.innerHTML += `<label class="friend-checkbox-item"><input type="checkbox" value="${u.uid}" class="add-group-friend-check"><img src="${av}"><span style="font-size:14px; font-weight:bold;">${escapeHTML(u.name)}</span></label>`;
                     }
@@ -2912,7 +2943,10 @@
         const shownEmail = uid === currentUser.uid ? currentUser.email : (isAdmin ? emailOf(u) : "");
         if (shownEmail) { emailEl.style.display = "block"; emailEl.innerText = shownEmail; } else { emailEl.style.display = "none"; }
         document.getElementById("public-bio").innerText = u.bio ? u.bio : "Статус не указан";
-        document.getElementById("public-followers").innerText = u.followers ? u.followers.length : 0;
+        window.__profileUid = uid;
+        const showFl = allowedBy(u, "showFollows");
+        document.getElementById("public-followers").innerText = showFl ? (u.followers ? u.followers.length : 0) : "—";
+        document.getElementById("public-following").innerText = showFl ? (u.following ? u.following.length : 0) : "—";
 
         let followBtn = document.getElementById("public-follow-btn"); let msgBtn = document.getElementById("public-msg-btn");
         const blkBtn = document.getElementById("public-block-btn");
@@ -3564,6 +3598,68 @@
           box.addEventListener("touchend", (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) obGo(obIndex + (dx < 0 ? 1 : -1)); }, { passive: true });
       })();
 
+      // ===== КОНФИДЕНЦИАЛЬНОСТЬ =====
+      // users/{uid}.privacy = { showFollows, canMessage, groupAdd }: "all" | "following" (люди, на которых подписан владелец) | "nobody"
+      const privacyOf = (u, key) => (u && u.privacy && u.privacy[key]) || "all";
+      const followsMe = (u) => !!(u && currentUser && (u.following || []).includes(currentUser.uid)); // владелец профиля подписан на меня
+      function allowedBy(u, key) {
+          if (!currentUser) return false;
+          if (!u) return true; // профиль ещё не загружен — не мешаем; окончательно проверяют правила базы
+          if (isAdmin || u.uid === currentUser.uid) return true;
+          const p = privacyOf(u, key);
+          return p === "all" || (p === "following" && followsMe(u));
+      }
+      const canWriteTo = (uid) => allowedBy(usersCache[uid], "canMessage");
+      const canAddToGroup = (uid) => allowedBy(usersCache[uid], "groupAdd");
+      function renderPrivacySettings() {
+          const me = usersCache[currentUser?.uid]; if (!me) return;
+          document.querySelectorAll("[data-privacy]").forEach(sel => { sel.value = privacyOf(me, sel.getAttribute("data-privacy")); });
+      }
+      document.querySelectorAll("[data-privacy]").forEach(sel => sel.addEventListener("change", async () => {
+          const key = sel.getAttribute("data-privacy"), val = sel.value;
+          try {
+              await setDoc(doc(db, "users", currentUser.uid), { privacy: { [key]: val } }, { merge: true });
+              const me = usersCache[currentUser.uid]; if (me) me.privacy = { ...(me.privacy || {}), [key]: val };
+              showToast("Настройки конфиденциальности сохранены", "shield");
+          } catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); renderPrivacySettings(); }
+      }));
+
+      // ===== ПОДПИСЧИКИ И ПОДПИСКИ =====
+      let followTarget = null;
+      async function ensureUsers(uids) {
+          const missing = uids.filter(u => u && !usersCache[u]);
+          for (let i = 0; i < missing.length; i += 20) {
+              try {
+                  const snap = await getDocs(query(collection(db, "users"), where(documentId(), "in", missing.slice(i, i + 20)), limit(20)));
+                  snap.forEach(d => { const u = d.data(); if (u && u.uid) usersCache[u.uid] = u; });
+              } catch (e) { console.log("Профили:", e.code); }
+          }
+      }
+      async function openFollowList(uid, tab) {
+          followTarget = uid;
+          const u = usersCache[uid]; if (!u) return;
+          if (!allowedBy(u, "showFollows")) return showToast("Пользователь скрыл своих подписчиков и подписки", "eye");
+          document.querySelectorAll("#follow-tabs .tab").forEach(t => t.classList.toggle("active", t.getAttribute("data-ft") === tab));
+          document.getElementById("follow-title").textContent = u.name || "Профиль";
+          document.getElementById("public-profile-screen").style.display = "none";
+          document.getElementById("follow-screen").style.display = "flex";
+          const list = document.getElementById("follow-list");
+          const uids = (tab === "followers" ? u.followers : u.following) || [];
+          if (!uids.length) { list.innerHTML = `<div class="dev-empty">${tab === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</div>`; return; }
+          list.innerHTML = `<div class="dev-empty">Загружаем…</div>`;
+          await ensureUsers(uids);
+          if (followTarget !== uid) return;
+          const rows = uids.map(id => usersCache[id]).filter(x => x && x.name && !bansCache[x.uid]);
+          list.innerHTML = rows.length ? rows.map(x => `<div class="fl-row" data-fl-uid="${escapeHTML(x.uid)}"><img src="${getAvatar(x.uid, x.name)}" alt=""><b>${escapeHTML(x.name)}</b>${verifiedBadge(x.uid, 13)}</div>`).join("") : `<div class="dev-empty">Никого нет</div>`;
+      }
+      document.querySelectorAll(".profile-stats [data-follow-tab]").forEach(el => el.addEventListener("click", () => {
+          const uid = document.getElementById("public-follow-btn").getAttribute("data-action-uid") || (document.getElementById("public-report-btn").getAttribute("data-action-uid")) || currentUser.uid;
+          openFollowList(window.__profileUid || uid, el.getAttribute("data-follow-tab"));
+      }));
+      document.getElementById("follow-tabs").addEventListener("click", (e) => { const t = e.target.closest("[data-ft]"); if (t && followTarget) openFollowList(followTarget, t.getAttribute("data-ft")); });
+      document.getElementById("follow-close").addEventListener("click", () => { document.getElementById("follow-screen").style.display = "none"; followTarget = null; });
+      document.getElementById("follow-list").addEventListener("click", (e) => { const r = e.target.closest("[data-fl-uid]"); if (r) { document.getElementById("follow-screen").style.display = "none"; openPublicProfile(r.getAttribute("data-fl-uid")); } });
+
       // ===== ЛИЧНАЯ БЛОКИРОВКА =====
       // blocks/{кто}_{кого} — закрытые записи: видят только эти двое (раньше список лежал в публичном профиле).
       // Заблокированный не может писать мне в личку, его сообщения в беседах скрыты, уведомлений от него нет.
@@ -3624,7 +3720,7 @@
           const bar = document.getElementById("block-bar"), input = document.querySelector(".input-area");
           let text = "", canUnblock = false;
           if (peer && iBlocked(peer)) { text = "Вы заблокировали этого пользователя"; canUnblock = true; }
-          else if (peer && blockedMe(peer)) text = "Пользователь ограничил, кто может ему писать";
+          else if (peer && (blockedMe(peer) || !canWriteTo(peer))) text = "Пользователь ограничил, кто может ему писать";
           bar.classList.toggle("on", !!text);
           if (input) input.style.display = text ? "none" : "";
           document.getElementById("block-bar-text").innerText = text;
@@ -3846,7 +3942,7 @@
           const item = e.target.closest("[data-chat]"); if (!item || !fwMsg) return;
           const target = forwardTargets().find(i => i.chatId === item.getAttribute("data-chat")); if (!target) return;
           const m = fwMsg; closeForward();
-          if (target.targetUid && blockedMe(target.targetUid)) return showToast("Пользователь ограничил, кто может ему писать", "block");
+          if (target.targetUid && (blockedMe(target.targetUid) || !canWriteTo(target.targetUid))) return showToast("Пользователь ограничил, кто может ему писать", "block");
           const orig = m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
           if (m.text) data.text = m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl;
@@ -4221,7 +4317,7 @@
 
       async function sendMessage(text, imageUrl = null, audioUrl = null) {
         if (!currentUser || iAmBanned) return;
-        { const peer = dmPeer(currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? "Вы заблокировали этого пользователя" : "Пользователь ограничил, кто может ему писать", "block"); } }
+        { const peer = dmPeer(currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer) || !canWriteTo(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? "Вы заблокировали этого пользователя" : "Пользователь ограничил, кто может ему писать", "block"); } }
         
         const chatId = currentChatId; // запоминаем сразу: пока идёт запись, человек может переключить чат
 
@@ -4426,6 +4522,46 @@
               showToast(hide ? "Ваш статус скрыт" : "Ваш статус снова виден", "eye");
           } catch (err) { console.error(err); e.target.checked = !hide; showToast("Не удалось сохранить", "error"); }
       });
+
+      // Свайп по списку чатов — переключение «Все» ⇄ «Подписки»
+      (function () {
+          const list = document.getElementById("chat-list"); let x0 = null, y0 = 0, t0 = 0;
+          list.addEventListener("touchstart", e => { if (e.touches.length !== 1) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
+          list.addEventListener("touchend", e => {
+              if (x0 === null) return;
+              const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+              if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - t0 > 700) return;
+              const to = dx < 0 ? "friends" : "all"; if (to === currentFilter) return;
+              document.getElementById(to === "all" ? "tab-all" : "tab-friends").click();
+              list.classList.remove("swipe-in-left", "swipe-in-right"); void list.offsetWidth; list.classList.add(dx < 0 ? "swipe-in-left" : "swipe-in-right");
+          }, { passive: true });
+      })();
+      // Свайп вправо от левого края в открытом чате — назад к списку (телефон)
+      (function () {
+          const main = document.getElementById("main-chat"), app = document.getElementById("app-container");
+          let x0 = null, y0 = 0, dx = 0, active = false;
+          main.addEventListener("touchstart", e => {
+              if (!app.classList.contains("chat-active") || window.innerWidth > 768 || e.touches.length !== 1) return;
+              const t = e.touches[0]; if (t.clientX > 28) return;
+              x0 = t.clientX; y0 = t.clientY; dx = 0; active = false;
+          }, { passive: true });
+          main.addEventListener("touchmove", e => {
+              if (x0 === null) return;
+              const t = e.touches[0]; dx = t.clientX - x0; const dy = t.clientY - y0;
+              if (!active) { if (Math.abs(dy) > 12 && Math.abs(dy) > dx) { x0 = null; return; } if (dx > 10) active = true; else return; }
+              main.style.transition = "none"; main.style.transform = `translateX(${Math.max(0, dx)}px)`;
+          }, { passive: true });
+          const end = () => {
+              if (x0 === null) return; x0 = null;
+              main.style.transition = "transform .2s ease";
+              if (active && dx > Math.min(110, window.innerWidth * .3)) {
+                  main.style.transform = `translateX(${window.innerWidth}px)`;
+                  setTimeout(() => { document.getElementById("mobile-back-btn").click(); main.style.transition = "none"; main.style.transform = ""; }, 180);
+              } else main.style.transform = "";
+              active = false;
+          };
+          main.addEventListener("touchend", end); main.addEventListener("touchcancel", end);
+      })();
 
       // Свайп влево по сообщению — ответить (телефон)
       (function () {
