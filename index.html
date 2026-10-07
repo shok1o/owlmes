@@ -253,7 +253,42 @@
       #send-button { position: relative; touch-action: manipulation; }
       #send-button::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; } /* зона нажатия чуть больше самой кнопки */
       
-      #mic-btn.recording { color: #ff3b30; animation: pulse 1s infinite; }
+      /* Голосовые: кнопка микрофона на месте «Отправить», пока поле пустое; запись — удерживать / влево — отмена / вверх — без рук */
+      .input-area { position: relative; }
+      #voice-btn { display: none; width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: #fff; border: none; cursor: pointer; align-items: center; justify-content: center; position: relative; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: transform .18s cubic-bezier(.3,1.4,.5,1), background .2s; z-index: 2; --lvl: 0; }
+      #voice-btn::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
+      #voice-btn::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--accent); opacity: 0; transform: scale(1); transition: opacity .2s; z-index: -1; }
+      #voice-btn svg { pointer-events: none; }
+      .input-area.empty #voice-btn { display: flex; }
+      .input-area.empty #send-button { display: none; }
+      .input-area.rec #voice-btn { transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(1.55); transition: background .2s; }
+      .input-area.rec #voice-btn::after { opacity: .28; transform: scale(calc(1.08 + var(--lvl) * .9)); transition: transform .08s linear, opacity .2s; }
+      .input-area.rec.locked #voice-btn { transform: scale(1.2); transition: transform .25s cubic-bezier(.3,1.4,.5,1); }
+      .input-area.rec #attach-btn, .input-area.rec #message-input { display: none; }
+      #rec-bar { display: none; flex-grow: 1; min-width: 0; height: 46px; align-items: center; gap: 10px; padding: 0 16px; border-radius: 24px; background: var(--input-bg); color: var(--text-main); font-size: 15px; overflow: hidden; animation: recIn .22s ease-out; }
+      .input-area.rec #rec-bar { display: flex; }
+      @keyframes recIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+      .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; flex-shrink: 0; animation: recBlink 1s ease-in-out infinite; }
+      @keyframes recBlink { 50% { opacity: .25; } }
+      #rec-time { font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; }
+      #rec-wave { display: none; align-items: center; gap: 2px; height: 24px; flex: 1; min-width: 0; overflow: hidden; justify-content: flex-end; }
+      #rec-wave i { display: block; width: 3px; flex-shrink: 0; border-radius: 2px; background: var(--accent); opacity: .85; min-height: 3px; }
+      #rec-hint { display: flex; align-items: center; gap: 2px; flex-shrink: 0; color: var(--text-muted); font-size: 14px; transform: translateX(var(--dx, 0px)); opacity: var(--hint-op, 1); white-space: nowrap;
+          -webkit-mask-image: linear-gradient(90deg, #000 30%, rgba(0,0,0,.35) 50%, #000 70%); -webkit-mask-size: 300% 100%; animation: recShimmer 1.8s linear infinite; }
+      @keyframes recShimmer { from { -webkit-mask-position: 100% 0; } to { -webkit-mask-position: -50% 0; } }
+      #rec-cancel { display: none; flex-shrink: 0; border: none; background: none; color: #ff3b30; font: inherit; font-weight: 600; padding: 6px 4px; cursor: pointer; }
+      .input-area.locked #rec-hint { display: none; }
+      .input-area.locked #rec-wave { display: flex; }
+      #rec-hint { margin: 0 auto; }
+      .input-area.locked #rec-cancel { display: block; }
+      #rec-lock { position: absolute; right: 22px; bottom: 82px; width: 34px; padding: 8px 0 6px; border-radius: 17px; background: var(--bg-panel); border: 1px solid var(--border-color); box-shadow: 0 4px 14px rgba(0,0,0,.18); color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: 0; transform: translateY(12px) scale(.9); pointer-events: none; transition: opacity .2s, transform .2s; z-index: 3; }
+      .input-area.rec:not(.locked) #rec-lock { opacity: 1; transform: translateY(var(--lock-dy, 0px)); }
+      #rec-lock .rl-up { animation: recUp 1.2s ease-in-out infinite; }
+      @keyframes recUp { 50% { transform: translateY(-4px); } }
+      .input-area.rec-cancel #rec-bar { animation: recOut .32s ease-in forwards; }
+      .input-area.rec-cancel .rec-dot { animation: none; }
+      @keyframes recOut { 20% { transform: translateX(6px); } 100% { transform: translateX(-40px); opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { #rec-hint, #rec-lock .rl-up, .rec-dot { animation: none; } .input-area.rec #voice-btn::after { transition: none; } }
       @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
 
       /* Экран загрузки и спиннер */
@@ -1130,7 +1165,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.48</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.49</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1186,11 +1221,18 @@
               <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
           </button>
           
-          <button id="mic-btn" class="icon-btn" title="Нажмите для записи аудио">
-              <svg id="mic-icon" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          </button>
           
           <textarea id="message-input" rows="1" placeholder="Сообщение..." enterkeyhint="enter"></textarea>
+          <div id="rec-bar" aria-live="polite">
+              <span class="rec-dot"></span><span id="rec-time">0:00,0</span>
+              <span id="rec-wave" aria-hidden="true"></span>
+              <span id="rec-hint"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>Влево — отмена</span>
+              <button id="rec-cancel" type="button">Отмена</button>
+          </div>
+          <div id="rec-lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><svg class="rl-up" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg></div>
+          <button id="voice-btn" type="button" title="Удерживайте — запись, влево — отмена, вверх — без рук">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </button>
           <button id="send-button">
               <svg id="send-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="transform: translateX(-1px);"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
@@ -4388,11 +4430,8 @@
                 qfBanner.style.display = "none";
             }
             
-            let micBtn = document.getElementById("mic-btn"); let msgInput = document.getElementById("message-input");
-            if (isRecording) {
-               if (mediaRecorder && mediaRecorder.state !== "inactive") { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
-               isRecording = false; micBtn.classList.remove("recording"); micBtn.innerHTML = micIconSVG; msgInput.disabled = false;
-            }
+            let msgInput = document.getElementById("message-input");
+            if (isRecording) stopVoice(true); // закреплённая запись уходит в тот чат, где её начали
             msgInput.value = getDraft(chatId); msgInput.placeholder = "Сообщение..."; document.getElementById("send-button").innerHTML = sendIconSVG;
             document.getElementById("mention-box").classList.remove("on");
             setTimeout(() => msgInput.dispatchEvent(new Event("owl-fit")), 0);
@@ -4648,54 +4687,150 @@
 
       let mediaRecorder; let audioChunks = []; let isRecording = false;
 
-      // ЗАПИСЬ АУДИО (СОХРАНЯЕМ В BASE64)
-      document.getElementById("mic-btn").addEventListener("click", async () => {
-        let micBtn = document.getElementById("mic-btn"); let msgInput = document.getElementById("message-input");
+      // ===== ГОЛОСОВЫЕ: удерживать — запись, отпустить — отправить, влево — отмена, вверх — закрепить =====
+      // Короткое нажатие (или клик мышью) сразу включает закреплённую запись с кнопками «Отмена» / «Отправить».
+      const REC_CANCEL_DX = 110, REC_LOCK_DY = 70, REC_MIN_MS = 600, REC_TAP_MS = 300;
+      const recArea = document.querySelector(".input-area"), voiceBtn = document.getElementById("voice-btn");
+      const recTimeEl = document.getElementById("rec-time"), recWave = document.getElementById("rec-wave");
+      let rec = null; // { chatId, startedAt, x0, y0, locked, tapPending, pointerId, ctx, raf, levels }
+      const vibe = (ms) => { try { navigator.vibrate && navigator.vibrate(ms); } catch (_) {} };
+      const voiceSendSVG = sendIconSVG;
+      const voiceMicSVG = voiceBtn.innerHTML;
+      // Микрофон вместо «Отправить», пока поле пустое и мы не редактируем сообщение
+      const voiceInput = document.getElementById("message-input");
+      function syncVoiceBtn() { recArea.classList.toggle("empty", isRecording || (!voiceInput.value.trim() && !editingMsgId)); }
+      voiceInput.addEventListener("input", syncVoiceBtn);
+      voiceInput.addEventListener("owl-fit", syncVoiceBtn);
+      document.addEventListener("click", () => setTimeout(syncVoiceBtn, 0));
 
-        if (!isRecording) {
-          try {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
-            setAudioSession("play-and-record"); // в режиме ambient (для звуков уведомлений) iOS не даёт микрофон
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream); audioChunks = []; 
-            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-            
-            mediaRecorder.onstop = () => {
-              const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/mp4' }); 
-              const reader = new FileReader();
-              reader.onload = async function(e) { 
-                 sendMessage(null, null, e.target.result);
-              };
-              reader.readAsDataURL(audioBlob); audioChunks = [];
-              restoreAmbient();
-            };
-            
-            mediaRecorder.start(); isRecording = true;
-            micBtn.classList.add("recording"); micBtn.innerHTML = stopIconSVG;
-            msgInput.value = ""; msgInput.placeholder = "Идёт запись... (нажми стоп)"; msgInput.disabled = true;
-          } catch(err) {
-            console.error(err); restoreAmbient();
-            const why = {
-              NotAllowedError: "Нет доступа к микрофону. Разрешите его: на iPhone — Настройки → Приложения → Safari → Микрофон, на компьютере — значок замка в адресной строке.",
-              SecurityError: "Нет доступа к микрофону. Разрешите его в настройках браузера для этого сайта.",
-              NotFoundError: "Микрофон не найден. Проверьте, что он подключён.",
-              NotReadableError: "Микрофон занят другим приложением (например, звонком). Завершите его и попробуйте снова.",
-              NotSupportedError: "Этот браузер не умеет записывать голосовые. Обновите его или откройте Owl в Safari/Chrome."
-            }[err && err.name] || ("Не удалось включить микрофон" + (err && err.name ? " (" + err.name + ")" : "") + ". Попробуйте ещё раз.");
-            alert(why);
+      function setRecVars(dx, dy) {
+          recArea.style.setProperty("--dx", dx + "px");
+          recArea.style.setProperty("--dy", dy + "px");
+          recArea.style.setProperty("--hint-op", String(Math.max(0, 1 + dx / REC_CANCEL_DX)));
+          recArea.style.setProperty("--lock-dy", Math.max(-REC_LOCK_DY, dy) * .5 + "px");
+      }
+      function recTick() {
+          if (!rec) return;
+          const ms = Date.now() - rec.startedAt, sec = Math.floor(ms / 1000);
+          recTimeEl.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")},${Math.floor(ms % 1000 / 100)}`;
+          let lvl = 0;
+          if (rec.an) {
+              rec.an.getByteTimeDomainData(rec.buf);
+              let sum = 0; for (let i = 0; i < rec.buf.length; i++) { const v = (rec.buf[i] - 128) / 128; sum += v * v; }
+              lvl = Math.min(1, Math.sqrt(sum / rec.buf.length) * 4);
           }
-        } else {
-          if (mediaRecorder && mediaRecorder.state !== "inactive") { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
-          isRecording = false; micBtn.classList.remove("recording"); micBtn.innerHTML = micIconSVG;
-          msgInput.placeholder = "Сообщение..."; msgInput.disabled = false;
-        }
+          rec.smooth = rec.smooth * .7 + lvl * .3;
+          voiceBtn.style.setProperty("--lvl", rec.smooth.toFixed(3));
+          if (ms - (rec.lastBar || 0) > 90) { // новая палочка волны ~11 раз в секунду
+              rec.lastBar = ms;
+              const bar = document.createElement("i"); bar.style.height = Math.max(3, Math.round(3 + rec.smooth * 21)) + "px";
+              recWave.appendChild(bar); while (recWave.children.length > 60) recWave.firstChild.remove();
+          }
+          rec.raf = requestAnimationFrame(recTick);
+      }
+      async function startVoice(e) {
+          if (rec || !currentChatId) return;
+          rec = { chatId: currentChatId, startedAt: 0, x0: e.clientX, y0: e.clientY, pressAt: Date.now(), locked: false, tapPending: false, pointerId: e.pointerId, smooth: 0 };
+          try { voiceBtn.setPointerCapture(e.pointerId); } catch (_) {}
+          const my = rec;
+          try {
+              if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) throw Object.assign(new Error("unsupported"), { name: "NotSupportedError" });
+              setAudioSession("play-and-record"); // в режиме ambient (для звуков уведомлений) iOS не даёт микрофон
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              if (rec !== my) { stream.getTracks().forEach(t => t.stop()); restoreAmbient(); return; } // отпустили/отменили, пока спрашивали доступ
+              mediaRecorder = new MediaRecorder(stream); audioChunks = [];
+              mediaRecorder.ondataavailable = ev => { if (ev.data.size > 0) audioChunks.push(ev.data); };
+              mediaRecorder.start(); isRecording = true;
+              rec.startedAt = Date.now(); rec.stream = stream;
+              try { // уровень громкости — для ореола и волны
+                  const AC = window.AudioContext || window.webkitAudioContext;
+                  rec.ctx = new AC(); rec.an = rec.ctx.createAnalyser(); rec.an.fftSize = 512;
+                  rec.ctx.createMediaStreamSource(stream).connect(rec.an); rec.buf = new Uint8Array(rec.an.fftSize);
+              } catch (_) { rec.an = null; }
+              recWave.innerHTML = ""; setRecVars(0, 0);
+              recArea.classList.remove("rec-cancel"); recArea.classList.add("rec", "empty");
+              vibe(12);
+              // Нажали и сразу отпустили (в том числе пока iPhone спрашивал доступ) — закреплённый режим
+              if (rec.tapPending) lockVoice();
+              recTick();
+          } catch (err) {
+              console.error(err); rec = null; isRecording = false; restoreAmbient();
+              const why = {
+                  NotAllowedError: "Нет доступа к микрофону. Разрешите его: на iPhone — Настройки → Приложения → Safari → Микрофон, на компьютере — значок замка в адресной строке.",
+                  SecurityError: "Нет доступа к микрофону. Разрешите его в настройках браузера для этого сайта.",
+                  NotFoundError: "Микрофон не найден. Проверьте, что он подключён.",
+                  NotReadableError: "Микрофон занят другим приложением (например, звонком). Завершите его и попробуйте снова.",
+                  NotSupportedError: "Этот браузер не умеет записывать голосовые. Обновите его или откройте Owl в Safari/Chrome."
+              }[err && err.name] || ("Не удалось включить микрофон" + (err && err.name ? " (" + err.name + ")" : "") + ". Попробуйте ещё раз.");
+              alert(why);
+          }
+      }
+      function lockVoice() {
+          if (!rec || rec.locked) return;
+          rec.locked = true; setRecVars(0, 0);
+          recArea.classList.add("locked"); voiceBtn.innerHTML = voiceSendSVG; voiceBtn.title = "Отправить голосовое";
+          vibe(8);
+      }
+      // send = true — отправить, false — отменить
+      function stopVoice(send) {
+          const r = rec; if (!r) return;
+          rec = null; cancelAnimationFrame(r.raf);
+          const recorder = mediaRecorder, chatId = r.chatId, dur = r.startedAt ? Date.now() - r.startedAt : 0;
+          if (recorder && recorder.state !== "inactive") {
+              recorder.onstop = () => {
+                  const chunks = audioChunks; audioChunks = [];
+                  if (send && dur >= REC_MIN_MS && chunks.length) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => sendMessage(null, null, ev.target.result, chatId);
+                      reader.readAsDataURL(new Blob(chunks, { type: recorder.mimeType || "audio/mp4" }));
+                  }
+                  restoreAmbient();
+              };
+              recorder.stop();
+          }
+          if (r.stream) r.stream.getTracks().forEach(t => t.stop());
+          if (r.ctx) r.ctx.close().catch(() => {});
+          isRecording = false;
+          voiceBtn.innerHTML = voiceMicSVG; voiceBtn.title = "Удерживайте — запись, влево — отмена, вверх — без рук"; voiceBtn.style.setProperty("--lvl", "0");
+          const finish = () => { recArea.classList.remove("rec", "locked", "rec-cancel"); setRecVars(0, 0); syncVoiceBtn(); };
+          if (!send) { recArea.classList.add("rec-cancel"); vibe([10, 40, 10]); setTimeout(finish, 320); }
+          else { finish(); if (dur && dur < REC_MIN_MS) showToast("Удерживайте кнопку, чтобы записать голосовое", "info"); }
+          if (!r.startedAt) restoreAmbient();
+      }
+      voiceBtn.addEventListener("contextmenu", e => e.preventDefault());
+      voiceBtn.addEventListener("pointerdown", (e) => {
+          if (e.button && e.button !== 0) return;
+          e.preventDefault(); // не забираем фокус у поля и не вызываем выделение/лупу на iPhone
+          if (rec && rec.locked) { stopVoice(true); return; } // закреплённая запись: кнопка = «Отправить»
+          startVoice(e);
       });
+      voiceBtn.addEventListener("pointermove", (e) => {
+          if (!rec || rec.locked || e.pointerId !== rec.pointerId || !rec.startedAt) return;
+          const dx = Math.min(0, e.clientX - rec.x0), dy = Math.min(0, e.clientY - rec.y0);
+          if (dx < -12 || dy < -12) rec.held = true;
+          if (-dx > REC_CANCEL_DX) { stopVoice(false); return; }
+          if (-dy > REC_LOCK_DY) { lockVoice(); return; }
+          // Тянем либо влево, либо вверх — по преобладающему направлению
+          if (-dx > -dy) setRecVars(dx, 0); else setRecVars(0, dy);
+      });
+      const voiceRelease = (e) => {
+          if (!rec || rec.locked || e.pointerId !== rec.pointerId) return;
+          const quick = Date.now() - rec.pressAt < REC_TAP_MS && !rec.held;
+          if (!rec.startedAt) { rec.tapPending = true; return; } // ещё ждём микрофон (iPhone спрашивает доступ) — запись начнётся закреплённой
+          if (quick) { lockVoice(); return; }
+          stopVoice(e.type === "pointerup");
+      };
+      voiceBtn.addEventListener("pointerup", voiceRelease);
+      voiceBtn.addEventListener("pointercancel", voiceRelease);
+      document.getElementById("rec-cancel").addEventListener("click", () => stopVoice(false));
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && rec) stopVoice(false); });
+      syncVoiceBtn();
 
-      async function sendMessage(text, imageUrl = null, audioUrl = null) {
+      async function sendMessage(text, imageUrl = null, audioUrl = null, targetChat = null) {
         if (!currentUser || iAmBanned) return;
-        { const peer = dmPeer(currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer) || !canWriteTo(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? "Вы заблокировали этого пользователя" : "Пользователь ограничил, кто может ему писать", "block"); } }
+        { const peer = dmPeer(targetChat || currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer) || !canWriteTo(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? "Вы заблокировали этого пользователя" : "Пользователь ограничил, кто может ему писать", "block"); } }
         
-        const chatId = currentChatId; // запоминаем сразу: пока идёт запись, человек может переключить чат
+        const chatId = targetChat || currentChatId; // запоминаем сразу: пока идёт запись, человек может переключить чат
 
         if (editingMsgId && text) {
             const editedId = editingMsgId;
