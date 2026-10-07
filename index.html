@@ -1121,7 +1121,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.45</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.46</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1796,6 +1796,62 @@
           const c = Math.max(0, Number(u[key + "Count"]) || 0);
           return Array.isArray(u[key]) ? Math.max(c, u[key].length) : c;
       };
+      // ФОТО, «О СЕБЕ», «БЫЛ В СЕТИ» С ОГРАНИЧЕННОЙ АУДИТОРИЕЙ (этап 2в). При настройке «Все» поле лежит в публичном
+      // профиле; при «Мои подписки»/«Никто» — в закрытом документе restricted/{uid}_{photo|bio|lastSeen},
+      // который база отдаёт только владельцу, админу и тем, кому разрешено (правила проверяют подписку).
+      const R_FIELDS = { photo: ["photoURL"], bio: ["bio"], lastSeen: ["online", "lastSeen"] };
+      const rawProfiles = {}, restrictedData = {}, rWatchers = {}, rDenied = new Set();
+      const isRestricted = (u, key) => privacyOf(u, key) !== "all";
+      function applyRestricted(u) {
+          Object.keys(R_FIELDS).forEach(key => {
+              const r = restrictedData[u.uid + "_" + key];
+              if (r && isRestricted(u, key)) R_FIELDS[key].forEach(f => { if (r[f] !== undefined) u[f] = r[f]; });
+          });
+      }
+      // Подписаться на закрытые поля человека, если они ограничены и мне их видно; лишние подписки снять
+      function ensureRestrictedWatch(u) {
+          if (!u || !u.uid || !currentUser) return;
+          Object.keys(R_FIELDS).forEach(key => {
+              const id = u.uid + "_" + key, p = privacyOf(u, key);
+              const need = p !== "all" && (isAdmin || u.uid === currentUser.uid || (p === "following" && followsMe(u))) && !(key === "lastSeen" && p === "nobody");
+              if (need && !rWatchers[id] && !rDenied.has(id)) {
+                  rWatchers[id] = onSnapshot(doc(db, "restricted", id), (d) => {
+                      restrictedData[id] = d.exists() ? d.data() : null;
+                      reingestUser(u.uid);
+                  }, (e) => { console.log("restricted/" + id + ":", e.code); rDenied.add(id); if (rWatchers[id]) rWatchers[id](); delete rWatchers[id]; delete restrictedData[id]; reingestUser(u.uid); });
+              } else if (!need && rWatchers[id]) { rWatchers[id](); delete rWatchers[id]; delete restrictedData[id]; }
+          });
+      }
+      const reingestUser = (uid) => { if (rawProfiles[uid] && window.__ingestUser) { window.__ingestUser({ ...rawProfiles[uid] }, true); usersChanged(); } };
+      // Записать своё поле туда, где ему место по моей настройке
+      async function writeMyField(key, data) {
+          const uid = currentUser.uid;
+          if (myPrivacy(key) === "all") return setDoc(doc(db, "users", uid), data, { merge: true });
+          const me = usersCache[uid]; if (me) Object.assign(me, data);
+          await setDoc(doc(db, "restricted", uid + "_" + key), { uid, ...data }, { merge: true });
+      }
+      // Значение поля для переноса: Date для времени визита, остальное как есть
+      const pickFields = (u, key) => { const o = {}; R_FIELDS[key].forEach(f => { if (u[f] !== undefined && u[f] !== null) o[f] = u[f]; }); return o; };
+      // Перенести поля профиля uid по его настройкам: ограниченные — из users в restricted (используют и клиент, и админ)
+      async function moveRestrictedFields(raw) {
+          const del = {}; let moved = 0;
+          for (const key of Object.keys(R_FIELDS)) {
+              const p = privacyOf(raw, key);
+              if (p === "all") continue;
+              const vals = pickFields(raw, key);
+              const dirty = key === "lastSeen" ? (raw.lastSeen !== undefined || raw.online === true) : Object.keys(vals).length > 0;
+              if (!dirty) continue;
+              if (!(key === "lastSeen" && p === "nobody") && Object.keys(vals).length) {
+                  if (key === "lastSeen") vals.online = false;
+                  await setDoc(doc(db, "restricted", raw.uid + "_" + key), { uid: raw.uid, ...vals }, { merge: true });
+              }
+              R_FIELDS[key].forEach(f => { del[f] = deleteField(); });
+              if (key === "lastSeen") del.online = false;
+              moved++;
+          }
+          if (moved) await setDoc(doc(db, "users", raw.uid), del, { merge: true });
+          return moved;
+      }
       const MAX_USER_WATCHERS = 400;
       // После изменения профилей: перерисовать всё, что от них зависит (склеиваем частые изменения)
       let usersChangedTimer = null;
@@ -2046,8 +2102,8 @@
           if (!currentUser) return;
           let me = usersCache[currentUser.uid]; if (!me) return; // ждём свой профиль, чтобы знать про hideOnline
           if (me.hideOnline && !me.online && !me.lastSeen) return; // статус скрыт и уже чистый — лишних записей не делаем
-          let data = myHideOnline() ? { online: false, lastSeen: deleteField() } : { online: online, lastSeen: new Date() };
-          setDoc(doc(db, "users", currentUser.uid), data, { merge: true }).catch(e => console.log(e));
+          if (myHideOnline()) { setDoc(doc(db, "users", currentUser.uid), { online: false, lastSeen: deleteField() }, { merge: true }).catch(e => console.log(e)); return; }
+          writeMyField("lastSeen", { online: online, lastSeen: new Date() }).catch(e => console.log("Онлайн-статус:", e.code || e));
       }
       function startPresence() {
           stopPresence(false);
@@ -2533,14 +2589,15 @@
           const uid = currentUser.uid;
           const changed = () => {
               const me = usersCache[uid];
-              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); }
+              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); migrateMyRestricted(); }
+              Object.values(usersCache).forEach(ensureRestrictedWatch);
               watchContacts(); usersChanged();
           };
           ownListeners.push(onSnapshot(doc(db, "users_private", uid), (d) => { myPrivate = d.exists() ? d.data() : {}; changed(); },
               (e) => { console.log("users_private/я:", e.code); myPrivate = myPrivate || {}; changed(); }));
           ownListeners.push(onSnapshot(query(collection(db, "follows"), where("from", "==", uid)), (s) => { myFollowsOut = new Set(s.docs.map(d => d.data().to)); changed(); },
               (e) => { console.log("follows (мои подписки):", e.code); }));
-          ownListeners.push(onSnapshot(query(collection(db, "follows"), where("to", "==", uid)), (s) => { myFollowsIn = new Set(s.docs.map(d => d.data().from)); changed(); },
+          ownListeners.push(onSnapshot(query(collection(db, "follows"), where("to", "==", uid)), (s) => { myFollowsIn = new Set(s.docs.map(d => d.data().from)); rDenied.clear(); changed(); },
               (e) => { console.log("follows (мои подписчики):", e.code); }));
       }
       // Мои личные настройки из публичного профиля → users_private (уже сохранённые там значения важнее)
@@ -2556,6 +2613,13 @@
               await setDoc(doc(db, "users", currentUser.uid), del, { merge: true });
           } catch (e) { console.log("Перенос личных настроек:", e.code || e); }
           finally { privMigrating = false; }
+      }
+      let rMigrating = false, rMigrateFailed = false; // при ошибке не повторяем до перезапуска (иначе запись → откат → снова запись)
+      async function migrateMyRestricted() {
+          if (rMigrating || rMigrateFailed || !myRawProfile) return;
+          rMigrating = true;
+          try { await moveRestrictedFields(myRawProfile); } catch (e) { rMigrateFailed = true; console.log("Перенос закрытых полей:", e.code || e); }
+          finally { rMigrating = false; }
       }
       // Счётчик моих подписок в профиле сверяем с реальными записями (после переноса старых подписок)
       function healFollowingCount() {
@@ -2582,7 +2646,7 @@
           // (watchUser). Раньше каждый скачивал профили всех пользователей.
           window.__ingestUser = (u, quiet) => {
               ingestUser(u, quiet);
-              if (u && currentUser && u.uid === currentUser.uid) { watchContacts(); if (Array.isArray(u.blocked)) migrateBlockedList(u).catch(e => console.log("Перенос блокировок:", e.code || e)); }
+              if (u && currentUser && u.uid === currentUser.uid) { watchContacts(); migrateMyPrivate(); migrateMyRestricted(); if (Array.isArray(u.blocked)) migrateBlockedList(u).catch(e => console.log("Перенос блокировок:", e.code || e)); }
           };
           startOwnListeners();
           if (!isAdmin) { usersListener = null; watchUser(currentUser.uid); }
@@ -2605,8 +2669,11 @@
                   // Админу — уведомление о свежей регистрации (ник появляется чуть позже самого профиля)
                   let prev = usersCache[u.uid];
                   if (isAdmin && !quiet && u.name && u.name !== "Загрузка..." && (!prev || !prev.name || prev.name === "Загрузка...") && Date.now() - createdAtOf(u) < 10 * 60 * 1000) showToast("Новый пользователь: " + u.name, "users");
-                  if (currentUser && u.uid === currentUser.uid) { myRawProfile = { ...u }; overlayMe(u); }
+                  rawProfiles[u.uid] = { ...u };
+                  if (currentUser && u.uid === currentUser.uid) { myRawProfile = rawProfiles[u.uid]; overlayMe(u); }
+                  applyRestricted(u);
                   usersCache[u.uid] = u;
+                  ensureRestrictedWatch(u);
               } else return;
               
               // Профиль подгрузился уже после отрисовки (в чатах аватарки и значки рисуются сразу, по имени) — обновляем
@@ -2679,7 +2746,7 @@
               }, (e) => console.log("chats_metadata (беседа):", e.code));
             }
           }
-          if (isAdmin) { migrateMetaMembers(); setTimeout(migrateEmails, 4000); setTimeout(migrateFollows, 8000); }
+          if (isAdmin) { migrateMetaMembers(); setTimeout(migrateEmails, 4000); setTimeout(migrateFollows, 8000); setTimeout(migrateAllRestricted, 11000); }
       }
       // Удаление аккаунта: убрать его подписки (со счётчиками у тех, на кого он подписан) и подписки на него
       async function deleteFollowEdges(uid) {
@@ -2742,6 +2809,15 @@
               } catch (e) { console.log("Миграция профиля " + u.uid + ":", e.code || e); }
           }
           showToast(`Подписки перенесены: ${todo.length} записей, профилей обновлено: ${moved}`, "shield");
+      }
+      // Разовая миграция (админ): фото/«о себе»/время визита с ограниченной аудиторией → restricted
+      async function migrateAllRestricted() {
+          let moved = 0, failed = 0;
+          for (const raw of Object.values(rawProfiles)) {
+              if (!raw || !raw.uid) continue;
+              try { if (await moveRestrictedFields(raw)) moved++; } catch (e) { failed++; console.log("Закрытые поля " + raw.uid + ":", e.code || e); }
+          }
+          if (moved || failed) showToast(failed ? `Закрытые поля: перенесено ${moved}, ошибок ${failed}` : `Закрытые поля перенесены: ${moved} профилей`, failed ? "error" : "shield");
       }
       // Разовая миграция (запускает админ): email из публичных профилей → users_private; ник в нижнем регистре для поиска
       async function migrateEmails() {
@@ -2952,8 +3028,8 @@
 
       document.getElementById("save-bio-btn").addEventListener("click", async () => {
         let bio = document.getElementById("settings-bio").value.trim();
-        await setDoc(doc(db, "users", currentUser.uid), { bio: bio }, { merge: true });
-        showToast("Профиль сохранен!", "check");
+        try { await writeMyField("bio", { bio: bio }); showToast("Профиль сохранен!", "check"); }
+        catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); }
       });
 
       // СОХРАНЕНИЕ АВАТАРКИ В BASE64 (БЕСПЛАТНО, БЕЗ СТОРЕДЖА)
@@ -2974,7 +3050,7 @@
             let base64 = canvas.toDataURL("image/jpeg", 0.7);
             
             try {
-              await setDoc(doc(db, "users", currentUser.uid), { photoURL: base64 }, { merge: true });
+              await writeMyField("photo", { photoURL: base64 });
               showToast("Аватарка успешно обновлена!", "camera");
               document.getElementById("settings-avatar").style.opacity = "1";
             } catch (err) {
@@ -3191,7 +3267,7 @@
               try {
                   const snap = await getDocs(query(collection(db, "users"), where("nameLower", ">=", v), where("nameLower", "<=", v + "\uf8ff"), limit(15)));
                   if (seq !== searchSeq) return;
-                  snap.forEach(d => { const u = d.data(); if (u && u.uid && !usersCache[u.uid] && privacyOf(u, "searchable")) usersCache[u.uid] = u; });
+                  snap.forEach(d => { const u = d.data(); if (u && u.uid && !usersCache[u.uid] && privacyOf(u, "searchable")) window.__ingestUser(u, true); });
                   renderChatList(document.getElementById("search-input").value);
               } catch (err) { console.log("Поиск:", err.code || err); }
           }, 300);
@@ -3727,7 +3803,7 @@
           const key = nickKey(nick);
           let u = Object.values(usersCache).find(x => x && (x.nameLower === key || x.nameKey === key));
           if (!u) {
-              try { const snap = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(1))); snap.forEach(d => { u = d.data(); usersCache[u.uid] = u; }); } catch (e) { console.log("Приглашение:", e.code || e); }
+              try { const snap = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(1))); snap.forEach(d => { u = d.data(); window.__ingestUser(u, true); u = usersCache[u.uid]; }); } catch (e) { console.log("Приглашение:", e.code || e); }
           }
           if (!u) return showToast("Пользователь " + nick + " не найден", "alert");
           if (u.uid === currentUser.uid) return;
@@ -3823,10 +3899,20 @@
       async function savePrivacy(key, val) {
           const me = usersCache[currentUser.uid];
           const patch = { privacy: { [key]: val } };
-          // «Никто не видит, когда я в сети» — не пишем время визита вовсе (старый механизм hideOnline)
-          if (key === "lastSeen") Object.assign(patch, val === "nobody" ? { hideOnline: true, online: false, lastSeen: deleteField() } : { hideOnline: false, online: true, lastSeen: new Date() });
+          const b = writeBatch(db), rRef = R_FIELDS[key] && doc(db, "restricted", currentUser.uid + "_" + key);
+          if (key === "lastSeen") {
+              // «Никто» — время визита не пишем вовсе (старый механизм hideOnline); «Подписки» — только в закрытый документ
+              const now = { online: true, lastSeen: new Date() };
+              if (val === "all") { Object.assign(patch, { hideOnline: false, ...now }); b.delete(rRef); }
+              else { Object.assign(patch, { hideOnline: val === "nobody", online: false, lastSeen: deleteField() }); val === "nobody" ? b.delete(rRef) : b.set(rRef, { uid: currentUser.uid, ...now }); }
+          } else if (rRef) {
+              const vals = me ? pickFields(me, key) : {};
+              if (val === "all") { Object.assign(patch, vals); b.delete(rRef); }
+              else { R_FIELDS[key].forEach(f => { patch[f] = deleteField(); }); b.set(rRef, { uid: currentUser.uid, ...vals }); }
+          }
+          b.set(doc(db, "users", currentUser.uid), patch, { merge: true });
           try {
-              await setDoc(doc(db, "users", currentUser.uid), patch, { merge: true });
+              await b.commit();
               if (me) { me.privacy = { ...(me.privacy || {}), [key]: val }; if (key === "lastSeen") me.hideOnline = val === "nobody"; }
               renderPrivacySettings();
               showToast("Сохранено", "shield");
@@ -3843,7 +3929,7 @@
           for (let i = 0; i < missing.length; i += 20) {
               try {
                   const snap = await getDocs(query(collection(db, "users"), where(documentId(), "in", missing.slice(i, i + 20)), limit(20)));
-                  snap.forEach(d => { const u = d.data(); if (u && u.uid) usersCache[u.uid] = u; });
+                  snap.forEach(d => { const u = d.data(); if (u && u.uid) window.__ingestUser(u, true); });
               } catch (e) { console.log("Профили:", e.code); }
           }
       }
@@ -4744,8 +4830,7 @@
           if (!currentUser) return;
           let hide = e.target.checked;
           try {
-              await setDoc(doc(db, "users", currentUser.uid), hide ? { hideOnline: true, online: false, lastSeen: deleteField() } : { hideOnline: false, online: true, lastSeen: new Date() }, { merge: true });
-              showToast(hide ? "Ваш статус скрыт" : "Ваш статус снова виден", "eye");
+              await savePrivacy("lastSeen", hide ? "nobody" : "all");
           } catch (err) { console.error(err); e.target.checked = !hide; showToast("Не удалось сохранить", "error"); }
       });
 
