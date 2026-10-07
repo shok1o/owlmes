@@ -1060,7 +1060,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.38</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.39</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1405,8 +1405,8 @@
       document.addEventListener("click", (e) => { if (!e.target.closest("#attach-menu, #attach-btn")) toggleAttachMenu(false); }, true);
 
       // ===== ПРЕВЬЮ ССЫЛОК (карточку собирает наш сервер owl-push) =====
-      const LP_KEY = "owl-lp-v2"; let lpCache = {};
-      try { localStorage.removeItem("owl-lp-v1"); } catch (_) {}
+      const LP_KEY = "owl-lp-v3"; let lpCache = {};
+      try { localStorage.removeItem("owl-lp-v1"); localStorage.removeItem("owl-lp-v2"); } catch (_) {}
       try { lpCache = JSON.parse(localStorage.getItem(LP_KEY) || "{}"); } catch (_) {}
       const lpPending = {};
       function firstExternalLink(text) {
