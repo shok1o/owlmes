@@ -321,6 +321,27 @@
       .dev-stat b { display: block; font-size: 24px; color: var(--text-main); line-height: 1.1; }
       .dev-stat span { font-size: 12px; color: var(--text-muted); }
       .dev-stat.live b { color: #34c759; }
+      .st-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 4px 0 14px; }
+      .st-kpi { background: var(--input-bg); border-radius: 12px; padding: 12px; }
+      .st-kpi b { display: block; font-size: 22px; line-height: 1.1; color: var(--text-main); }
+      .st-kpi span { font-size: 12px; color: var(--text-muted); }
+      .st-chart { background: var(--input-bg); border-radius: 14px; padding: 12px 14px 8px; margin-bottom: 12px; position: relative; }
+      .st-chart h4 { margin: 0 0 2px; font-size: 14px; color: var(--text-main); display: flex; justify-content: space-between; align-items: baseline; }
+      .st-chart h4 small { font-size: 12px; font-weight: 400; color: var(--text-muted); }
+      .st-plot { position: relative; height: 110px; margin-top: 22px; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--border-color); }
+      .st-plot .gl { position: absolute; left: 0; right: 0; border-top: 1px dashed color-mix(in srgb, var(--border-color) 70%, transparent); pointer-events: none; }
+      .st-plot .gl i { position: absolute; right: 0; top: -14px; font-style: normal; font-size: 10px; color: var(--text-muted); }
+      .st-bar { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; position: relative; }
+      .st-bar u { display: block; width: 100%; min-height: 0; background: var(--accent); border-radius: 4px 4px 0 0; opacity: .85; transition: opacity .1s; text-decoration: none; }
+      .st-bar.zero u { height: 2px !important; background: var(--border-color); border-radius: 1px; }
+      .st-bar:hover u { opacity: 1; }
+      .st-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-muted); margin-top: 4px; }
+      .st-tip { position: absolute; pointer-events: none; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-main); font-size: 12px; padding: 5px 8px; border-radius: 8px; white-space: nowrap; box-shadow: 0 6px 18px rgba(0,0,0,.25); transform: translate(-50%, -100%); display: none; z-index: 5; }
+      .st-tip b { font-size: 13px; }
+      .st-note { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+      .st-inv { display: flex; justify-content: space-between; padding: 7px 2px; border-top: 1px solid var(--border-color); font-size: 14px; color: var(--text-main); }
+      .st-inv:first-of-type { border-top: none; }
+      @media (max-width: 560px) { .st-kpis { grid-template-columns: repeat(2, 1fr); } }
       .dev-tools { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
       .dev-tools .tabs-container { margin: 0; padding: 0; }
       .dev-search { flex: 1; min-width: 160px; position: relative; display: flex; align-items: center; }
@@ -710,6 +731,7 @@
             <div class="tab" data-f="all">Все</div>
             <div class="tab" data-f="banned">Баны <span class="appeal-count" id="dev-appeal-count" style="display:none;"></span></div>
             <div class="tab" data-f="reports">Жалобы <span class="appeal-count" id="dev-report-count" style="display:none;"></span></div>
+            <div class="tab" data-f="stats">Статистика</div>
           </div>
           <div class="dev-search"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" id="dev-search" placeholder="Ник или email..."></div>
         </div>
@@ -952,7 +974,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.33</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.34</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1020,7 +1042,7 @@
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
       // ВАЖНО: Добавлены deleteField и getDoc для отмены реакций
-      import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+      import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
       import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
       const firebaseConfig = {
@@ -1894,6 +1916,7 @@
           document.getElementById("dev-new7").innerText = all.filter(u => isNew(u, 7 * DAY_MS)).length;
 
           if (devFilter === "reports") return renderReports();
+          if (devFilter === "stats") return renderStats();
           let list;
           if (devFilter === "online") list = all.filter(isUserOnline).sort((a, b) => createdAtOf(b) - createdAtOf(a)); // свежие регистрации — сверху
           else if (devFilter === "new") list = all.filter(u => isNew(u, 7 * DAY_MS)).sort((a, b) => createdAtOf(b) - createdAtOf(a));
@@ -1972,6 +1995,8 @@
       document.getElementById("dev-tabs").addEventListener("click", (e) => {
           const t = e.target.closest("[data-f]"); if (!t) return;
           devFilter = t.getAttribute("data-f");
+          document.querySelector("#dev-panel-screen .dev-search").style.display = devFilter === "stats" ? "none" : "";
+          if (devFilter === "stats") statsDocs = null; // при каждом открытии — свежие цифры
           document.querySelectorAll("#dev-tabs .tab").forEach(el => el.classList.toggle("active", el === t));
           renderDevPanel();
       });
@@ -2780,7 +2805,8 @@
             }
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
             try {
-              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, followers: [], following: [], bio: "", createdAt: new Date() });
+              let invitedByNick = null; try { invitedByNick = localStorage.getItem("owl-invite"); localStorage.removeItem("owl-invite"); } catch (_) {}
+              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, followers: [], following: [], bio: "", createdAt: new Date(), ...(invitedByNick ? { invitedByNick } : {}) });
               await updateProfile(userCred.user, { displayName: name });
             } catch (profileErr) {
               await deleteDoc(doc(db, "users", userCred.user.uid)).catch(() => {});
@@ -2840,6 +2866,7 @@
           startNotificationsListener();
           startBanListeners();
           startBlockListeners();
+          setTimeout(markActiveToday, 3000);
           startPresence();
           if (user.displayName) ensureProfileMigrated(user);
           if (pushEnabled()) serverPushSubscribe(); // привязываем устройство к аккаунту (и обновляем подписку)
@@ -2965,6 +2992,87 @@
       setInterval(evalNet, 2000);
       evalNet();
 
+      // ===== СТАТИСТИКА =====
+      // stats/{ГГГГ-ММ-ДД по Москве}: messages — сколько сообщений за день, active — кто заходил (только счётчик для панели)
+      const dayKey = (offset = 0) => new Date(Date.now() + 3 * 3600e3 + offset * 864e5).toISOString().slice(0, 10);
+      const dayOf = (t) => new Date(t + 3 * 3600e3).toISOString().slice(0, 10);
+      function markActiveToday() {
+          if (!currentUser || isAdmin) return;
+          const k = dayKey(), ls = "owl-active-" + currentUser.uid;
+          try { if (localStorage.getItem(ls) === k) return; } catch (_) {}
+          setDoc(doc(db, "stats", k), { active: { [currentUser.uid]: true } }, { merge: true })
+              .then(() => { try { localStorage.setItem(ls, k); } catch (_) {} })
+              .catch(e => console.log("stats:", e.code));
+      }
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") markActiveToday(); });
+      let statsDocs = null, statsLoading = false;
+      async function loadStats() {
+          if (statsLoading) return; statsLoading = true;
+          try {
+              const snap = await getDocs(query(collection(db, "stats"), where(documentId(), ">=", dayKey(-29))));
+              statsDocs = {}; snap.forEach(d => { statsDocs[d.id] = d.data(); });
+          } catch (e) { console.log("Статистика:", e.code); statsDocs = { __error: e.code || "error" }; }
+          statsLoading = false; renderDevPanel();
+      }
+      const fmtDay = (k) => new Date(k + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+      function barChart(title, series, note) {
+          const max = Math.max(1, ...series.map(x => x.v));
+          const step = max <= 4 ? 1 : Math.ceil(max / 4);
+          const top = Math.ceil(max / step) * step;
+          let grid = ""; for (let g = step; g <= top; g += step) grid += `<div class="gl" style="bottom:${g / top * 100}%"><i>${g}</i></div>`;
+          const bars = series.map(x => `<div class="st-bar${x.v ? "" : " zero"}" data-tip="${escapeHTML(fmtDay(x.k))}" data-v="${x.v}"><u style="height:${x.v / top * 100}%"></u></div>`).join("");
+          const total = series.reduce((a, x) => a + x.v, 0);
+          return `<div class="st-chart"><h4>${title}<small>${note || "за 30 дней: " + total}</small></h4><div class="st-plot">${grid}${bars}</div>
+              <div class="st-axis"><span>${fmtDay(series[0].k)}</span><span>${fmtDay(series[15].k)}</span><span>сегодня</span></div><div class="st-tip"></div></div>`;
+      }
+      function renderStats() {
+          const box = document.getElementById("dev-list");
+          if (!statsDocs) { box.innerHTML = `<div class="dev-empty">Загружаем статистику…</div>`; loadStats(); return; }
+          if (statsDocs.__error) { box.innerHTML = `<div class="dev-empty">Нет доступа к статистике (${escapeHTML(statsDocs.__error)}). Нужно правило Firestore для коллекции stats.</div>`; return; }
+          const days = Array.from({ length: 30 }, (_, i) => dayKey(i - 29));
+          const activeOf = (k) => Object.keys((statsDocs[k] || {}).active || {}).length;
+          const msgsOf = (k) => (statsDocs[k] || {}).messages || 0;
+          const union = (n) => { const set = new Set(); days.slice(-n).forEach(k => Object.keys((statsDocs[k] || {}).active || {}).forEach(u => set.add(u))); return set.size; };
+          const users = Object.values(usersCache).filter(u => u && u.uid && u.name);
+          const regs = {}; users.forEach(u => { const t = createdAtOf(u); if (t) { const k = dayOf(t); regs[k] = (regs[k] || 0) + 1; } });
+          const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+          const inv = {}; users.forEach(u => { if (u.invitedByNick) { const k = nickKey(u.invitedByNick); inv[k] = inv[k] || { name: u.invitedByNick, n: 0 }; inv[k].n++; } });
+          const invList = Object.values(inv).sort((a, b) => b.n - a.n);
+          const since = Object.keys(statsDocs).sort()[0];
+          box.innerHTML = `
+            <div class="st-kpis">
+              <div class="st-kpi"><b>${activeOf(dayKey())}</b><span>Активны сегодня</span></div>
+              <div class="st-kpi"><b>${union(7)}</b><span>Активны за 7 дней</span></div>
+              <div class="st-kpi"><b>${union(30)}</b><span>Активны за 30 дней</span></div>
+              <div class="st-kpi"><b>${msgsOf(dayKey())}</b><span>Сообщений сегодня</span></div>
+              <div class="st-kpi"><b>${sum(days.slice(-7).map(msgsOf))}</b><span>Сообщений за 7 дней</span></div>
+              <div class="st-kpi"><b>${sum(days.slice(-7).map(k => regs[k] || 0))}</b><span>Регистраций за 7 дней</span></div>
+              <div class="st-kpi"><b>${sum(invList.map(x => x.n))}</b><span>Пришли по приглашению</span></div>
+              <div class="st-kpi"><b>${users.length}</b><span>Всего пользователей</span></div>
+            </div>
+            <p class="st-note">${since ? "Активность и сообщения считаются с " + fmtDay(since) + "." : "Счётчики начнут заполняться, как только люди откроют новую версию."} Ваш аккаунт в активных не учитывается.</p>
+            ${barChart("Активные пользователи", days.map(k => ({ k, v: activeOf(k) })), "в день")}
+            ${barChart("Сообщения", days.map(k => ({ k, v: msgsOf(k) })))}
+            ${barChart("Регистрации", days.map(k => ({ k, v: regs[k] || 0 })))}
+            <div class="st-chart"><h4>Кто приводит друзей<small>по ссылкам-приглашениям</small></h4>
+              ${invList.length ? invList.slice(0, 10).map(x => `<div class="st-inv"><span>${escapeHTML(x.name)}</span><b>${x.n}</b></div>`).join("") : `<div class="st-note" style="margin:6px 0">Пока никто не пришёл по приглашению</div>`}
+            </div>
+            <div style="text-align:center;margin:4px 0 8px"><button class="ob-mini-btn" id="st-refresh">${icon("clock", 16)}Обновить</button></div>`;
+      }
+      // Подсказка при наведении на столбик
+      document.getElementById("dev-list").addEventListener("mousemove", (e) => {
+          const bar = e.target.closest(".st-bar"), chart = e.target.closest(".st-chart");
+          document.querySelectorAll(".st-tip").forEach(t => { if (!chart || t.parentElement !== chart) t.style.display = "none"; });
+          if (!bar || !chart) return;
+          const tip = chart.querySelector(".st-tip"), cr = chart.getBoundingClientRect(), br = bar.getBoundingClientRect();
+          tip.innerHTML = `${bar.dataset.tip}: <b>${bar.dataset.v}</b>`;
+          tip.style.display = "block";
+          tip.style.left = Math.max(40, Math.min(cr.width - 40, br.left - cr.left + br.width / 2)) + "px";
+          tip.style.top = (br.top - cr.top + 4) + "px";
+      });
+      document.getElementById("dev-list").addEventListener("mouseleave", () => document.querySelectorAll(".st-tip").forEach(t => t.style.display = "none"));
+      document.getElementById("dev-list").addEventListener("click", (e) => { if (e.target.closest("#st-refresh")) { statsDocs = null; renderDevPanel(); } });
+
       // ===== ПРИГЛАШЕНИЯ: owlmes.ru/?add=ник открывает профиль человека =====
       const inviteLink = () => "https://owlmes.ru/?add=" + encodeURIComponent(usersCache[currentUser.uid]?.name || currentUser.displayName || "");
       async function shareInvite(btn) {
@@ -2977,7 +3085,7 @@
           try { await navigator.clipboard.writeText(text + "\n" + url); showToast("Ссылка скопирована", "check"); if (btn) { btn.classList.add("done"); btn.innerHTML = icon("check", 16) + "Скопировано"; } }
           catch (_) { prompt("Скопируйте ссылку:", url); }
       }
-      try { const add = new URLSearchParams(location.search).get("add"); if (add) window.__pendingAdd = add; } catch (_) {}
+      try { const add = new URLSearchParams(location.search).get("add"); if (add) { window.__pendingAdd = add; try { localStorage.setItem("owl-invite", add.slice(0, 40)); } catch (_) {} } } catch (_) {}
       async function openPendingInvite() {
           const nick = window.__pendingAdd; if (!nick || !currentUser) return;
           window.__pendingAdd = null;
@@ -3736,6 +3844,7 @@
         try { await saving; }
         catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
         if (chatId !== "global") notifyPushServer(msgRef.id);
+        setDoc(doc(db, "stats", dayKey()), { messages: increment(1) }, { merge: true }).catch(() => {}); // счётчик сообщений за день
         return msgRef;
       }
       // Самое новое из загруженных сообщений открытого чата
