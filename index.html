@@ -1130,7 +1130,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.47</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.48</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1203,6 +1203,7 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
       // ВАЖНО: Добавлены deleteField и getDoc для отмены реакций
       import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+      import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
       import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
       const firebaseConfig = {
@@ -1215,6 +1216,12 @@
       };
 
       const app = initializeApp(firebaseConfig);
+      // App Check: невидимая проверка Fraud Defense (reCAPTCHA Enterprise) — запросы к базе идут с «пропуском»
+      // настоящего сайта owlmes.ru. Ключ работает только на owlmes.ru / www.owlmes.ru (на localhost пропуска не будет).
+      const RECAPTCHA_ENTERPRISE_SITE_KEY = "6LciOuQtAAAAACzfAsHZMSxZ13E4hyN9kYvXcVK3";
+      let appCheck = null;
+      try { appCheck = initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY), isTokenAutoRefreshEnabled: true }); }
+      catch (e) { console.log("App Check:", e.message || e); }
       const db = getFirestore(app);
       const auth = getAuth(app); 
       
@@ -2064,8 +2071,10 @@
       const serverPushSupported = () => "PushManager" in window && !!navigator.serviceWorker;
       async function pushPost(path, data) {
           const token = await currentUser.getIdToken();
+          // Пропуск App Check — сервер пушей читает базу от имени пользователя и предъявляет его
+          let ac = null; if (appCheck) try { ac = (await getAppCheckToken(appCheck)).token; } catch (e) { console.log("App Check токен:", e.code || e.message || e); }
           // text/plain — без лишнего CORS-запроса; сервер всё равно разбирает JSON
-          return fetch(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token }), keepalive: true });
+          return fetch(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token, ...(ac ? { appCheck: ac } : {}) }), keepalive: true });
       }
       async function serverPushSubscribe() {
           if (!currentUser || !serverPushSupported()) return false;
