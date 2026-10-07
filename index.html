@@ -191,6 +191,41 @@
       /* МЕНЮ ДЕЙСТВИЙ И РЕАКЦИИ */
       .msg-actions { position: absolute; top: -16px; right: 10px; background: var(--bg-panel); border-radius: 15px; padding: 2px 8px; display: none; gap: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10; border: 1px solid var(--border-color);}
       .message-content:hover .msg-actions, .message-content:active .msg-actions { display: flex; }
+      /* На телефоне действия — через меню по долгому нажатию, а не всплывающую полоску */
+      @media (hover: none) {
+        .message-content:hover .msg-actions, .message-content:active .msg-actions { display: none; }
+        .message-content { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      }
+      .message-row.msg-selected .message-content { box-shadow: 0 0 0 2px var(--accent), 0 10px 30px rgba(0,0,0,.35); transform: scale(1.02); transition: transform .15s, box-shadow .15s; }
+      #msg-menu { position: fixed; inset: 0; z-index: 24000; background: rgba(5,4,12,.35); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); display: none; }
+      #msg-menu.on { display: block; }
+      .mm-sheet { position: fixed; width: 250px; background: color-mix(in srgb, var(--bg-panel) 92%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.4); padding: 6px; box-sizing: border-box; animation: mm-pop .14s ease-out; }
+      @keyframes mm-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+      .mm-reacts { display: flex; justify-content: space-between; padding: 4px 4px 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 4px; }
+      .mm-reacts button { width: 36px; height: 36px; border-radius: 50%; border: none; background: none; font-size: 22px; line-height: 1; cursor: pointer; transition: transform .12s, background .12s; padding: 0; }
+      .mm-reacts button:hover, .mm-reacts button:active { transform: scale(1.18); }
+      .mm-reacts button.on { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+      .mm-actions button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: none; background: none; border-radius: 10px; color: var(--text-main); font: inherit; font-size: 15px; cursor: pointer; text-align: left; }
+      .mm-actions button:hover, .mm-actions button:active { background: var(--input-bg); }
+      .mm-actions button svg { flex-shrink: 0; opacity: .85; }
+      .mm-actions button.danger { color: #ff453a; }
+      @media (pointer: coarse) {
+        .mm-sheet { left: 0 !important; right: 0; bottom: 0; top: auto !important; width: auto; border-radius: 22px 22px 0 0; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); animation: mm-up .2s cubic-bezier(.2,.8,.2,1); }
+        .mm-sheet::before { content: ""; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--border-color); margin: 0 auto 8px; }
+        .mm-reacts button { width: 44px; height: 44px; font-size: 26px; }
+        .mm-actions button { padding: 13px 12px; font-size: 16px; }
+      }
+      @keyframes mm-up { from { transform: translateY(100%); } to { transform: none; } }
+      .fwd-label { display: flex; align-items: center; gap: 5px; font-size: 12.5px; opacity: .8; margin-bottom: 3px; }
+      .fwd-label b { font-weight: 600; }
+      #forward-screen .modal-box { max-width: 400px; width: calc(100% - 32px); max-height: min(560px, 85vh); display: flex; flex-direction: column; text-align: left; }
+      #fw-search { margin: 0 0 10px; }
+      #fw-list { overflow-y: auto; flex: 1; margin: 0 -8px; }
+      .fw-item { display: flex; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 12px; cursor: pointer; }
+      .fw-item:hover { background: var(--input-bg); }
+      .fw-item img, .fw-item .fw-av { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+      .fw-item .fw-av { background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; }
+      .fw-item span { font-size: 15px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .msg-action-btn { background: none; border: none; font-size: 14px; cursor: pointer; opacity: 0.7; transition: 0.2s; padding: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-main);}
       .msg-action-btn:hover { opacity: 1; transform: scale(1.1); }
       
@@ -765,6 +800,17 @@
       </div>
     </div>
 
+    <div id="msg-menu"><div class="mm-sheet" id="mm-sheet"><div class="mm-reacts" id="mm-reacts"></div><div class="mm-actions" id="mm-actions"></div></div></div>
+
+    <div id="forward-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="fw-close" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <h2 style="margin-top: 0;">Переслать</h2>
+        <input type="text" id="fw-search" placeholder="Поиск чата...">
+        <div id="fw-list"></div>
+      </div>
+    </div>
+
     <div id="photo-viewer">
       <div class="pv-top"><span id="pv-caption"></span>
         <button id="pv-save" title="Сохранить"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>
@@ -886,7 +932,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.30</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.31</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1050,6 +1096,8 @@
           logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>',
           pin: '<line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.5l-3.2-3.2V5a1.8 1.8 0 0 0-1.8-1.8H10A1.8 1.8 0 0 0 8.2 5v7.3L5 15.5V17z"></path>',
           block: '<circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>',
+          copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+          forward: '<polyline points="15 17 20 12 15 7"></polyline><path d="M4 18v-2a4 4 0 0 1 4-4h12"></path>',
           flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line>',
           shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
           mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>',
@@ -3100,6 +3148,132 @@
           } catch (err) { console.error(err); showToast("Не удалось: " + err.message, "error"); btn.disabled = false; }
       }
 
+      function startEdit(id) {
+          const m = loadedMsgs[id]; if (!m || m.uid !== currentUser.uid || !m.text) return;
+          cancelReply(); editingMsgId = id;
+          const input = document.getElementById("message-input"); input.value = m.text; input.focus();
+          document.getElementById("send-button").innerHTML = checkIconSVG;
+      }
+      async function deleteMessage(id) {
+          const m = loadedMsgs[id]; if (!m) return;
+          if (!confirm(isAdmin && m.uid !== currentUser.uid ? "[ADMIN] Удалить чужое сообщение?" : "Удалить сообщение?")) return;
+          fixPreviewAfterDelete(id);
+          try { await deleteDoc(doc(db, "messages", id)); } catch (e) { console.error(e); showToast("Не удалось удалить", "error"); }
+      }
+
+      // ===== МЕНЮ СООБЩЕНИЯ (долгое нажатие / правая кнопка мыши) =====
+      const MENU_REACTIONS = ["👍", "❤", "😂", "😮", "😢", "🔥"];
+      let menuMsgId = null, menuOpenedAt = 0;
+      function openMsgMenu(id, x, y) {
+          const m = loadedMsgs[id], row = document.getElementById("msg-" + id);
+          if (!m || !row || menuMsgId === id) return;
+          const me = currentUser.uid, isMe = m.uid === me, hidden = row.classList.contains("from-blocked");
+          menuMsgId = id; menuOpenedAt = Date.now();
+          row.classList.add("msg-selected");
+          const myR = m.reactions && m.reactions[me];
+          document.getElementById("mm-reacts").style.display = hidden ? "none" : "";
+          document.getElementById("mm-reacts").innerHTML = MENU_REACTIONS.map(r => `<button data-react="${r}" class="${myR === r ? "on" : ""}">${r === "❤" ? "❤️" : r}</button>`).join("");
+          const acts = [];
+          if (!hidden) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), "Ответить"]);
+          if (!hidden && m.text) acts.push(["copy", icon("copy", 20), "Копировать текст"]);
+          if (!hidden && m.imageUrl) acts.push(["photo", icon("image", 20), "Открыть фото"]);
+          if (!hidden) acts.push(["forward", icon("forward", 20), "Переслать"]);
+          if (isMe && m.text) acts.push(["edit", icon("pencil", 20), "Изменить"]);
+          if (isMe || isAdmin) acts.push(["delete", icon("trash", 20), "Удалить", "danger"]);
+          if (!isMe && !isAdmin) acts.push(["report", icon("flag", 20), "Пожаловаться", "danger"]);
+          document.getElementById("mm-actions").innerHTML = acts.map(([a, ic, t, cls]) => `<button data-act="${a}" class="${cls || ""}">${ic}<span>${t}</span></button>`).join("");
+          const menu = document.getElementById("msg-menu"), sheet = document.getElementById("mm-sheet");
+          menu.classList.add("on");
+          if (!matchMedia("(pointer: coarse)").matches) {
+              const w = sheet.offsetWidth, h = sheet.offsetHeight;
+              sheet.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + "px";
+              sheet.style.top = Math.max(8, Math.min(y, innerHeight - h - 8)) + "px";
+          }
+          if (navigator.vibrate) navigator.vibrate(12);
+      }
+      function closeMsgMenu() {
+          document.getElementById("msg-menu").classList.remove("on");
+          document.querySelectorAll(".msg-selected").forEach(r => r.classList.remove("msg-selected"));
+          menuMsgId = null;
+      }
+      document.getElementById("msg-menu").addEventListener("click", async (e) => {
+          if (Date.now() - menuOpenedAt < 450) return; // «клик» от того же пальца, которым открыли меню
+          const id = menuMsgId, m = loadedMsgs[id];
+          const react = e.target.closest("[data-react]"), act = e.target.closest("[data-act]");
+          if (!react && !act) { if (!e.target.closest("#mm-sheet")) closeMsgMenu(); return; }
+          closeMsgMenu(); if (!m) return;
+          if (react) return addReaction(id, react.getAttribute("data-react"));
+          switch (act.getAttribute("data-act")) {
+              case "reply": startReply(id); document.getElementById("message-input").focus(); break;
+              case "copy":
+                  try { await navigator.clipboard.writeText(m.text); showToast("Текст скопирован", "copy"); }
+                  catch (_) { prompt("Скопируйте текст:", m.text); }
+                  break;
+              case "photo": { const img = document.querySelector(`#msg-${CSS.escape(id)} .message-content > img`); if (img) img.click(); break; }
+              case "forward": openForward(m); break;
+              case "edit": startEdit(id); break;
+              case "delete": deleteMessage(id); break;
+              case "report": openReport({ targetUid: m.uid, message: m }); break;
+          }
+      });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && menuMsgId) closeMsgMenu(); });
+      // Правая кнопка мыши (компьютер) и долгое нажатие на Android
+      document.getElementById("chat-box").addEventListener("contextmenu", (e) => {
+          const row = e.target.closest(".message-row[data-msg-id]");
+          if (!row || e.target.closest("a, audio")) return;
+          e.preventDefault();
+          openMsgMenu(row.getAttribute("data-msg-id"), e.clientX, e.clientY);
+      });
+
+      // ===== ПЕРЕСЫЛКА =====
+      let fwMsg = null;
+      function forwardTargets() {
+          const items = [], seen = new Set();
+          const add = (it) => { if (!seen.has(it.chatId)) { seen.add(it.chatId); items.push(it); } };
+          const ts = (id) => getTime(chatsMetaCache[id]?.timestamp) || 0;
+          Object.keys(chatsMetaCache).forEach(id => {
+              const p = dmPeer(id); if (!p || iBlocked(p)) return;
+              const u = usersCache[p]; if (!u || !u.name) return;
+              add({ chatId: id, title: u.name, targetUid: p, isGroup: false, av: `<img src="${getAvatar(p, u.name)}">`, t: ts(id) });
+          });
+          Object.values(groupsCache).forEach(g => { if ((g.members || []).includes(currentUser.uid)) add({ chatId: g.id, title: g.name || "Беседа", targetUid: null, isGroup: true, av: `<img src="${g.photoURL || generateAvatarSVG(g.name, true)}">`, t: ts(g.id) }); });
+          (usersCache[currentUser.uid]?.following || []).forEach(p => {
+              const u = usersCache[p]; if (!u || !u.name || iBlocked(p)) return;
+              const id = currentUser.uid < p ? currentUser.uid + "_" + p : p + "_" + currentUser.uid;
+              add({ chatId: id, title: u.name, targetUid: p, isGroup: false, av: `<img src="${getAvatar(p, u.name)}">`, t: ts(id) });
+          });
+          items.sort((a, b) => b.t - a.t);
+          items.push({ chatId: "global", title: "Глобальный чат", targetUid: null, isGroup: false, av: `<div class="fw-av">${icon("users", 20)}</div>`, t: 0 });
+          return items;
+      }
+      function renderForwardList() {
+          const q = document.getElementById("fw-search").value.trim().toLowerCase();
+          const list = forwardTargets().filter(i => !q || i.title.toLowerCase().includes(q));
+          document.getElementById("fw-list").innerHTML = list.length
+              ? list.map(i => `<div class="fw-item" data-chat="${escapeHTML(i.chatId)}">${i.av}<span>${escapeHTML(i.title)}</span></div>`).join("")
+              : `<div class="empty-hint" style="margin:8px">Чатов не найдено</div>`;
+      }
+      function openForward(m) {
+          fwMsg = m; document.getElementById("fw-search").value = "";
+          renderForwardList();
+          document.getElementById("forward-screen").style.display = "flex";
+      }
+      const closeForward = () => { document.getElementById("forward-screen").style.display = "none"; fwMsg = null; };
+      document.getElementById("fw-close").addEventListener("click", closeForward);
+      document.getElementById("fw-search").addEventListener("input", renderForwardList);
+      document.getElementById("fw-list").addEventListener("click", async (e) => {
+          const item = e.target.closest("[data-chat]"); if (!item || !fwMsg) return;
+          const target = forwardTargets().find(i => i.chatId === item.getAttribute("data-chat")); if (!target) return;
+          const m = fwMsg; closeForward();
+          if (target.targetUid && blockedMe(target.targetUid)) return showToast("Пользователь ограничил, кто может ему писать", "block");
+          const orig = m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
+          const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
+          if (m.text) data.text = m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl;
+          const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : "Сообщение";
+          try { await postMessage(target.chatId, data, preview); showToast(`Переслано в «${target.title}»`, "forward"); }
+          catch (err) { showToast(sendErrorText(err), "error"); }
+      });
+
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
       let replyingTo = null;
       function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : "Сообщение")); }
@@ -3296,6 +3470,7 @@
                         contentHtml += `<span class="blocked-note">Сообщение скрыто — вы заблокировали автора</span>`;
                     }
 
+                    if (msg.forwardedFrom && msg.forwardedFrom.name) contentHtml += `<div class="fwd-label">${icon("forward", 13)}<span>Переслано от <b>${escapeHTML(msg.forwardedFrom.name)}</b></span></div>`;
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
                     if (msg.text) contentHtml += `<span class="msg-text-content">${linkify(msg.text)}</span>`;
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
@@ -3396,12 +3571,9 @@
            return;
         }
         let editBtn = e.target.closest(".edit-btn");
-        if (editBtn) {
-           cancelReply(); editingMsgId = editBtn.getAttribute("data-id"); document.getElementById("message-input").value = editBtn.getAttribute("data-text");
-           document.getElementById("message-input").focus(); document.getElementById("send-button").innerHTML = checkIconSVG; return;
-        }
+        if (editBtn) { startEdit(editBtn.getAttribute("data-id")); return; }
         let deleteBtn = e.target.closest(".delete-btn");
-        if (deleteBtn) { if(confirm(isAdmin && !e.target.closest('.my-msg') ? "[ADMIN] Удалить чужое сообщение?" : "Удалить сообщение?")) { const id = deleteBtn.getAttribute("data-id"); fixPreviewAfterDelete(id); await deleteDoc(doc(db, "messages", id)); } }
+        if (deleteBtn) deleteMessage(deleteBtn.getAttribute("data-id"));
       });
 
       let mediaRecorder; let audioChunks = []; let isRecording = false;
@@ -3473,8 +3645,13 @@
         let previewText = "";
         if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение";
 
-        // Сообщение и превью пишем одновременно, не дожидаясь сервера: Firestore сразу обновляет
-        // локальную копию, поэтому список чатов меняется мгновенно, а не после ответа сервера
+        try { await postMessage(chatId, msgData, previewText); }
+        catch (err) { showToast(sendErrorText(err), "error"); }
+      }
+      const sendErrorText = (err) => err && err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз";
+      // Записать сообщение в чат: само сообщение и превью пишем одновременно, не дожидаясь сервера —
+      // Firestore сразу обновляет локальную копию, поэтому список чатов меняется мгновенно
+      async function postMessage(chatId, msgData, previewText) {
         const msgRef = doc(collection(db, "messages"));
         const saving = setDoc(msgRef, msgData);
         setDoc(doc(db, "chats_metadata", chatId), {
@@ -3487,12 +3664,9 @@
             unreadCount: (chatId === 'global' ? 0 : increment(1))
         }, { merge: true }).catch(e => console.log("Превью чата:", e));
         try { await saving; }
-        catch (err) {
-            delete pendingSince[msgRef.id]; evalNet();
-            console.error(err);
-            return showToast(err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз", "error");
-        }
+        catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
         if (chatId !== "global") notifyPushServer(msgRef.id);
+        return msgRef;
       }
       // Самое новое из загруженных сообщений открытого чата
       function latestLoadedMsg(exceptId) {
@@ -3640,12 +3814,20 @@
               if (icon) { let i = icon; i.style.opacity = "0"; setTimeout(() => i.remove(), 200); }
               row = bubble = icon = null; locked = false;
           };
+          // Долгое нажатие (0,45 с без движения) — меню сообщения
+          let pressTimer = null, suppressClickUntil = 0;
+          const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
+          box.addEventListener("click", e => { if (Date.now() < suppressClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
           box.addEventListener("touchstart", e => {
               if (e.touches.length !== 1 || e.target.closest("audio,button,a,.reply-quote")) return;
               row = e.target.closest(".message-row[data-msg-id]"); if (!row) return;
               bubble = row.querySelector(".message-content"); sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; locked = false;
+              const id = row.getAttribute("data-msg-id");
+              cancelPress();
+              pressTimer = setTimeout(() => { pressTimer = null; if (locked) return; suppressClickUntil = Date.now() + 600; finish(); openMsgMenu(id); }, 450);
           }, { passive: true });
           box.addEventListener("touchmove", e => {
+              if (pressTimer && (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8)) cancelPress();
               if (!row) return;
               const x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
               if (!locked) {
@@ -3662,11 +3844,12 @@
               if (p >= 1 && !icon.dataset.buzz) { icon.dataset.buzz = "1"; if (navigator.vibrate) navigator.vibrate(10); }
           }, { passive: true });
           box.addEventListener("touchend", () => {
+              cancelPress();
               if (!row) return;
               const id = row.getAttribute("data-msg-id"); const go = locked && -dx >= TRIGGER;
               finish(); if (go) startReply(id);
           });
-          box.addEventListener("touchcancel", () => { if (row) finish(); });
+          box.addEventListener("touchcancel", () => { cancelPress(); if (row) finish(); });
       })();
     </script>
     <script>
