@@ -1060,7 +1060,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.37</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.38</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1405,7 +1405,8 @@
       document.addEventListener("click", (e) => { if (!e.target.closest("#attach-menu, #attach-btn")) toggleAttachMenu(false); }, true);
 
       // ===== ПРЕВЬЮ ССЫЛОК (карточку собирает наш сервер owl-push) =====
-      const LP_KEY = "owl-lp-v1"; let lpCache = {};
+      const LP_KEY = "owl-lp-v2"; let lpCache = {};
+      try { localStorage.removeItem("owl-lp-v1"); } catch (_) {}
       try { lpCache = JSON.parse(localStorage.getItem(LP_KEY) || "{}"); } catch (_) {}
       const lpPending = {};
       function firstExternalLink(text) {
@@ -1419,15 +1420,16 @@
           return null;
       }
       function fetchLinkPreview(url) {
-          if (lpCache[url]) return Promise.resolve(lpCache[url]);
+          const c0 = lpCache[url];
+          if (c0 && !(c0.none && Date.now() - (c0.at || 0) > 3600e3)) return Promise.resolve(c0); // неудачу пробуем снова через час
           if (lpPending[url]) return lpPending[url];
           return lpPending[url] = pushPost("/preview", { url }).then(r => r.ok ? r.json() : null).then(d => {
-              const card = d && (d.title || d.description) ? { t: d.title || "", d: d.description || "", i: d.image || "", s: d.site || "" } : { none: 1 };
+              const card = d && (d.title || d.description) ? { t: d.title || "", d: d.description || "", i: d.image || "", s: d.site || "" } : { none: 1, at: Date.now() };
               lpCache[url] = card;
               const keys = Object.keys(lpCache); if (keys.length > 300) keys.slice(0, keys.length - 300).forEach(k => delete lpCache[k]);
               try { localStorage.setItem(LP_KEY, JSON.stringify(lpCache)); } catch (_) {}
               return card;
-          }).catch(() => ({ none: 1 })).finally(() => { delete lpPending[url]; });
+          }).catch(() => ({ none: 1, at: Date.now() })).finally(() => { delete lpPending[url]; });
       }
       function loadLinkPreviews(root) {
           root.querySelectorAll(".lp[data-lp-url]:not([data-done])").forEach(el => {
