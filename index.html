@@ -550,6 +550,22 @@
       #chat-placeholder img { width: 64px; height: 64px; border-radius: 18px; margin-bottom: 6px; }
       #chat-placeholder b { font-size: 17px; color: var(--text-main); }
       #chat-placeholder span { font-size: 13.5px; color: var(--text-muted); max-width: 240px; }
+      .st-card.pv-card { padding: 0; overflow: hidden; }
+      .pv-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px; border: none; background: none; color: var(--text-main); font: inherit; font-size: 15px; cursor: pointer; text-align: left; }
+      .pv-head .st-label { flex: 1; }
+      .pv-sum { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+      .pv-chev { color: var(--text-muted); transition: transform .25s; flex-shrink: 0; }
+      .pv-card.open .pv-chev { transform: rotate(90deg); }
+      .pv-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+      .pv-body > * { overflow: hidden; }
+      .pv-card.open .pv-body { grid-template-rows: 1fr; }
+      .pv-inner { min-height: 0; padding: 0 12px; }
+      .pv-card.open .pv-inner { padding: 0 12px 12px; }
+      .pv-grp { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--accent); margin: 12px 0 4px; }
+      .pv-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 14px; color: var(--text-main); border-top: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent); }
+      .pv-grp + .pv-row { border-top: none; }
+      .pv-row .st-sel { max-width: 50%; }
+      .pv-inner .st-hint { font-size: 12px; line-height: 1.4; color: var(--text-muted); }
       .profile-stats .stat-item.clickable { cursor: pointer; border-radius: 12px; padding: 4px 12px; transition: background .15s; }
       .profile-stats .stat-item.clickable:hover { background: var(--input-bg); }
       .profile-stats { display: flex; justify-content: center; gap: 18px; }
@@ -914,12 +930,27 @@
           <div id="push-test-result" style="font-size:12px; color:var(--text-muted); margin-top:8px; white-space:pre-line;"></div></div>
 
         <div class="st-sec">Конфиденциальность</div>
-        <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Другие увидят «был(а) недавно» вместо точного времени.</div>
-          <div class="st-row" style="margin-top:14px;"><span class="st-label">Кто видит моих подписчиков и подписки</span><select class="st-sel" data-privacy="showFollows"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
-          <div class="st-row" style="margin-top:12px;"><span class="st-label">Кто может мне писать</span><select class="st-sel" data-privacy="canMessage"><option value="all">Все</option><option value="following">Мои подписки</option></select></div>
-          <div class="st-hint">«Мои подписки» — люди, на которых подписаны вы. С остальными сохранится старая переписка, но новые сообщения они отправить не смогут.</div>
-          <div class="st-row"><span class="st-label">Кто может добавлять меня в беседы</span><select class="st-sel" data-privacy="groupAdd"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+        <div class="st-card pv-card">
+          <button type="button" class="pv-head" id="pv-toggle"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>Настройки приватности</span><span class="pv-sum" id="pv-sum"></span><svg class="pv-chev" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+          <div class="pv-body" id="pv-body"><div class="pv-inner">
+            <div class="pv-grp">Профиль</div>
+            <div class="pv-row"><span>Кто видит моё фото</span><select class="st-sel" data-privacy="photo"><option value="all">Все</option><option value="following">Мои подписки</option></select></div>
+            <div class="pv-row"><span>Кто видит «о себе»</span><select class="st-sel" data-privacy="bio"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+            <div class="pv-grp">Подписки</div>
+            <div class="pv-row"><span>Список подписчиков</span><select class="st-sel" data-privacy="showFollowers"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+            <div class="pv-row"><span>Список подписок</span><select class="st-sel" data-privacy="showFollowing"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+            <div class="pv-row"><span>Показывать количество</span><label class="st-toggle"><input type="checkbox" data-privacy-bool="showCounts"><span></span></label></div>
+            <div class="pv-grp">Активность</div>
+            <div class="pv-row"><span>Кто видит, когда я в сети</span><select class="st-sel" data-privacy="lastSeen"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+            <div class="pv-row"><span>Отметки о прочтении</span><label class="st-toggle"><input type="checkbox" data-privacy-bool="readReceipts"><span></span></label></div>
+            <div class="pv-row"><span>Показывать «печатает…»</span><label class="st-toggle"><input type="checkbox" data-privacy-bool="typing"><span></span></label></div>
+            <div class="pv-grp">Связь</div>
+            <div class="pv-row"><span>Кто может мне писать</span><select class="st-sel" data-privacy="canMessage"><option value="all">Все</option><option value="following">Мои подписки</option></select></div>
+            <div class="pv-row"><span>Кто может добавлять в беседы</span><select class="st-sel" data-privacy="groupAdd"><option value="all">Все</option><option value="following">Мои подписки</option><option value="nobody">Никто</option></select></div>
+            <div class="pv-row"><span>Находить меня по нику</span><label class="st-toggle"><input type="checkbox" data-privacy-bool="searchable"><span></span></label></div>
+            <div class="st-hint" style="margin:10px 0 2px;">«Мои подписки» — люди, на которых подписаны вы. Если выключить отметки о прочтении, собеседники не увидят, что вы прочитали их сообщения.</div>
+            <input type="checkbox" id="hide-online-toggle" style="display:none">
+          </div></div>
         </div>
 
         <div class="st-sec">О приложении</div>
@@ -1090,7 +1121,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.41</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.42</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1692,7 +1723,7 @@
       function getAvatar(uid, fallbackName) {
         if (uid && bansCache[uid]) return DEAD_OWL_AVATAR;
         let cached = usersCache[uid];
-        if (cached && cached.photoURL && (cached.photoURL.startsWith('data:image') || cached.photoURL.startsWith('http'))) {
+        if (cached && cached.photoURL && (cached.photoURL.startsWith('data:image') || cached.photoURL.startsWith('http')) && allowedBy(cached, "photo")) {
             return cached.photoURL;
         }
         return generateAvatarSVG(fallbackName || (cached ? cached.name : "User"));
@@ -1982,13 +2013,13 @@
       window.addEventListener("pagehide", () => { if (presenceTimer) writePresence(false); });
 
       function isUserOnline(u) {
-          if (!u || bansCache[u.uid] || u.hideOnline || !u.online || !u.lastSeen) return false;
+          if (!u || bansCache[u.uid] || u.hideOnline || !u.online || !u.lastSeen || !allowedBy(u, "lastSeen")) return false;
           return Date.now() - getTime(u.lastSeen) < ONLINE_TTL;
       }
       function formatLastSeen(u) {
           if (!u) return "Личные сообщения";
           if (bansCache[u.uid]) return "пользователь заблокирован";
-          if (u.hideOnline || !u.lastSeen) return "был(а) недавно";
+          if (u.hideOnline || !u.lastSeen || !allowedBy(u, "lastSeen")) return "был(а) недавно";
           if (isUserOnline(u)) return "в сети";
           let t = getTime(u.lastSeen); let diff = Date.now() - t; let d = new Date(t);
           if (diff < 60 * 1000) return "был(а) только что";
@@ -2942,11 +2973,11 @@
         let emailEl = document.getElementById("public-email");
         const shownEmail = uid === currentUser.uid ? currentUser.email : (isAdmin ? emailOf(u) : "");
         if (shownEmail) { emailEl.style.display = "block"; emailEl.innerText = shownEmail; } else { emailEl.style.display = "none"; }
-        document.getElementById("public-bio").innerText = u.bio ? u.bio : "Статус не указан";
+        document.getElementById("public-bio").innerText = !allowedBy(u, "bio") ? "Статус скрыт" : (u.bio ? u.bio : "Статус не указан");
         window.__profileUid = uid;
-        const showFl = allowedBy(u, "showFollows");
-        document.getElementById("public-followers").innerText = showFl ? (u.followers ? u.followers.length : 0) : "—";
-        document.getElementById("public-following").innerText = showFl ? (u.following ? u.following.length : 0) : "—";
+        const cnt = isAdmin || uid === currentUser.uid || privacyOf(u, "showCounts");
+        document.getElementById("public-followers").innerText = cnt || allowedBy(u, "showFollowers") ? (u.followers ? u.followers.length : 0) : "—";
+        document.getElementById("public-following").innerText = cnt || allowedBy(u, "showFollowing") ? (u.following ? u.following.length : 0) : "—";
 
         let followBtn = document.getElementById("public-follow-btn"); let msgBtn = document.getElementById("public-msg-btn");
         const blkBtn = document.getElementById("public-block-btn");
@@ -3000,7 +3031,7 @@
               try {
                   const snap = await getDocs(query(collection(db, "users"), where("nameLower", ">=", v), where("nameLower", "<=", v + "\uf8ff"), limit(15)));
                   if (seq !== searchSeq) return;
-                  snap.forEach(d => { const u = d.data(); if (u && u.uid && !usersCache[u.uid]) usersCache[u.uid] = u; });
+                  snap.forEach(d => { const u = d.data(); if (u && u.uid && !usersCache[u.uid] && privacyOf(u, "searchable")) usersCache[u.uid] = u; });
                   renderChatList(document.getElementById("search-input").value);
               } catch (err) { console.log("Поиск:", err.code || err); }
           }, 300);
@@ -3136,7 +3167,7 @@
                   if (isSearching && !String(u.name).toLowerCase().includes(val)) return; 
               }
 
-              let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageText)) : (u.bio ? escapeHTML(u.bio) : "Статус не указан");
+              let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageText)) : (u.bio && allowedBy(u, "bio") ? escapeHTML(u.bio) : "Статус не указан");
               if (bansCache[u.uid]) preview = `<span class="banned-label">Пользователь заблокирован</span>`;
               if (meta && meta.lastMessageSender && !isMyMeta(meta) && !bansCache[u.uid]) preview = escapeHTML(meta.lastMessageSender) + ": " + preview;
               
@@ -3345,6 +3376,7 @@
       let typingTimer; let typingListener = null; let lastTypingWrite = 0;
       document.getElementById("message-input").addEventListener("input", () => {
           if(!currentUser || !currentChatId || currentChatId === 'global') return;
+          if (!myPrivacy("typing")) return;
           let docId = currentChatId + "_" + currentUser.uid;
           if (Date.now() - lastTypingWrite > 3000) {
               lastTypingWrite = Date.now();
@@ -3385,6 +3417,7 @@
       }
       function markVisibleAsRead() {
           if (!currentUser || !currentChatId || currentChatId === 'global' || !chatIsOnScreen()) return;
+          if (!myPrivacy("readReceipts")) return; // человек выключил отметки о прочтении
           let batch = writeBatch(db); let n = 0;
           Object.values(loadedMsgs).forEach(m => {
               if (m.chatId === currentChatId && m.uid !== currentUser.uid && !m.read) { batch.update(doc(db, "messages", m.id), { read: true }); m.read = true; n++; }
@@ -3600,7 +3633,14 @@
 
       // ===== КОНФИДЕНЦИАЛЬНОСТЬ =====
       // users/{uid}.privacy = { showFollows, canMessage, groupAdd }: "all" | "following" (люди, на которых подписан владелец) | "nobody"
-      const privacyOf = (u, key) => (u && u.privacy && u.privacy[key]) || "all";
+      const PRIVACY_BOOL_DEFAULTS = { showCounts: true, readReceipts: true, typing: true, searchable: true };
+      const privacyOf = (u, key) => {
+          const p = (u && u.privacy) || {};
+          if (key in PRIVACY_BOOL_DEFAULTS) return p[key] === undefined ? PRIVACY_BOOL_DEFAULTS[key] : !!p[key];
+          if (key === "lastSeen" && !p.lastSeen && u && u.hideOnline) return "nobody";
+          return p[key] || ((key === "showFollowers" || key === "showFollowing") && p.showFollows) || "all"; // showFollows — старая общая настройка
+      };
+      const myPrivacy = (key) => privacyOf(currentUser && usersCache[currentUser.uid], key);
       const followsMe = (u) => !!(u && currentUser && (u.following || []).includes(currentUser.uid)); // владелец профиля подписан на меня
       function allowedBy(u, key) {
           if (!currentUser) return false;
@@ -3611,18 +3651,28 @@
       }
       const canWriteTo = (uid) => allowedBy(usersCache[uid], "canMessage");
       const canAddToGroup = (uid) => allowedBy(usersCache[uid], "groupAdd");
+      const PV_SHORT = { all: "все", following: "подписки", nobody: "никто" };
       function renderPrivacySettings() {
           const me = usersCache[currentUser?.uid]; if (!me) return;
           document.querySelectorAll("[data-privacy]").forEach(sel => { sel.value = privacyOf(me, sel.getAttribute("data-privacy")); });
+          document.querySelectorAll("[data-privacy-bool]").forEach(cb => { cb.checked = privacyOf(me, cb.getAttribute("data-privacy-bool")); });
+          document.getElementById("pv-sum").textContent = `В сети: ${PV_SHORT[privacyOf(me, "lastSeen")]} · Писать: ${PV_SHORT[privacyOf(me, "canMessage")]}`;
       }
-      document.querySelectorAll("[data-privacy]").forEach(sel => sel.addEventListener("change", async () => {
-          const key = sel.getAttribute("data-privacy"), val = sel.value;
+      async function savePrivacy(key, val) {
+          const me = usersCache[currentUser.uid];
+          const patch = { privacy: { [key]: val } };
+          // «Никто не видит, когда я в сети» — не пишем время визита вовсе (старый механизм hideOnline)
+          if (key === "lastSeen") Object.assign(patch, val === "nobody" ? { hideOnline: true, online: false, lastSeen: deleteField() } : { hideOnline: false, online: true, lastSeen: new Date() });
           try {
-              await setDoc(doc(db, "users", currentUser.uid), { privacy: { [key]: val } }, { merge: true });
-              const me = usersCache[currentUser.uid]; if (me) me.privacy = { ...(me.privacy || {}), [key]: val };
-              showToast("Настройки конфиденциальности сохранены", "shield");
+              await setDoc(doc(db, "users", currentUser.uid), patch, { merge: true });
+              if (me) { me.privacy = { ...(me.privacy || {}), [key]: val }; if (key === "lastSeen") me.hideOnline = val === "nobody"; }
+              renderPrivacySettings();
+              showToast("Сохранено", "shield");
           } catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); renderPrivacySettings(); }
-      }));
+      }
+      document.querySelectorAll("[data-privacy]").forEach(sel => sel.addEventListener("change", () => savePrivacy(sel.getAttribute("data-privacy"), sel.value)));
+      document.querySelectorAll("[data-privacy-bool]").forEach(cb => cb.addEventListener("change", () => savePrivacy(cb.getAttribute("data-privacy-bool"), cb.checked)));
+      document.getElementById("pv-toggle").addEventListener("click", (e) => e.currentTarget.closest(".pv-card").classList.toggle("open"));
 
       // ===== ПОДПИСЧИКИ И ПОДПИСКИ =====
       let followTarget = null;
@@ -3638,7 +3688,7 @@
       async function openFollowList(uid, tab) {
           followTarget = uid;
           const u = usersCache[uid]; if (!u) return;
-          if (!allowedBy(u, "showFollows")) return showToast("Пользователь скрыл своих подписчиков и подписки", "eye");
+          if (!allowedBy(u, tab === "followers" ? "showFollowers" : "showFollowing")) return showToast(tab === "followers" ? "Пользователь скрыл список подписчиков" : "Пользователь скрыл список подписок", "eye");
           document.querySelectorAll("#follow-tabs .tab").forEach(t => t.classList.toggle("active", t.getAttribute("data-ft") === tab));
           document.getElementById("follow-title").textContent = u.name || "Профиль";
           document.getElementById("public-profile-screen").style.display = "none";
