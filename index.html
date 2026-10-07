@@ -1121,7 +1121,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.44</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.45</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2713,13 +2713,19 @@
               (Array.isArray(u.followers) ? u.followers : []).forEach(f => want.push([f, u.uid]));
           });
           const todo = [...new Map(want.filter(([a, b]) => a && b && a !== b && exists.has(a) && exists.has(b) && !edges.has(a + "_" + b)).map(p => [p[0] + "_" + p[1], p])).values()];
-          try {
-              for (let i = 0; i < todo.length; i += 400) {
-                  const b = writeBatch(db);
-                  todo.slice(i, i + 400).forEach(([a, t]) => { b.set(doc(db, "follows", a + "_" + t), { from: a, to: t, createdAt: new Date() }); edges.add(a + "_" + t); });
-                  await b.commit();
-              }
-          } catch (e) { console.log("Миграция подписок, записи:", e.code || e); showToast("Перенос подписок не удался — проверьте правила (follows)", "error"); return; }
+          // По одной записи: если какая-то не пройдёт, остальные всё равно перенесутся
+          const fails = [];
+          for (let i = 0; i < todo.length; i += 20) {
+              await Promise.all(todo.slice(i, i + 20).map(async ([a, t]) => {
+                  try { await setDoc(doc(db, "follows", a + "_" + t), { from: a, to: t, createdAt: new Date() }); edges.add(a + "_" + t); }
+                  catch (e) { fails.push(a + "_" + t + ": " + (e.code || e.message || e)); }
+              }));
+          }
+          if (fails.length) {
+              console.log("Миграция подписок, не перенесены:", fails);
+              showToast(`Не перенесено подписок: ${fails.length} из ${todo.length} (${fails[0].split(": ").pop()}). Старые поля пока не трогаем`, "error");
+              return;
+          }
           const fin = {}, fout = {};
           edges.forEach(id => { const [a, t] = id.split("_"); fout[a] = (fout[a] || 0) + 1; fin[t] = (fin[t] || 0) + 1; });
           let moved = 0;
