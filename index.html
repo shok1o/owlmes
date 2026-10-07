@@ -853,7 +853,9 @@
         <div class="st-sec">Уведомления</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div>
           <div class="st-row" style="margin-top:12px;"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>Уведомления на устройстве</span><label class="st-toggle"><input type="checkbox" id="push-toggle"><span></span></label></div>
-          <div id="push-hint" style="font-size:12px; color:var(--text-muted); margin-top:6px;">Новые сообщения — даже когда Owl закрыт. На iPhone работает, если Owl установлен на экран «Домой».</div></div>
+          <div id="push-hint" style="font-size:12px; color:var(--text-muted); margin-top:6px;">Новые сообщения — даже когда Owl закрыт. На iPhone работает, если Owl установлен на экран «Домой».</div>
+          <button class="ob-mini-btn" id="push-test-btn" style="margin-top:10px;">Проверить уведомления</button>
+          <div id="push-test-result" style="font-size:12px; color:var(--text-muted); margin-top:8px; white-space:pre-line;"></div></div>
 
         <div class="st-sec">Конфиденциальность</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>Скрывать мой статус «в сети»</span><label class="st-toggle"><input type="checkbox" id="hide-online-toggle"><span></span></label></div>
@@ -1006,7 +1008,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.35</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.36</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1688,6 +1690,30 @@
           }
       });
       document.getElementById("push-toggle").checked = pushEnabled();
+
+      // Диагностика: отправить тестовый push себе и показать ответ сервиса доставки
+      document.getElementById("push-test-btn").addEventListener("click", async (e) => {
+          const out = document.getElementById("push-test-result"), btn = e.currentTarget;
+          const ua = navigator.userAgent, standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+          const lines = [];
+          lines.push("Разрешение: " + ("Notification" in window ? ({ granted: "есть", denied: "запрещено в настройках браузера/телефона", default: "ещё не спрашивали" }[Notification.permission] || Notification.permission) : "браузер не поддерживает уведомления"));
+          lines.push("Push в этом браузере: " + (serverPushSupported() ? "поддерживается" : "не поддерживается" + (/iPhone|iPad/.test(ua) && !standalone ? " — установите Owl на экран «Домой»" : "")));
+          if (!currentUser || !serverPushSupported() || !("Notification" in window) || Notification.permission !== "granted") { out.textContent = lines.join("\n"); return; }
+          btn.disabled = true; out.textContent = lines.join("\n") + "\nОтправляем тест…";
+          try {
+              const ok = await serverPushSubscribe(); // заодно обновим подписку этого устройства
+              lines.push("Подписка этого устройства: " + (ok ? "сохранена на сервере" : "не удалось сохранить"));
+              const r = await (await pushPost("/test", {})).json();
+              if (!r.devices || !r.devices.length) lines.push("На сервере нет ни одного вашего устройства.");
+              (r.devices || []).forEach((d, i) => {
+                  const who = /google/.test(d.host) ? "Android/Chrome (Google)" : /apple/.test(d.host) ? "iPhone/Mac (Apple)" : /mozilla/.test(d.host) ? "Firefox (Mozilla)" : /windows|notify\.windows/.test(d.host) ? "Windows" : d.host;
+                  const verdict = d.status >= 200 && d.status < 300 ? "✓ принято, уведомление должно прийти" : d.status === 404 || d.status === 410 ? "✗ подписка устарела — удалена, выключите и включите уведомления" : d.status === 403 ? "✗ сервис отклонил ключ (403)" : "✗ ошибка " + d.status;
+                  lines.push(`Устройство ${i + 1}: ${who} — ${verdict}${d.text ? " (" + d.text + ")" : ""}`);
+              });
+              lines.push("Если сервис «принял», а уведомления нет — дело в настройках телефона: уведомления для Chrome/Owl, режим «Не беспокоить», экономия батареи.");
+          } catch (err) { lines.push("Сервер уведомлений недоступен: " + (err.message || err)); }
+          out.textContent = lines.join("\n"); btn.disabled = false;
+      });
 
       // ===== ОНЛАЙН-СТАТУС =====
       const ONLINE_TTL = 3 * 60 * 1000;     // считаем онлайн, если пульс был не позже 3 мин назад
