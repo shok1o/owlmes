@@ -550,6 +550,46 @@
       #chat-placeholder img { width: 64px; height: 64px; border-radius: 18px; margin-bottom: 6px; }
       #chat-placeholder b { font-size: 17px; color: var(--text-main); }
       #chat-placeholder span { font-size: 13.5px; color: var(--text-muted); max-width: 240px; }
+      /* Опросы */
+      .poll { min-width: 230px; max-width: 300px; }
+      .poll-q { font-weight: 700; font-size: 15px; margin-bottom: 2px; word-break: break-word; }
+      .poll-sub { font-size: 12px; opacity: .7; margin-bottom: 8px; }
+      .poll-opt { position: relative; display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; margin-bottom: 6px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent); background: none; color: inherit; font: inherit; font-size: 14px; text-align: left; cursor: pointer; overflow: hidden; }
+      .my-msg .poll-opt { border-color: rgba(255,255,255,.35); }
+      .poll-opt .fill { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 9px; transition: width .4s ease; z-index: 0; }
+      .my-msg .poll-opt .fill { background: rgba(255,255,255,.22); }
+      .poll-opt > span { position: relative; z-index: 1; }
+      .poll-opt .t { flex: 1; word-break: break-word; }
+      .poll-opt .pc { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+      .poll-opt.mine { border-color: var(--accent); }
+      .my-msg .poll-opt.mine { border-color: #fff; }
+      #poll-screen .modal-box { max-width: 420px; width: calc(100% - 32px); text-align: left; }
+      #poll-screen input[type=text] { margin-bottom: 8px; }
+      .poll-opt-row { display: flex; gap: 6px; align-items: center; }
+      .poll-opt-row input { flex: 1; }
+      .poll-opt-row button { flex-shrink: 0; }
+      #attach-menu { position: absolute; z-index: 31; display: none; flex-direction: column; padding: 6px; min-width: 190px; border-radius: 16px; background: color-mix(in srgb, var(--bg-panel) 90%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border-color); box-shadow: 0 -10px 30px rgba(0,0,0,.25); }
+      #attach-menu.on { display: flex; }
+      #attach-menu button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none; background: none; border-radius: 10px; color: var(--text-main); font: inherit; font-size: 15px; cursor: pointer; text-align: left; }
+      #attach-menu button:hover { background: var(--input-bg); }
+      #attach-menu button svg { color: var(--accent); }
+      /* Превью ссылок */
+      .lp { display: block; margin-top: 6px; border-radius: 12px; overflow: hidden; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--text-muted) 12%, transparent); color: inherit; text-decoration: none; max-width: 300px; }
+      .my-msg .lp { border-left-color: #fff; background: rgba(255,255,255,.14); }
+      .lp img { display: block; width: 100%; max-height: 160px; object-fit: cover; margin: 0 !important; border-radius: 0 !important; }
+      .lp > div { padding: 8px 10px; }
+      .lp .s { font-size: 12px; font-weight: 700; color: var(--accent); }
+      .my-msg .lp .s { color: #fff; opacity: .9; }
+      .lp .h { font-size: 14px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .lp .d { font-size: 13px; opacity: .8; line-height: 1.3; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .lp:empty { display: none; }
+      /* Поиск по чату */
+      #chat-search { display: none; align-items: center; gap: 6px; padding: 8px 12px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+      #chat-search.on { display: flex; }
+      #chat-search input { flex: 1; margin: 0; padding: 9px 14px; border-radius: 18px; border: none; background: var(--input-bg); color: var(--text-main); font-size: 15px; outline: none; min-width: 0; }
+      #chat-search .cnt { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+      #chat-search .icon-btn { width: 34px; height: 34px; }
+      #chat-search .more { border: none; background: none; color: var(--accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; display: none; }
       .vp { display: flex; align-items: center; gap: 10px; width: 250px; max-width: 100%; padding: 4px 0 2px; }
       .vp-play { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; }
       .my-msg .vp-play { background: #fff; color: var(--accent); }
@@ -878,6 +918,18 @@
 
     <div id="msg-menu"><div class="mm-sheet" id="mm-sheet"><div class="mm-reacts" id="mm-reacts"></div><div class="mm-actions" id="mm-actions"></div></div></div>
 
+    <div id="poll-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="poll-close" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <h2 style="margin-top: 0;">Новый опрос</h2>
+        <input type="text" id="poll-q" maxlength="200" placeholder="Вопрос">
+        <div style="font-size:12px; color:var(--text-muted); margin:4px 0 8px;">Варианты ответа</div>
+        <div id="poll-opts"></div>
+        <button class="ob-mini-btn" id="poll-add" style="margin:2px 0 14px;">+ Добавить вариант</button>
+        <button class="modal-btn" id="poll-send">Отправить опрос</button>
+      </div>
+    </div>
+
     <div id="forward-screen" class="modal-screen" style="display: none;">
       <div class="modal-box">
         <button class="icon-btn" id="fw-close" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -1008,7 +1060,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.36</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.37</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1027,6 +1079,7 @@
           
           <div style="display:flex; align-items:center; gap:10px;">
              <!-- КНОПКА БУЛАВКИ -->
+             <button id="chat-search-btn" class="icon-btn" title="Поиск по чату" style="display:none; opacity: 0.7;"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
              <button id="clear-chat-btn" class="icon-btn" title="Удалить переписку" style="display:none; opacity: 0.7;"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
              <button id="pin-chat-btn" class="icon-btn" title="Закрепить чат" style="display:none; opacity: 0.7;">
                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.5l-3.2-3.2V5a1.8 1.8 0 0 0-1.8-1.8H10A1.8 1.8 0 0 0 8.2 5v7.3L5 15.5V17z"></path></svg>
@@ -1045,8 +1098,10 @@
            </button>
         </div>
 
+        <div id="chat-search"><input type="text" id="chat-search-input" placeholder="Поиск по сообщениям..." enterkeyhint="search"><span class="cnt" id="chat-search-cnt"></span><button class="more" id="chat-search-more">Искать раньше</button><button class="icon-btn" id="chat-search-up" title="Предыдущее"></button><button class="icon-btn" id="chat-search-down" title="Следующее"></button><button class="icon-btn" id="chat-search-close" title="Закрыть"></button></div>
         <div id="chat-box"></div>
         <div id="mention-box"></div>
+        <div id="attach-menu"><button data-attach="photo"></button><button data-attach="poll"></button></div>
         <button id="to-bottom-btn" title="К последним сообщениям"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg><b id="to-bottom-count"></b></button>
 
         <div id="reply-bar" class="reply-bar">
@@ -1176,6 +1231,11 @@
           block: '<circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>',
           copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
           forward: '<polyline points="15 17 20 12 15 7"></polyline><path d="M4 18v-2a4 4 0 0 1 4-4h12"></path>',
+          poll: '<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>',
+          search: '<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
+          up: '<polyline points="18 15 12 9 6 15"></polyline>',
+          down: '<polyline points="6 9 12 15 18 9"></polyline>',
+          x: '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>',
           flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line>',
           shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
           mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>',
@@ -1190,7 +1250,7 @@
           return `<svg class="ui-icon" viewBox="0 0 24 24" width="${size}" height="${size}" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.info}</svg>`;
       }
       // В базе превью хранятся с эмодзи-префиксом (📷/🎤/✏️) — при показе меняем его на иконку
-      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"]];
+      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"]];
       function iconizePreview(html) {
           for (const [emoji, name] of PREVIEW_ICONS) html = html.split(emoji).join(`<span class="inline-icon">${icon(name, 14)}</span>`);
           return html;
@@ -1279,6 +1339,146 @@
           if (ev === "ended") { a.currentTime = 0; }
           vpProgress(el, a);
       }, true));
+
+      // ===== ОПРОСЫ =====
+      // msg.poll = { q, options[] }, msg.votes = { uid: номер варианта }. Голос можно снять повторным нажатием.
+      function pollInner(m) {
+          const votes = m.votes || {}, opts = m.poll.options || [], my = votes[currentUser.uid];
+          const counts = opts.map((_, i) => Object.values(votes).filter(v => v === i).length), total = counts.reduce((a, b) => a + b, 0);
+          const voted = my !== undefined;
+          const word = (n) => n % 10 === 1 && n % 100 !== 11 ? "голос" : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? "голоса" : "голосов";
+          return `<div class="poll-q">${escapeHTML(m.poll.q)}</div><div class="poll-sub">Опрос · ${total} ${word(total)}${voted ? " · нажмите свой ответ, чтобы отменить" : ""}</div>` +
+              opts.map((o, i) => {
+                  const pc = total ? Math.round(counts[i] / total * 100) : 0;
+                  return `<button class="poll-opt${my === i ? " mine" : ""}" data-vote="${i}">${voted ? `<i class="fill" style="width:${pc}%"></i>` : ""}<span class="t">${my === i ? "✓ " : ""}${escapeHTML(o)}</span>${voted ? `<span class="pc">${pc}%</span>` : ""}</button>`;
+              }).join("");
+      }
+      async function votePoll(msgId, idx) {
+          const m = loadedMsgs[msgId]; if (!m || !m.poll) return;
+          const mine = (m.votes || {})[currentUser.uid];
+          try { await updateDoc(doc(db, "messages", msgId), { [`votes.${currentUser.uid}`]: mine === idx ? deleteField() : idx }); }
+          catch (e) { console.error(e); showToast(e.code === "permission-denied" ? "Голосование пока недоступно — нужно обновить правила базы" : "Не удалось проголосовать", "error"); }
+      }
+      function renderPollOptions(values) {
+          document.getElementById("poll-opts").innerHTML = values.map((v, i) => `<div class="poll-opt-row"><input type="text" maxlength="100" placeholder="Вариант ${i + 1}" value="${escapeHTML(v)}">${values.length > 2 ? `<button class="icon-btn" data-del-opt="${i}" title="Убрать">${icon("x", 18)}</button>` : ""}</div>`).join("");
+          document.getElementById("poll-add").style.display = values.length >= 10 ? "none" : "";
+      }
+      const pollValues = () => [...document.querySelectorAll("#poll-opts input")].map(i => i.value);
+      function openPollEditor() {
+          document.getElementById("poll-q").value = ""; renderPollOptions(["", ""]);
+          document.getElementById("poll-screen").style.display = "flex";
+          setTimeout(() => document.getElementById("poll-q").focus(), 50);
+      }
+      document.getElementById("poll-close").addEventListener("click", () => document.getElementById("poll-screen").style.display = "none");
+      document.getElementById("poll-add").addEventListener("click", () => { const v = pollValues(); if (v.length < 10) { v.push(""); renderPollOptions(v); document.querySelector("#poll-opts .poll-opt-row:last-child input").focus(); } });
+      document.getElementById("poll-opts").addEventListener("click", (e) => { const b = e.target.closest("[data-del-opt]"); if (!b) return; const v = pollValues(); v.splice(+b.getAttribute("data-del-opt"), 1); renderPollOptions(v); });
+      document.getElementById("poll-send").addEventListener("click", async () => {
+          const q = document.getElementById("poll-q").value.trim(), options = pollValues().map(v => v.trim()).filter(Boolean);
+          if (!q) return showToast("Напишите вопрос", "alert");
+          if (options.length < 2) return showToast("Нужно хотя бы два варианта", "alert");
+          if (new Set(options.map(o => o.toLowerCase())).size !== options.length) return showToast("Варианты не должны повторяться", "alert");
+          const chatId = currentChatId; if (!chatId || !currentUser || iAmBanned) return;
+          const peer = dmPeer(chatId); if (peer && (iBlocked(peer) || blockedMe(peer))) return showToast("Нельзя отправить в этот чат", "block");
+          document.getElementById("poll-screen").style.display = "none";
+          const data = { chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, poll: { q: q.slice(0, 200), options: options.slice(0, 10).map(o => o.slice(0, 100)) } };
+          try { await postMessage(chatId, data, "📊 Опрос: " + q.slice(0, 80)); } catch (err) { showToast(sendErrorText(err), "error"); }
+      });
+
+      // ===== МЕНЮ СКРЕПКИ =====
+      function toggleAttachMenu(force) {
+          const menu = document.getElementById("attach-menu"), btn = document.getElementById("attach-btn"), main = document.getElementById("main-chat");
+          const on = force !== undefined ? force : !menu.classList.contains("on");
+          if (on) {
+              menu.querySelector('[data-attach="photo"]').innerHTML = icon("image", 20) + "Фото";
+              menu.querySelector('[data-attach="poll"]').innerHTML = icon("poll", 20) + "Опрос";
+              const mr = main.getBoundingClientRect(), br = btn.getBoundingClientRect();
+              menu.style.left = Math.max(8, br.left - mr.left) + "px";
+              menu.style.bottom = (mr.bottom - br.top + 8) + "px";
+          }
+          menu.classList.toggle("on", on);
+      }
+      document.getElementById("attach-menu").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-attach]"); if (!b) return;
+          toggleAttachMenu(false);
+          if (b.getAttribute("data-attach") === "photo") document.getElementById("image-input").click(); else openPollEditor();
+      });
+      document.addEventListener("click", (e) => { if (!e.target.closest("#attach-menu, #attach-btn")) toggleAttachMenu(false); }, true);
+
+      // ===== ПРЕВЬЮ ССЫЛОК (карточку собирает наш сервер owl-push) =====
+      const LP_KEY = "owl-lp-v1"; let lpCache = {};
+      try { lpCache = JSON.parse(localStorage.getItem(LP_KEY) || "{}"); } catch (_) {}
+      const lpPending = {};
+      function firstExternalLink(text) {
+          for (const m of String(text).matchAll(LINK_RE)) {
+              let url = m[0].replace(/[.,!?:;)\]}»…]+$/, ""), prev = text[m.index - 1];
+              if (prev && /[\w@.\/-]/.test(prev)) continue;
+              const href = /^https?:\/\//i.test(url) ? url : "https://" + url;
+              try { const h = new URL(href).hostname.toLowerCase(); if (h === "owlmes.ru" || h === "www.owlmes.ru") continue; } catch (_) { continue; }
+              return href;
+          }
+          return null;
+      }
+      function fetchLinkPreview(url) {
+          if (lpCache[url]) return Promise.resolve(lpCache[url]);
+          if (lpPending[url]) return lpPending[url];
+          return lpPending[url] = pushPost("/preview", { url }).then(r => r.ok ? r.json() : null).then(d => {
+              const card = d && (d.title || d.description) ? { t: d.title || "", d: d.description || "", i: d.image || "", s: d.site || "" } : { none: 1 };
+              lpCache[url] = card;
+              const keys = Object.keys(lpCache); if (keys.length > 300) keys.slice(0, keys.length - 300).forEach(k => delete lpCache[k]);
+              try { localStorage.setItem(LP_KEY, JSON.stringify(lpCache)); } catch (_) {}
+              return card;
+          }).catch(() => ({ none: 1 })).finally(() => { delete lpPending[url]; });
+      }
+      function loadLinkPreviews(root) {
+          root.querySelectorAll(".lp[data-lp-url]:not([data-done])").forEach(el => {
+              el.setAttribute("data-done", "1");
+              fetchLinkPreview(el.getAttribute("data-lp-url")).then(c => {
+                  if (!c || c.none) { el.remove(); return; }
+                  const box = document.getElementById("chat-box"), stick = box.scrollHeight - box.clientHeight - box.scrollTop < 60;
+                  const img = c.i && /^https:\/\//.test(c.i) ? `<img src="${escapeHTML(c.i)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
+                  el.innerHTML = `${img}<div>${c.s ? `<div class="s">${escapeHTML(c.s)}</div>` : ""}${c.t ? `<div class="h">${escapeHTML(c.t)}</div>` : ""}${c.d ? `<div class="d">${escapeHTML(c.d)}</div>` : ""}</div>`;
+                  if (stick) { box.scrollTop = box.scrollHeight; el.querySelector("img")?.addEventListener("load", () => { box.scrollTop = box.scrollHeight; }); }
+              });
+          });
+      }
+
+      // ===== ПОИСК ПО ЧАТУ =====
+      let chatSearchQuery = "", chatSearchHits = [], chatSearchPos = -1;
+      function openChatSearch() {
+          const bar = document.getElementById("chat-search");
+          document.getElementById("chat-search-up").innerHTML = icon("up", 20);
+          document.getElementById("chat-search-down").innerHTML = icon("down", 20);
+          document.getElementById("chat-search-close").innerHTML = icon("x", 20);
+          bar.classList.add("on"); const inp = document.getElementById("chat-search-input"); inp.focus(); inp.select();
+      }
+      function closeChatSearch() {
+          document.getElementById("chat-search").classList.remove("on");
+          document.getElementById("chat-search-input").value = ""; chatSearchQuery = ""; chatSearchHits = []; chatSearchPos = -1;
+          document.getElementById("chat-search-cnt").textContent = ""; document.getElementById("chat-search-more").style.display = "none";
+      }
+      const msgSearchText = (m) => [m.text, m.poll && m.poll.q, ...(m.poll ? m.poll.options : [])].filter(Boolean).join(" ").toLowerCase();
+      function runChatSearch(jump = true) {
+          const q = chatSearchQuery.toLowerCase();
+          chatSearchHits = q ? Object.values(loadedMsgs).filter(m => m.chatId === currentChatId && msgSearchText(m).includes(q)).sort((a, b) => getTime(a.timestamp) - getTime(b.timestamp)).map(m => m.id) : [];
+          if (jump) chatSearchPos = chatSearchHits.length - 1; else chatSearchPos = Math.min(chatSearchPos, chatSearchHits.length - 1);
+          document.getElementById("chat-search-cnt").textContent = q ? (chatSearchHits.length ? `${chatSearchPos + 1} из ${chatSearchHits.length}` : "не найдено") : "";
+          document.getElementById("chat-search-more").style.display = q && hasMoreMsgs ? "" : "none";
+          if (jump && chatSearchPos >= 0) showSearchHit();
+      }
+      function showSearchHit() {
+          const row = document.getElementById("msg-" + chatSearchHits[chatSearchPos]); if (!row) return;
+          row.scrollIntoView({ behavior: "smooth", block: "center" });
+          row.classList.remove("msg-flash"); void row.offsetWidth; row.classList.add("msg-flash");
+          document.getElementById("chat-search-cnt").textContent = `${chatSearchPos + 1} из ${chatSearchHits.length}`;
+      }
+      let chatSearchTimer = null;
+      document.getElementById("chat-search-btn").addEventListener("click", openChatSearch);
+      document.getElementById("chat-search-close").addEventListener("click", closeChatSearch);
+      document.getElementById("chat-search-input").addEventListener("input", (e) => { clearTimeout(chatSearchTimer); chatSearchTimer = setTimeout(() => { chatSearchQuery = e.target.value.trim(); runChatSearch(true); }, 250); });
+      document.getElementById("chat-search-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (chatSearchHits.length) { chatSearchPos = (chatSearchPos - 1 + chatSearchHits.length) % chatSearchHits.length; showSearchHit(); } } else if (e.key === "Escape") closeChatSearch(); });
+      document.getElementById("chat-search-up").addEventListener("click", () => { if (!chatSearchHits.length) return; chatSearchPos = Math.max(0, chatSearchPos - 1); showSearchHit(); });
+      document.getElementById("chat-search-down").addEventListener("click", () => { if (!chatSearchHits.length) return; chatSearchPos = Math.min(chatSearchHits.length - 1, chatSearchPos + 1); showSearchHit(); });
+      document.getElementById("chat-search-more").addEventListener("click", () => { if (hasMoreMsgs && !loadingOlder) { showToast("Загружаем более старые сообщения…", "clock"); loadOlderMessages(); } });
 
       // ===== ЧЕРНОВИКИ: недописанный текст хранится для каждого чата на этом устройстве =====
       const draftKey = (chatId) => currentUser ? "owl-draft-" + currentUser.uid + "-" + chatId : null;
@@ -3547,7 +3747,7 @@
           if (!hidden) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), "Ответить"]);
           if (!hidden && m.text) acts.push(["copy", icon("copy", 20), "Копировать текст"]);
           if (!hidden && m.imageUrl) acts.push(["photo", icon("image", 20), "Открыть фото"]);
-          if (!hidden) acts.push(["forward", icon("forward", 20), "Переслать"]);
+          if (!hidden && !m.poll) acts.push(["forward", icon("forward", 20), "Переслать"]);
           if (isMe && m.text) acts.push(["edit", icon("pencil", 20), "Изменить"]);
           if (isMe || isAdmin) acts.push(["delete", icon("trash", 20), "Удалить", "danger"]);
           if (!isMe && !isAdmin) acts.push(["report", icon("flag", 20), "Пожаловаться", "danger"]);
@@ -3646,7 +3846,7 @@
 
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
       let replyingTo = null;
-      function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : "Сообщение")); }
+      function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : (m.poll ? "📊 Опрос: " + m.poll.q : "Сообщение"))); }
       window.startReply = (msgId) => {
           let m = loadedMsgs[msgId]; if (!m) return;
           if (editingMsgId) { editingMsgId = null; document.getElementById("message-input").value = ""; document.getElementById("send-button").innerHTML = sendIconSVG; }
@@ -3665,6 +3865,8 @@
         try {
             if (!chatId) return;
             showChatPlaceholder(false);
+            if (typeof closeChatSearch === "function") closeChatSearch();
+            document.getElementById("chat-search-btn").style.display = "";
             Object.keys(pendingSince).forEach(k => delete pendingSince[k]); // следим только за сообщениями открытого чата
             currentChatId = chatId; editingMsgId = null; cancelReply(); closeChatNotifications(chatId); updateUnreadIndicators(totalUnread());
             currentChatTargetUid = (targetUid && !isGroup && chatId !== 'global') ? targetUid : null; currentTypers = [];
@@ -3804,6 +4006,8 @@
                         if (reactionsContainer.innerHTML !== newReactions) reactionsContainer.innerHTML = newReactions;
                     }
 
+                    let pollEl = existingRow.querySelector('.poll');
+                    if (pollEl && msg.poll) { const sig = JSON.stringify(msg.votes || {}); if (pollEl.dataset.sig !== sig) { pollEl.innerHTML = pollInner(msg); pollEl.dataset.sig = sig; } }
                     let ticksEl = existingRow.querySelector('.msg-ticks');
                     if (ticksEl && isMe && ticksEl.getAttribute('data-state') !== tickState(msg)) ticksEl.outerHTML = ticksHtmlFor(msg);
 
@@ -3850,6 +4054,8 @@
                     if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
                     if (msg.audioUrl) contentHtml += voicePlayerHtml(msg.id, msg.audioUrl);
+                    if (msg.poll) contentHtml += `<div class="poll" data-poll="${escapeHTML(msg.id)}">${pollInner(msg)}</div>`;
+                    { const lu = msg.text && firstExternalLink(msg.text); if (lu) contentHtml += `<a class="lp" data-lp-url="${escapeHTML(lu)}" href="${escapeHTML(lu)}" target="_blank" rel="noopener noreferrer nofollow"></a>`; }
 
                     let editedHtml = `<span class="edited-marker" style="font-size:10px; opacity:0.5; margin-right:4px; display:${msg.edited ? 'inline' : 'none'};">(изм.)</span>`;
                     let ticksHtml = isMe ? ticksHtmlFor(msg) : "";
@@ -3873,6 +4079,8 @@
               });
               placeDaySeparators(chatBox);
               observeVoices(chatBox);
+              loadLinkPreviews(chatBox);
+              if (chatSearchQuery) runChatSearch(false);
               if (!firstLoad && !isScrolledToBottom) {
                   const fresh = snapshot.docChanges().filter(c => c.type === "added" && !c.doc.metadata.hasPendingWrites && c.doc.data().uid !== currentUser.uid && getTime(c.doc.data().timestamp) > Date.now() - 60000).length;
                   if (fresh) { newBelow += fresh; updateToBottom(); }
@@ -3917,6 +4125,8 @@
 
       document.getElementById("chat-box").addEventListener("click", async (e) => {
         if (vpClick(e)) return;
+        { const vb = e.target.closest(".poll-opt"); if (vb) { const pid = vb.closest(".poll").getAttribute("data-poll"); votePoll(pid, +vb.getAttribute("data-vote")); return; } }
+        if (e.target.closest(".lp")) return; // карточка ссылки — обычная ссылка
         let owlLink = e.target.closest("a[data-owl-link]");
         if (owlLink) {
            e.preventDefault();
@@ -4092,7 +4302,7 @@
       msgInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); document.getElementById("send-button").click(); } });
       
       // ЗАГРУЗКА КАРТИНКИ ЧАТА (СОХРАНЯЕМ В BASE64)
-      document.getElementById("attach-btn").addEventListener("click", () => document.getElementById("image-input").click());
+      document.getElementById("attach-btn").addEventListener("click", (e) => { e.stopPropagation(); toggleAttachMenu(); });
       document.getElementById("image-input").addEventListener("change", function(e) {
         let file = e.target.files[0]; if(!file) return;
         let reader = new FileReader();
