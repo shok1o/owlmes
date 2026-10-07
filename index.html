@@ -1121,7 +1121,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.42</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.43</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2623,6 +2623,13 @@
       }
 
       let notificationsListener = null;
+      // От кого уведомление: официальные — «Owl Messenger» с синей галочкой, остальные — ник отправителя
+      function notifSourceLabel(n) {
+          const official = n.type === "broadcast" || (n.fromUid && usersCache[n.fromUid]?.email === ADMIN_EMAIL);
+          if (official) return `<b style="color:#3390ec">Owl Messenger ✓</b> · `;
+          if (n.fromUid) { watchUser(n.fromUid); return `от ${escapeHTML(usersCache[n.fromUid]?.name || "пользователя")} · `; }
+          return "";
+      }
       function startNotificationsListener() {
         if(notificationsListener) notificationsListener();
         // Только последние 30 уведомлений (раньше грузились все за всё время — с каждой рассылкой дороже).
@@ -2638,7 +2645,7 @@
               if (!n.read) unreadCount++;
               listHtml += `<div style="padding:10px; border-radius:10px; background: ${n.read ? 'transparent' : 'var(--input-bg)'}; border:1px solid var(--border-color); text-align:left; opacity: ${n.read ? '0.7' : '1'}">
                  <div style="font-size:14px; color:var(--text-main); font-weight: ${n.read ? 'normal' : 'bold'}; white-space: pre-wrap; word-break: break-word;">${escapeHTML(n.text)}</div>
-                 <div style="font-size:11px; color:var(--accent); margin-top:4px;">${new Date(getTime(n.timestamp)).toLocaleString()}</div>
+                 <div style="font-size:11px; color:var(--accent); margin-top:4px;">${notifSourceLabel(n)}${new Date(getTime(n.timestamp)).toLocaleString()}</div>
               </div>`;
           });
 
@@ -3005,7 +3012,7 @@
         try {
           if (isFollowing) { await setDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayRemove(currentUser.uid) }, { merge: true }); showToast("Вы отписались", "info"); } else {
             await setDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayUnion(currentUser.uid) }, { merge: true });
-            await addDoc(collection(db, "notifications"), { toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }); showToast("Вы подписались!", "check");
+            await addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }); showToast("Вы подписались!", "check");
           }
           openPublicProfile(targetUid); 
         } catch (err) { console.error("Ошибка подписки", err); }
@@ -3079,7 +3086,7 @@
               await deleteDoc(doc(db, "chats_metadata", chatId)).catch(() =>
                   setDoc(doc(db, "chats_metadata", chatId), { members: chatId.split("_"), lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
               delete chatsMetaCache[chatId];
-              addDoc(collection(db, "notifications"), { toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, timestamp: new Date(), read: false }).catch(() => {});
+              addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, timestamp: new Date(), read: false }).catch(() => {});
               loadedMsgs = {}; document.getElementById("chat-box").innerHTML = "";
               renderChatList(document.getElementById("search-input").value);
               showToast("Переписка удалена", "trash");
@@ -3108,7 +3115,8 @@
           let sUid = meta.lastMessageSenderUid;
           if (!sUid && meta.lastMessageSender) sUid = Object.values(usersCache).find(u => u && u.name === meta.lastMessageSender)?.uid; // старые превью без uid
           if (sUid && sUid !== currentUser.uid && iBlocked(sUid)) return `<i>Сообщение скрыто</i>`;
-          return iconizePreview(escapeHTML(meta.lastMessageSender + ": " + meta.lastMessageText));
+          const who = (meta.lastMessageSenderUid && usersCache[meta.lastMessageSenderUid]?.name) || meta.lastMessageSender; // имя из профиля, а не из превью
+          return iconizePreview(escapeHTML(who + ": " + meta.lastMessageText));
       }
       function renderChatList(searchQuery = "") {
         if (!currentUser) return; 
@@ -4044,7 +4052,7 @@
                         try {
                             await setDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUid) }, { merge: true });
                             await setDoc(doc(db, "users", targetUid), { followers: arrayUnion(currentUser.uid) }, { merge: true });
-                            await addDoc(collection(db, "notifications"), { toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false });
+                            await addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false });
                             showToast("Вы подписались!", "check");
                             qfBanner.style.display = "none";
                             renderChatList(document.getElementById("search-input").value); 
@@ -4205,7 +4213,7 @@
                         contentHtml += `<span class="blocked-note">Сообщение скрыто — вы заблокировали автора</span>`;
                     }
 
-                    if (msg.forwardedFrom && msg.forwardedFrom.name) contentHtml += `<div class="fwd-label">${icon("forward", 13)}<span>Переслано от <b>${escapeHTML(msg.forwardedFrom.name)}</b></span></div>`;
+                    if (msg.forwardedFrom && msg.forwardedFrom.name) contentHtml += `<div class="fwd-label">${icon("forward", 13)}<span>Переслано от <b>${escapeHTML(usersCache[msg.forwardedFrom.uid]?.name || msg.forwardedFrom.name)}</b></span></div>`;
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
                     if (msg.text) contentHtml += `<span class="msg-text-content">${highlightMentions(linkify(msg.text), msg)}</span>`;
                     if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
@@ -4397,7 +4405,7 @@
         if (mentioned.length) {
             const where = chatId === "global" ? "глобальном чате" : `беседе «${groupsCache[chatId]?.name || "Беседа"}»`;
             const snippet = text.replace(/\s+/g, " ").slice(0, 90);
-            mentioned.forEach(uid => addDoc(collection(db, "notifications"), { toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId }).catch(() => {}));
+            mentioned.forEach(uid => addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId }).catch(() => {}));
         }
       }
       const sendErrorText = (err) => err && err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз";
