@@ -1121,7 +1121,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.43</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.44</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1745,8 +1745,57 @@
       let groupsListener = null;
       let metaListener = null;
       let globalMetaListener = null, groupMetaListeners = {};
-      let userWatchers = {}, privateListener = null; const privateEmails = {}; // email — только у админа
+      let userWatchers = {}, privateListener = null; const privateEmails = {}, privateDocs = {}; // users_private всех — только у админа
       const emailOf = (u) => (u && (privateEmails[u.uid] || u.email)) || "";
+      // ЛИЧНОЕ И ПОДПИСКИ (этап 2 защиты). Личные настройки — в закрытой users_private/{я}, подписки — отдельными
+      // записями follows/{кто}_{на кого}. В публичном профиле остаются только счётчики followersCount/followingCount.
+      // Старые поля (following/followers/pinnedChats/…) в профиле ещё могут быть до миграции — их учитываем.
+      const PRIVATE_PREFS = ["pinnedChats", "quickReaction", "onboarded", "invitedByNick"];
+      const LEGACY_FIELDS = ["followers", "following", ...PRIVATE_PREFS];
+      let myPrivate = null, myFollowsOut = null, myFollowsIn = null, myRawProfile = null, ownListeners = [];
+      let healedFollowing = -1, privMigrating = false;
+      // Наложить личные данные на мой профиль в кэше (остальной код читает usersCache[я].following / pinnedChats / …)
+      function overlayMe(u) {
+          if (!u || !currentUser || u.uid !== currentUser.uid) return;
+          if (myPrivate) PRIVATE_PREFS.forEach(k => { if (myPrivate[k] !== undefined) u[k] = myPrivate[k]; });
+          const legacy = (myRawProfile && Array.isArray(myRawProfile.following)) ? myRawProfile.following : [];
+          if (myFollowsOut) u.following = [...new Set([...legacy, ...myFollowsOut])];
+      }
+      // Подписаться / отписаться: запись-подписка + счётчики (правила базы проверяют, что счётчик меняется ровно на 1)
+      async function setFollow(targetUid, on) {
+          const uid = currentUser.uid; if (!targetUid || targetUid === uid) return;
+          const edge = doc(db, "follows", uid + "_" + targetUid);
+          if (on) {
+              const b = writeBatch(db);
+              b.set(edge, { from: uid, to: targetUid, createdAt: new Date() });
+              b.update(doc(db, "users", targetUid), { followersCount: increment(1) });
+              b.update(doc(db, "users", uid), { followingCount: increment(1) });
+              await b.commit();
+              addDoc(collection(db, "notifications"), { fromUid: uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }).catch(e => console.log("Уведомление о подписке:", e.code));
+              return;
+          }
+          if (myFollowsOut && myFollowsOut.has(targetUid)) {
+              const b = writeBatch(db);
+              b.delete(edge);
+              b.update(doc(db, "users", targetUid), { followersCount: increment(-1) });
+              b.update(doc(db, "users", uid), { followingCount: increment(-1) });
+              await b.commit();
+          }
+          // Подписка старого образца (ещё не перенесена) — убираем из массивов
+          if (myRawProfile && (myRawProfile.following || []).includes(targetUid)) {
+              await setDoc(doc(db, "users", uid), { following: arrayRemove(targetUid) }, { merge: true });
+              await setDoc(doc(db, "users", targetUid), { followers: arrayRemove(uid) }, { merge: true }).catch(e => console.log("followers:", e.code));
+          }
+      }
+      // Число подписчиков/подписок из публичного профиля (старые профили — по длине массива)
+      const followCount = (u, key) => {
+          if (currentUser && u.uid === currentUser.uid) {
+              if (key === "following") return (u.following || []).length;
+              if (myFollowsIn) return new Set([...myFollowsIn, ...((myRawProfile && myRawProfile.followers) || [])]).size;
+          }
+          const c = Math.max(0, Number(u[key + "Count"]) || 0);
+          return Array.isArray(u[key]) ? Math.max(c, u[key].length) : c;
+      };
       const MAX_USER_WATCHERS = 400;
       // После изменения профилей: перерисовать всё, что от них зависит (склеиваем частые изменения)
       let usersChangedTimer = null;
@@ -2310,7 +2359,8 @@
               const ref = doc(db, "usernames", key); const snap = await getDoc(ref);
               if (snap.exists() && snap.data().uid === uid) await deleteDoc(ref);
           });
-          await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals", "verified"].map(c => doc(db, c, uid))));
+          await step("подписки", () => deleteFollowEdges(uid));
+          await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals", "verified", "users_private"].map(c => doc(db, c, uid))));
           await step("профиль", () => deleteDoc(doc(db, "users", uid)));
           delete usersCache[uid];
 
@@ -2476,6 +2526,47 @@
           openPublicProfile(row.getAttribute("data-dev-uid"));
       });
 
+      // Мои закрытые данные: users_private/{я}, мои подписки и мои подписчики
+      function startOwnListeners() {
+          ownListeners.forEach(f => f()); ownListeners = [];
+          myPrivate = myFollowsOut = myFollowsIn = null; healedFollowing = -1;
+          const uid = currentUser.uid;
+          const changed = () => {
+              const me = usersCache[uid];
+              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); }
+              watchContacts(); usersChanged();
+          };
+          ownListeners.push(onSnapshot(doc(db, "users_private", uid), (d) => { myPrivate = d.exists() ? d.data() : {}; changed(); },
+              (e) => { console.log("users_private/я:", e.code); myPrivate = myPrivate || {}; changed(); }));
+          ownListeners.push(onSnapshot(query(collection(db, "follows"), where("from", "==", uid)), (s) => { myFollowsOut = new Set(s.docs.map(d => d.data().to)); changed(); },
+              (e) => { console.log("follows (мои подписки):", e.code); }));
+          ownListeners.push(onSnapshot(query(collection(db, "follows"), where("to", "==", uid)), (s) => { myFollowsIn = new Set(s.docs.map(d => d.data().from)); changed(); },
+              (e) => { console.log("follows (мои подписчики):", e.code); }));
+      }
+      // Мои личные настройки из публичного профиля → users_private (уже сохранённые там значения важнее)
+      async function migrateMyPrivate() {
+          if (privMigrating || !myPrivate || !myRawProfile) return;
+          const found = PRIVATE_PREFS.filter(k => myRawProfile[k] !== undefined);
+          if (!found.length) return;
+          privMigrating = true;
+          try {
+              const priv = { uid: currentUser.uid }, del = {};
+              found.forEach(k => { if (myPrivate[k] === undefined) priv[k] = myRawProfile[k]; del[k] = deleteField(); });
+              await setDoc(doc(db, "users_private", currentUser.uid), priv, { merge: true });
+              await setDoc(doc(db, "users", currentUser.uid), del, { merge: true });
+          } catch (e) { console.log("Перенос личных настроек:", e.code || e); }
+          finally { privMigrating = false; }
+      }
+      // Счётчик моих подписок в профиле сверяем с реальными записями (после переноса старых подписок)
+      function healFollowingCount() {
+          const me = usersCache[currentUser.uid];
+          if (!me || !myFollowsOut || !myRawProfile || Array.isArray(myRawProfile.following)) return;
+          const n = myFollowsOut.size;
+          if (me.followingCount === n || healedFollowing === n) return;
+          healedFollowing = n;
+          setDoc(doc(db, "users", currentUser.uid), { followingCount: n }, { merge: true }).catch(e => console.log("followingCount:", e.code));
+      }
+
       function startDatabaseListeners() {
           if (usersListener) usersListener();
           if (groupsListener) groupsListener();
@@ -2493,6 +2584,7 @@
               ingestUser(u, quiet);
               if (u && currentUser && u.uid === currentUser.uid) { watchContacts(); if (Array.isArray(u.blocked)) migrateBlockedList(u).catch(e => console.log("Перенос блокировок:", e.code || e)); }
           };
+          startOwnListeners();
           if (!isAdmin) { usersListener = null; watchUser(currentUser.uid); }
           else usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
             snapshot.docChanges().forEach(change => {
@@ -2504,7 +2596,7 @@
           });
           if (isAdmin) {
               privateListener = onSnapshot(collection(db, "users_private"), (snap) => {
-                  snap.forEach(d => { privateEmails[d.id] = d.data().email || ""; });
+                  snap.forEach(d => { privateDocs[d.id] = d.data(); privateEmails[d.id] = d.data().email || ""; });
                   renderDevPanel();
               }, (e) => console.log("users_private:", e.code));
           }
@@ -2513,6 +2605,7 @@
                   // Админу — уведомление о свежей регистрации (ник появляется чуть позже самого профиля)
                   let prev = usersCache[u.uid];
                   if (isAdmin && !quiet && u.name && u.name !== "Загрузка..." && (!prev || !prev.name || prev.name === "Загрузка...") && Date.now() - createdAtOf(u) < 10 * 60 * 1000) showToast("Новый пользователь: " + u.name, "users");
+                  if (currentUser && u.uid === currentUser.uid) { myRawProfile = { ...u }; overlayMe(u); }
                   usersCache[u.uid] = u;
               } else return;
               
@@ -2586,7 +2679,63 @@
               }, (e) => console.log("chats_metadata (беседа):", e.code));
             }
           }
-          if (isAdmin) { migrateMetaMembers(); setTimeout(migrateEmails, 4000); }
+          if (isAdmin) { migrateMetaMembers(); setTimeout(migrateEmails, 4000); setTimeout(migrateFollows, 8000); }
+      }
+      // Удаление аккаунта: убрать его подписки (со счётчиками у тех, на кого он подписан) и подписки на него
+      async function deleteFollowEdges(uid) {
+          const out = await getDocs(query(collection(db, "follows"), where("from", "==", uid)));
+          for (const d of out.docs) {
+              const b = writeBatch(db); b.delete(d.ref);
+              b.update(doc(db, "users", d.data().to), { followersCount: increment(-1) });
+              await b.commit().catch(() => deleteDoc(d.ref));
+          }
+          const inc = await getDocs(query(collection(db, "follows"), where("to", "==", uid)));
+          for (const d of inc.docs) {
+              const b = writeBatch(db); b.delete(d.ref);
+              if (isAdmin) b.update(doc(db, "users", d.data().from), { followingCount: increment(-1) }); // себе подписчики пересчитают сами
+              await b.commit().catch(() => deleteDoc(d.ref));
+          }
+      }
+      // Разовая миграция (запускает админ при входе): подписки из массивов following/followers → записи follows,
+      // пересчёт счётчиков, личные настройки → users_private, старые поля из публичных профилей удаляются
+      async function migrateFollows() {
+          const users = Object.values(usersCache).filter(u => u && u.uid);
+          const raw = (u) => (currentUser && u.uid === currentUser.uid && myRawProfile) ? myRawProfile : u; // свой профиль в кэше дополнен личным
+          const legacy = users.filter(u => LEGACY_FIELDS.some(k => raw(u)[k] !== undefined));
+          if (!legacy.length) return;
+          const exists = new Set(users.map(u => u.uid));
+          let edges;
+          try { edges = new Set((await getDocs(collection(db, "follows"))).docs.map(d => d.id)); }
+          catch (e) { console.log("Миграция подписок: нет доступа к follows —", e.code); return; }
+          const want = [];
+          legacy.forEach(u0 => { const u = raw(u0);
+              (Array.isArray(u.following) ? u.following : []).forEach(t => want.push([u.uid, t]));
+              (Array.isArray(u.followers) ? u.followers : []).forEach(f => want.push([f, u.uid]));
+          });
+          const todo = [...new Map(want.filter(([a, b]) => a && b && a !== b && exists.has(a) && exists.has(b) && !edges.has(a + "_" + b)).map(p => [p[0] + "_" + p[1], p])).values()];
+          try {
+              for (let i = 0; i < todo.length; i += 400) {
+                  const b = writeBatch(db);
+                  todo.slice(i, i + 400).forEach(([a, t]) => { b.set(doc(db, "follows", a + "_" + t), { from: a, to: t, createdAt: new Date() }); edges.add(a + "_" + t); });
+                  await b.commit();
+              }
+          } catch (e) { console.log("Миграция подписок, записи:", e.code || e); showToast("Перенос подписок не удался — проверьте правила (follows)", "error"); return; }
+          const fin = {}, fout = {};
+          edges.forEach(id => { const [a, t] = id.split("_"); fout[a] = (fout[a] || 0) + 1; fin[t] = (fin[t] || 0) + 1; });
+          let moved = 0;
+          for (const u0 of users) {
+              const u = raw(u0), upd = {}, priv = {};
+              if (u0.followersCount !== (fin[u.uid] || 0)) upd.followersCount = fin[u.uid] || 0;
+              if (u0.followingCount !== (fout[u.uid] || 0)) upd.followingCount = fout[u.uid] || 0;
+              LEGACY_FIELDS.forEach(k => { if (u[k] !== undefined) { upd[k] = deleteField(); if (PRIVATE_PREFS.includes(k) && (privateDocs[u.uid] || {})[k] === undefined) priv[k] = u[k]; } });
+              if (!Object.keys(upd).length) continue;
+              try {
+                  if (Object.keys(priv).length) await setDoc(doc(db, "users_private", u.uid), { uid: u.uid, ...priv }, { merge: true });
+                  await setDoc(doc(db, "users", u.uid), upd, { merge: true });
+                  moved++;
+              } catch (e) { console.log("Миграция профиля " + u.uid + ":", e.code || e); }
+          }
+          showToast(`Подписки перенесены: ${todo.length} записей, профилей обновлено: ${moved}`, "shield");
       }
       // Разовая миграция (запускает админ): email из публичных профилей → users_private; ник в нижнем регистре для поиска
       async function migrateEmails() {
@@ -2983,8 +3132,8 @@
         document.getElementById("public-bio").innerText = !allowedBy(u, "bio") ? "Статус скрыт" : (u.bio ? u.bio : "Статус не указан");
         window.__profileUid = uid;
         const cnt = isAdmin || uid === currentUser.uid || privacyOf(u, "showCounts");
-        document.getElementById("public-followers").innerText = cnt || allowedBy(u, "showFollowers") ? (u.followers ? u.followers.length : 0) : "—";
-        document.getElementById("public-following").innerText = cnt || allowedBy(u, "showFollowing") ? (u.following ? u.following.length : 0) : "—";
+        document.getElementById("public-followers").innerText = cnt || allowedBy(u, "showFollowers") ? followCount(u, "followers") : "—";
+        document.getElementById("public-following").innerText = cnt || allowedBy(u, "showFollowing") ? followCount(u, "following") : "—";
 
         let followBtn = document.getElementById("public-follow-btn"); let msgBtn = document.getElementById("public-msg-btn");
         const blkBtn = document.getElementById("public-block-btn");
@@ -3010,12 +3159,10 @@
       document.getElementById("public-follow-btn").addEventListener("click", async (e) => {
         let targetUid = e.target.getAttribute("data-action-uid"); let myFollowing = usersCache[currentUser.uid]?.following || []; let isFollowing = myFollowing.includes(targetUid);
         try {
-          if (isFollowing) { await setDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayRemove(currentUser.uid) }, { merge: true }); showToast("Вы отписались", "info"); } else {
-            await setDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUid) }, { merge: true }); await setDoc(doc(db, "users", targetUid), { followers: arrayUnion(currentUser.uid) }, { merge: true });
-            await addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }); showToast("Вы подписались!", "check");
-          }
+          if (isFollowing) { await setFollow(targetUid, false); showToast("Вы отписались", "info"); }
+          else { await setFollow(targetUid, true); showToast("Вы подписались!", "check"); }
           openPublicProfile(targetUid); 
-        } catch (err) { console.error("Ошибка подписки", err); }
+        } catch (err) { console.error("Ошибка подписки", err); showToast("Не удалось изменить подписку", "error"); }
       });
 
       document.getElementById("chat-header-info").addEventListener("click", (e) => {
@@ -3060,8 +3207,8 @@
              if(!currentUser || !currentChatId) return;
              let myPinned = usersCache[currentUser.uid]?.pinnedChats || [];
              try {
-                 if (myPinned.includes(currentChatId)) { await setDoc(doc(db, "users", currentUser.uid), { pinnedChats: arrayRemove(currentChatId) }, { merge: true }); showToast("Чат откреплен", "pin"); } 
-                 else { await setDoc(doc(db, "users", currentUser.uid), { pinnedChats: arrayUnion(currentChatId) }, { merge: true }); showToast("Чат закреплен", "pin"); }
+                 if (myPinned.includes(currentChatId)) { await setDoc(doc(db, "users_private", currentUser.uid), { pinnedChats: arrayRemove(currentChatId) }, { merge: true }); showToast("Чат откреплен", "pin"); } 
+                 else { await setDoc(doc(db, "users_private", currentUser.uid), { pinnedChats: arrayUnion(currentChatId) }, { merge: true }); showToast("Чат закреплен", "pin"); }
              } catch(e) { console.error(e); }
           });
       }
@@ -3284,7 +3431,8 @@
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
             try {
               let invitedByNick = null; try { invitedByNick = localStorage.getItem("owl-invite"); localStorage.removeItem("owl-invite"); } catch (_) {}
-              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, followers: [], following: [], bio: "", createdAt: new Date(), ...(invitedByNick ? { invitedByNick } : {}) });
+              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, followersCount: 0, followingCount: 0, bio: "", createdAt: new Date() });
+              if (invitedByNick) await setDoc(doc(db, "users_private", userCred.user.uid), { uid: userCred.user.uid, invitedByNick }, { merge: true }).catch(e => console.log("invitedByNick:", e.code));
               await updateProfile(userCred.user, { displayName: name });
             } catch (profileErr) {
               await deleteDoc(doc(db, "users", userCred.user.uid)).catch(() => {});
@@ -3516,7 +3664,7 @@
           const users = Object.values(usersCache).filter(u => u && u.uid && u.name);
           const regs = {}; users.forEach(u => { const t = createdAtOf(u); if (t) { const k = dayOf(t); regs[k] = (regs[k] || 0) + 1; } });
           const sum = (arr) => arr.reduce((a, b) => a + b, 0);
-          const inv = {}; users.forEach(u => { if (u.invitedByNick) { const k = nickKey(u.invitedByNick); inv[k] = inv[k] || { name: u.invitedByNick, n: 0 }; inv[k].n++; } });
+          const inv = {}; users.forEach(u => { const by = (privateDocs[u.uid] || {}).invitedByNick || u.invitedByNick; if (by) { const k = nickKey(by); inv[k] = inv[k] || { name: by, n: 0 }; inv[k].n++; } });
           const invList = Object.values(inv).sort((a, b) => b.n - a.n);
           const since = Object.keys(statsDocs).sort()[0];
           box.innerHTML = `
@@ -3581,7 +3729,7 @@
       }
 
       // ===== ПЕРВЫЙ ЗАПУСК =====
-      // Показываем новым аккаунтам (зарегистрированы меньше 3 дней назад) один раз; отметка — users/{я}.onboarded
+      // Показываем новым аккаунтам (зарегистрированы меньше 3 дней назад) один раз; отметка — users_private/{я}.onboarded
       let obShown = false, obIndex = 0;
       const OB_COUNT = 4;
       const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -3589,7 +3737,7 @@
       function maybeShowOnboarding() {
           if (obShown || !currentUser || isAdmin || iAmBanned) return;
           const me = usersCache[currentUser.uid];
-          if (!me || me.onboarded || !me.name || me.name === "Загрузка...") return;
+          if (!me || !myPrivate || me.onboarded || !me.name || me.name === "Загрузка...") return;
           const created = createdAtOf(me);
           if (!created || Date.now() - created > 3 * 24 * 60 * 60 * 1000) return;
           obShown = true;
@@ -3625,7 +3773,7 @@
       }
       function obFinish() {
           document.getElementById("onboarding-screen").style.display = "none";
-          if (currentUser) setDoc(doc(db, "users", currentUser.uid), { onboarded: true }, { merge: true }).catch(e => console.log("onboarded:", e.code));
+          if (currentUser) setDoc(doc(db, "users_private", currentUser.uid), { onboarded: true }, { merge: true }).catch(e => console.log("onboarded:", e.code));
       }
       document.getElementById("ob-next").addEventListener("click", () => obIndex === OB_COUNT - 1 ? obFinish() : obGo(obIndex + 1));
       document.getElementById("ob-skip").addEventListener("click", obFinish);
@@ -3649,7 +3797,7 @@
           return p[key] || ((key === "showFollowers" || key === "showFollowing") && p.showFollows) || "all"; // showFollows — старая общая настройка
       };
       const myPrivacy = (key) => privacyOf(currentUser && usersCache[currentUser.uid], key);
-      const followsMe = (u) => !!(u && currentUser && (u.following || []).includes(currentUser.uid)); // владелец профиля подписан на меня
+      const followsMe = (u) => !!(u && currentUser && ((myFollowsIn && myFollowsIn.has(u.uid)) || (u.following || []).includes(currentUser.uid))); // владелец профиля подписан на меня
       function allowedBy(u, key) {
           if (!currentUser) return false;
           if (!u) return true; // профиль ещё не загружен — не мешаем; окончательно проверяют правила базы
@@ -3693,6 +3841,19 @@
               } catch (e) { console.log("Профили:", e.code); }
           }
       }
+      // Кто подписан на uid (tab = followers) / на кого подписан uid (following). null — нет доступа (список скрыт)
+      async function followUids(uid, tab) {
+          const u = usersCache[uid] || {}, legacy = (uid === currentUser.uid ? myRawProfile || {} : u)[tab];
+          let ids = [];
+          if (uid === currentUser.uid && (tab === "followers" ? myFollowsIn : myFollowsOut)) ids = [...(tab === "followers" ? myFollowsIn : myFollowsOut)];
+          else {
+              try {
+                  const snap = await getDocs(query(collection(db, "follows"), where(tab === "followers" ? "to" : "from", "==", uid), limit(500)));
+                  ids = snap.docs.map(d => d.data()[tab === "followers" ? "from" : "to"]);
+              } catch (e) { console.log("follows:", e.code); if (!Array.isArray(legacy)) return null; }
+          }
+          return [...new Set([...ids, ...(Array.isArray(legacy) ? legacy : [])])];
+      }
       async function openFollowList(uid, tab) {
           followTarget = uid;
           const u = usersCache[uid]; if (!u) return;
@@ -3702,9 +3863,11 @@
           document.getElementById("public-profile-screen").style.display = "none";
           document.getElementById("follow-screen").style.display = "flex";
           const list = document.getElementById("follow-list");
-          const uids = (tab === "followers" ? u.followers : u.following) || [];
-          if (!uids.length) { list.innerHTML = `<div class="dev-empty">${tab === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</div>`; return; }
           list.innerHTML = `<div class="dev-empty">Загружаем…</div>`;
+          const uids = await followUids(uid, tab);
+          if (followTarget !== uid) return;
+          if (!uids) { list.innerHTML = `<div class="dev-empty">Список скрыт настройками конфиденциальности</div>`; return; }
+          if (!uids.length) { list.innerHTML = `<div class="dev-empty">${tab === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</div>`; return; }
           await ensureUsers(uids);
           if (followTarget !== uid) return;
           const rows = uids.map(id => usersCache[id]).filter(x => x && x.name && !bansCache[x.uid]);
@@ -3858,7 +4021,7 @@
       }
 
       // ===== БЫСТРАЯ РЕАКЦИЯ (двойное нажатие) =====
-      // Выбор хранится в профиле (users/{я}.quickReaction), поэтому одинаков на всех устройствах
+      // Выбор хранится в закрытой users_private/{я}.quickReaction, поэтому одинаков на всех устройствах
       const QUICK_CHOICES = ["❤", "👍", "😂", "🔥", "😮", "😢", "👏", "🎉", "😍", "🤔", "💯", "🙏"];
       const showEmoji = (r) => r === "❤" ? "❤️" : r;
       const quickReaction = () => { const q = currentUser && usersCache[currentUser.uid]?.quickReaction; return QUICK_CHOICES.includes(q) ? q : "❤"; };
@@ -3872,7 +4035,7 @@
           const r = b.getAttribute("data-qr"), me = usersCache[currentUser.uid];
           if (me) me.quickReaction = r;
           renderQuickReactionSetting();
-          try { await setDoc(doc(db, "users", currentUser.uid), { quickReaction: r }, { merge: true }); showToast("Быстрая реакция: " + showEmoji(r), "check"); }
+          try { await setDoc(doc(db, "users_private", currentUser.uid), { quickReaction: r }, { merge: true }); showToast("Быстрая реакция: " + showEmoji(r), "check"); }
           catch (err) { console.error(err); showToast("Не удалось сохранить", "error"); }
       });
       function quickReact(id) {
@@ -4050,13 +4213,11 @@
                     
                     document.getElementById("qf-btn").onclick = async () => {
                         try {
-                            await setDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUid) }, { merge: true });
-                            await setDoc(doc(db, "users", targetUid), { followers: arrayUnion(currentUser.uid) }, { merge: true });
-                            await addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false });
+                            await setFollow(targetUid, true);
                             showToast("Вы подписались!", "check");
                             qfBanner.style.display = "none";
                             renderChatList(document.getElementById("search-input").value); 
-                        } catch(e) { console.error(e); }
+                        } catch(e) { console.error(e); showToast("Не удалось подписаться", "error"); }
                     };
 
                     let qfCloseBtn = document.getElementById("qf-close-btn");
@@ -4516,6 +4677,7 @@
                   await Promise.all(Object.values(groupsCache).filter(g => (g.members || []).includes(uidToDelete)).map(g => setDoc(doc(db, "groups", g.id), { members: arrayRemove(uidToDelete) }, { merge: true })));
               });
               await step("ник", async () => { const key = usersCache[uidToDelete]?.nameKey || nickKey(usersCache[uidToDelete]?.name || currentUser.displayName || ""); if (key) await deleteDoc(doc(db, "usernames", key)); });
+              await step("подписки", () => deleteFollowEdges(uidToDelete));
               await step("почта", () => deleteDoc(doc(db, "users_private", uidToDelete)));
               await deleteDoc(doc(db, "users", uidToDelete)); await deleteUser(currentUser);
               showToast("Аккаунт успешно удален", "trash"); document.getElementById("settings-screen").style.display = "none";
