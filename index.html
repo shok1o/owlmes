@@ -305,7 +305,17 @@
       .settings-select { width: 100%; padding: 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-main); border: none; outline: none; font-size: 14px; appearance: none; }
       
       #toast-container { position: fixed; top: calc(20px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: min(92vw, 420px); display: flex; flex-direction: column; gap: 10px; z-index: 9999; pointer-events: none;}
-      .toast { background: var(--accent); background: color-mix(in srgb, var(--accent) 70%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); border: 1px solid rgba(255,255,255,0.18); color: white; padding: 12px 24px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 14px; font-weight: bold; animation: slideDown 0.3s ease-out; display: flex; align-items: flex-start; gap: 10px; box-sizing: border-box; max-width: 100%;}
+      /* Всплывающие уведомления — «стекло» в духе Apple: сильное размытие фона, светлая кромка, мягкий блик */
+      .toast { position: relative; overflow: hidden; color: var(--text-main); padding: 12px 18px; border-radius: 22px; font-size: 14px; font-weight: 600; display: flex; align-items: flex-start; gap: 10px; box-sizing: border-box; max-width: 100%;
+        background: color-mix(in srgb, var(--bg-panel) 52%, transparent);
+        background-image: linear-gradient(180deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.04) 45%, rgba(255,255,255,0) 100%);
+        -webkit-backdrop-filter: blur(26px) saturate(185%); backdrop-filter: blur(26px) saturate(185%);
+        border: 1px solid rgba(255,255,255,.22);
+        box-shadow: 0 12px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(255,255,255,.06);
+        animation: toastIn .45s cubic-bezier(.2,1.3,.3,1); transition: opacity .3s, transform .3s; }
+      .toast .toast-icon { color: var(--accent); }
+      .toast.out { opacity: 0; transform: translateY(-14px) scale(.96); }
+      @keyframes toastIn { from { transform: translateY(-22px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
       .toast span:first-child { flex-shrink: 0; }
       .toast-icon { display: flex; padding-top: 1px; }
       .toast-icon svg, .st-label svg, .st-seg button svg { display: block; flex-shrink: 0; }
@@ -540,6 +550,28 @@
       #chat-placeholder img { width: 64px; height: 64px; border-radius: 18px; margin-bottom: 6px; }
       #chat-placeholder b { font-size: 17px; color: var(--text-main); }
       #chat-placeholder span { font-size: 13.5px; color: var(--text-muted); max-width: 240px; }
+      .vp { display: flex; align-items: center; gap: 10px; width: 250px; max-width: 100%; padding: 4px 0 2px; }
+      .vp-play { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; padding: 0; }
+      .my-msg .vp-play { background: #fff; color: var(--accent); }
+      .vp-wave { flex: 1; height: 30px; display: flex; align-items: center; gap: 2px; cursor: pointer; min-width: 0; }
+      .vp-wave i { flex: 1; min-width: 2px; border-radius: 2px; background: color-mix(in srgb, var(--text-muted) 55%, transparent); transition: background .1s; }
+      .vp-wave i.on { background: var(--accent); }
+      .my-msg .vp-wave i { background: rgba(255,255,255,.42); }
+      .my-msg .vp-wave i.on { background: #fff; }
+      .vp-side { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+      .vp-time { font-size: 11px; opacity: .8; font-variant-numeric: tabular-nums; }
+      .vp-speed { border: none; border-radius: 8px; padding: 1px 6px; font: inherit; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--text-muted) 22%, transparent); color: inherit; cursor: pointer; }
+      .my-msg .vp-speed { background: rgba(255,255,255,.22); }
+      .vp audio { display: none; }
+      .draft-label { color: #ff6b6b; font-weight: 600; }
+      .mention { color: var(--accent); font-weight: 600; cursor: pointer; }
+      .my-msg .mention { color: #fff; text-decoration: underline; text-decoration-color: rgba(255,255,255,.6); }
+      .message-row.mentions-me .message-content { box-shadow: inset 3px 0 0 var(--accent); }
+      #mention-box { position: absolute; left: 12px; right: 12px; z-index: 30; display: none; flex-direction: column; max-height: 260px; overflow-y: auto; padding: 6px; border-radius: 16px; background: color-mix(in srgb, var(--bg-panel) 88%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border-color); box-shadow: 0 -10px 30px rgba(0,0,0,.25); }
+      #mention-box.on { display: flex; }
+      #mention-box button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; background: none; border-radius: 10px; color: var(--text-main); font: inherit; font-size: 15px; cursor: pointer; text-align: left; }
+      #mention-box button:hover, #mention-box button.sel { background: var(--input-bg); }
+      #mention-box img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
       .day-sep { align-self: center; margin: 8px 0 2px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text-main); background: color-mix(in srgb, var(--bg-panel) 72%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid var(--border-color); user-select: none; }
       #to-bottom-btn { position: absolute; right: 16px; z-index: 20; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border-color); background: color-mix(in srgb, var(--bg-panel) 85%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; transform: translateY(10px) scale(.9); pointer-events: none; transition: opacity .2s, transform .2s; }
       #to-bottom-btn.show { opacity: 1; transform: none; pointer-events: auto; }
@@ -974,7 +1006,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.34</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.35</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1012,6 +1044,7 @@
         </div>
 
         <div id="chat-box"></div>
+        <div id="mention-box"></div>
         <button id="to-bottom-btn" title="К последним сообщениям"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg><b id="to-bottom-count"></b></button>
 
         <div id="reply-bar" class="reply-bar">
@@ -1169,11 +1202,141 @@
         const tx = document.createElement("span"); tx.textContent = msg;
         toast.append(ic, tx);
         container.appendChild(toast);
-        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, msg.length > 60 ? 6000 : 4000);
+        setTimeout(() => { toast.classList.add("out"); setTimeout(() => toast.remove(), 300); }, msg.length > 60 ? 6000 : 4000);
       }
 
       // Последнее сообщение чата моё? (по uid; старые записи — по имени)
       const isMyMeta = (meta) => meta.lastMessageSenderUid ? meta.lastMessageSenderUid === currentUser.uid : meta.lastMessageSender === currentUser.displayName;
+
+      // ===== ГОЛОСОВЫЕ 2.0: свой плеер с волной и скоростью =====
+      const VP_BARS = 34;
+      const voicePeaks = {}, voiceDur = {};
+      const VP_PLAY = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
+      const VP_PAUSE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/></svg>';
+      const VP_SPEEDS = [1, 1.5, 2];
+      let voiceSpeed = (() => { try { const v = parseFloat(localStorage.getItem("owl-voice-speed")); return VP_SPEEDS.includes(v) ? v : 1; } catch (_) { return 1; } })();
+      const speedLabel = () => (voiceSpeed === 1.5 ? "1.5" : voiceSpeed) + "×";
+      const fmtDur = (t) => { if (!isFinite(t) || t <= 0) return "0:00"; t = Math.round(t); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+      function seededBars(id) { let h = 7; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return Array.from({ length: VP_BARS }, () => { h = (h * 1103515245 + 12345) >>> 0; return .25 + ((h >>> 16) % 1000) / 1000 * .55; }); }
+      function voicePlayerHtml(id, src) {
+          const bars = (voicePeaks[id] || seededBars(id)).map(v => `<i style="height:${Math.round(v * 100)}%"></i>`).join("");
+          return `<div class="vp" data-vp="${escapeHTML(id)}"><button class="vp-play" aria-label="Воспроизвести">${VP_PLAY}</button><div class="vp-wave">${bars}</div><div class="vp-side"><span class="vp-time">${fmtDur(voiceDur[id])}</span><button class="vp-speed" aria-label="Скорость">${speedLabel()}</button></div><audio preload="metadata" src="${escapeHTML(src)}"></audio></div>`;
+      }
+      // Настоящая «волна» и длительность — расшифровываем звук, когда плеер появился на экране
+      const vpObserver = "IntersectionObserver" in window ? new IntersectionObserver((entries) => entries.forEach(en => { if (en.isIntersecting) { vpObserver.unobserve(en.target); decodeVoice(en.target); } }), { rootMargin: "200px" }) : null;
+      function observeVoices(root) { root.querySelectorAll(".vp:not([data-obs])").forEach(el => { el.setAttribute("data-obs", "1"); if (vpObserver) vpObserver.observe(el); else decodeVoice(el); }); }
+      async function decodeVoice(el) {
+          const id = el.getAttribute("data-vp"), audio = el.querySelector("audio");
+          if (!audio || voicePeaks[id]) return applyVoiceMeta(el);
+          try {
+              const buf = await (await fetch(audio.src)).arrayBuffer();
+              const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100, 44100);
+              const ab = await new Promise((res, rej) => { const p = ctx.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+              const data = ab.getChannelData(0), step = Math.max(1, Math.floor(data.length / VP_BARS)), peaks = [];
+              for (let b = 0; b < VP_BARS; b++) { let m = 0; for (let i = b * step, e = Math.min(data.length, i + step); i < e; i += 8) { const v = Math.abs(data[i]); if (v > m) m = v; } peaks.push(m); }
+              const max = Math.max(...peaks, 0.01);
+              voicePeaks[id] = peaks.map(v => Math.max(.12, Math.sqrt(v / max)));
+              voiceDur[id] = ab.duration;
+          } catch (e) { voiceDur[id] = voiceDur[id] || (isFinite(audio.duration) ? audio.duration : 0); }
+          applyVoiceMeta(el);
+      }
+      function applyVoiceMeta(el) {
+          const id = el.getAttribute("data-vp");
+          if (voicePeaks[id]) el.querySelectorAll(".vp-wave i").forEach((b, i) => { b.style.height = Math.round(voicePeaks[id][i] * 100) + "%"; });
+          const audio = el.querySelector("audio");
+          if (audio && audio.paused && !audio.currentTime) el.querySelector(".vp-time").textContent = fmtDur(voiceDur[id]);
+      }
+      const vpDuration = (el, audio) => voiceDur[el.getAttribute("data-vp")] || (isFinite(audio.duration) ? audio.duration : 0);
+      function vpProgress(el, audio) {
+          const d = vpDuration(el, audio), p = d ? Math.min(1, audio.currentTime / d) : 0, k = Math.round(p * VP_BARS);
+          el.querySelectorAll(".vp-wave i").forEach((b, i) => b.classList.toggle("on", i < k));
+          el.querySelector(".vp-time").textContent = fmtDur(audio.paused && !audio.currentTime ? d : audio.currentTime);
+      }
+      function vpClick(e) {
+          const el = e.target.closest(".vp"); if (!el) return false;
+          const audio = el.querySelector("audio");
+          if (e.target.closest(".vp-speed")) {
+              voiceSpeed = VP_SPEEDS[(VP_SPEEDS.indexOf(voiceSpeed) + 1) % VP_SPEEDS.length];
+              try { localStorage.setItem("owl-voice-speed", String(voiceSpeed)); } catch (_) {}
+              document.querySelectorAll(".vp-speed").forEach(b => b.textContent = speedLabel());
+              document.querySelectorAll(".vp audio").forEach(a => a.playbackRate = voiceSpeed);
+          } else if (e.target.closest(".vp-wave")) {
+              const r = el.querySelector(".vp-wave").getBoundingClientRect(), d = vpDuration(el, audio);
+              if (d) { audio.currentTime = Math.max(0, Math.min(.999, (e.clientX - r.left) / r.width)) * d; vpProgress(el, audio); if (audio.paused) { audio.playbackRate = voiceSpeed; audio.play().catch(() => {}); } }
+          } else {
+              if (audio.paused) { document.querySelectorAll(".vp audio").forEach(a => { if (a !== audio) a.pause(); }); audio.playbackRate = voiceSpeed; audio.play().catch(err => showToast("Не удалось воспроизвести голосовое", "error")); }
+              else audio.pause();
+          }
+          return true;
+      }
+      ["play", "pause", "ended", "timeupdate"].forEach(ev => document.addEventListener(ev, (e) => {
+          const a = e.target; if (!a || a.tagName !== "AUDIO") return;
+          const el = a.closest(".vp"); if (!el) return;
+          if (ev === "play") el.querySelector(".vp-play").innerHTML = VP_PAUSE;
+          if (ev === "pause" || ev === "ended") el.querySelector(".vp-play").innerHTML = VP_PLAY;
+          if (ev === "ended") { a.currentTime = 0; }
+          vpProgress(el, a);
+      }, true));
+
+      // ===== ЧЕРНОВИКИ: недописанный текст хранится для каждого чата на этом устройстве =====
+      const draftKey = (chatId) => currentUser ? "owl-draft-" + currentUser.uid + "-" + chatId : null;
+      const getDraft = (chatId) => { try { return (chatId && localStorage.getItem(draftKey(chatId))) || ""; } catch (_) { return ""; } };
+      function setDraft(chatId, text) {
+          if (!chatId || !currentUser) return;
+          try { if (text && text.trim()) localStorage.setItem(draftKey(chatId), text.slice(0, 4000)); else localStorage.removeItem(draftKey(chatId)); } catch (_) {}
+      }
+
+      // ===== @УПОМИНАНИЯ в беседах и глобальном чате =====
+      function mentionCandidates(chatId) {
+          if (!currentUser || !chatId || chatId.includes("_")) return [];
+          let uids;
+          if (groupsCache[chatId]) uids = groupsCache[chatId].members || [];
+          else { uids = [...new Set([...Object.values(loadedMsgs).map(m => m.uid), ...(usersCache[currentUser.uid]?.following || [])])]; }
+          return uids.filter(u => u && u !== currentUser.uid && usersCache[u]?.name && !bansCache[u]).map(u => ({ uid: u, name: usersCache[u].name }));
+      }
+      function mentionsIn(text, chatId) {
+          if (!text || !text.includes("@")) return [];
+          const low = text.toLowerCase();
+          return mentionCandidates(chatId).filter(c => low.includes("@" + c.name.toLowerCase())).map(c => c.uid);
+      }
+      function highlightMentions(html, msg) {
+          if (!Array.isArray(msg.mentions) || !msg.mentions.length) return html;
+          msg.mentions.map(u => ({ u, n: usersCache[u]?.name })).filter(x => x.n).sort((a, b) => b.n.length - a.n.length).forEach(({ u, n }) => {
+              const needle = "@" + escapeHTML(n);
+              html = html.split(needle).join(`<span class="mention" data-profile-target="${escapeHTML(u)}">${needle}</span>`);
+          });
+          return html;
+      }
+      let mentionSel = 0, mentionList = [];
+      function mentionQuery() {
+          const ta = document.getElementById("message-input");
+          const before = ta.value.slice(0, ta.selectionStart || 0);
+          const m = before.match(/(^|\s)@([^\s@]{0,32})$/);
+          return m ? { q: m[2], start: before.length - m[2].length - 1 } : null;
+      }
+      function updateMentionBox() {
+          const box = document.getElementById("mention-box"), mq = mentionQuery();
+          const cands = mq ? mentionCandidates(currentChatId) : [];
+          mentionList = mq ? cands.filter(c => c.name.toLowerCase().startsWith(mq.q.toLowerCase())).concat(cands.filter(c => !c.name.toLowerCase().startsWith(mq.q.toLowerCase()) && c.name.toLowerCase().includes(mq.q.toLowerCase()))).slice(0, 6) : [];
+          if (!mentionList.length) { box.classList.remove("on"); return; }
+          mentionSel = Math.min(mentionSel, mentionList.length - 1);
+          box.innerHTML = mentionList.map((c, i) => `<button data-mention="${escapeHTML(c.uid)}" class="${i === mentionSel ? "sel" : ""}"><img src="${getAvatar(c.uid, c.name)}" alt="">${escapeHTML(c.name)}</button>`).join("");
+          const input = document.querySelector(".input-area"), main = document.getElementById("main-chat");
+          box.style.bottom = (main.getBoundingClientRect().bottom - input.getBoundingClientRect().top + 6) + "px";
+          box.classList.add("on");
+      }
+      function insertMention(uid) {
+          const c = mentionList.find(x => x.uid === uid), mq = mentionQuery(), ta = document.getElementById("message-input");
+          if (!c || !mq) return;
+          const after = ta.value.slice(ta.selectionStart);
+          const head = ta.value.slice(0, mq.start) + "@" + c.name + " ";
+          ta.value = head + after; ta.focus(); ta.setSelectionRange(head.length, head.length);
+          document.getElementById("mention-box").classList.remove("on");
+          ta.dispatchEvent(new Event("owl-fit"));
+          setDraft(currentChatId, ta.value);
+      }
+      document.getElementById("mention-box").addEventListener("mousedown", (e) => e.preventDefault()); // не забирать фокус у поля
+      document.getElementById("mention-box").addEventListener("click", (e) => { const b = e.target.closest("[data-mention]"); if (b) insertMention(b.getAttribute("data-mention")); });
 
       // ===== РАЗДЕЛИТЕЛИ ПО ДАТАМ =====
       function dayLabel(ts) {
@@ -2718,6 +2881,11 @@
               });
             });
 
+            chatItemsArray.forEach(it => {
+                if (it.id === currentChatId) return;
+                const d = getDraft(it.id);
+                if (d) it.subtext = `<span class="draft-label">Черновик:</span> ${escapeHTML(d.replace(/\s+/g, " ").slice(0, 80))}`;
+            });
             chatItemsArray.sort((a, b) => {
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
@@ -3514,7 +3682,9 @@
                if (mediaRecorder && mediaRecorder.state !== "inactive") { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t => t.stop()); }
                isRecording = false; micBtn.classList.remove("recording"); micBtn.innerHTML = micIconSVG; msgInput.disabled = false;
             }
-            msgInput.value = ""; msgInput.placeholder = "Сообщение..."; document.getElementById("send-button").innerHTML = sendIconSVG;
+            msgInput.value = getDraft(chatId); msgInput.placeholder = "Сообщение..."; document.getElementById("send-button").innerHTML = sendIconSVG;
+            document.getElementById("mention-box").classList.remove("on");
+            setTimeout(() => msgInput.dispatchEvent(new Event("owl-fit")), 0);
             
             let titleHtml = title || "Чат"; let statusHtml = ""; let headerTrigger = document.getElementById("header-profile-trigger");
             
@@ -3613,7 +3783,7 @@
 
                     let textEl = existingRow.querySelector('.msg-text-content');
                     if(textEl && msg.edited) {
-                         if (textEl.dataset.raw !== msg.text) { textEl.innerHTML = linkify(msg.text); textEl.dataset.raw = msg.text; }
+                         if (textEl.dataset.raw !== msg.text) { textEl.innerHTML = highlightMentions(linkify(msg.text), msg); textEl.dataset.raw = msg.text; }
                          let editedMarker = existingRow.querySelector('.edited-marker');
                          if(editedMarker && editedMarker.style.display === 'none') editedMarker.style.display = 'inline';
                     }
@@ -3650,9 +3820,10 @@
 
                     if (msg.forwardedFrom && msg.forwardedFrom.name) contentHtml += `<div class="fwd-label">${icon("forward", 13)}<span>Переслано от <b>${escapeHTML(msg.forwardedFrom.name)}</b></span></div>`;
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
-                    if (msg.text) contentHtml += `<span class="msg-text-content">${linkify(msg.text)}</span>`;
+                    if (msg.text) contentHtml += `<span class="msg-text-content">${highlightMentions(linkify(msg.text), msg)}</span>`;
+                    if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
-                    if (msg.audioUrl) contentHtml += `<audio controls src="${escapeHTML(msg.audioUrl)}"></audio>`;
+                    if (msg.audioUrl) contentHtml += voicePlayerHtml(msg.id, msg.audioUrl);
 
                     let editedHtml = `<span class="edited-marker" style="font-size:10px; opacity:0.5; margin-right:4px; display:${msg.edited ? 'inline' : 'none'};">(изм.)</span>`;
                     let ticksHtml = isMe ? ticksHtmlFor(msg) : "";
@@ -3675,6 +3846,7 @@
                   if (!currentIds.includes(child.id)) child.remove();
               });
               placeDaySeparators(chatBox);
+              observeVoices(chatBox);
               if (!firstLoad && !isScrolledToBottom) {
                   const fresh = snapshot.docChanges().filter(c => c.type === "added" && !c.doc.metadata.hasPendingWrites && c.doc.data().uid !== currentUser.uid && getTime(c.doc.data().timestamp) > Date.now() - 60000).length;
                   if (fresh) { newBelow += fresh; updateToBottom(); }
@@ -3718,6 +3890,7 @@
       };
 
       document.getElementById("chat-box").addEventListener("click", async (e) => {
+        if (vpClick(e)) return;
         let owlLink = e.target.closest("a[data-owl-link]");
         if (owlLink) {
            e.preventDefault();
@@ -3817,6 +3990,8 @@
         }
 
         let msgData = { chatId: chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false };
+        const mentioned = text ? mentionsIn(text, chatId) : [];
+        if (mentioned.length) msgData.mentions = mentioned;
         if (text) msgData.text = text; if (imageUrl) msgData.imageUrl = imageUrl; if (audioUrl) msgData.audioUrl = audioUrl; 
         if (replyingTo) { msgData.replyTo = replyingTo; cancelReply(); }
 
@@ -3824,7 +3999,13 @@
         if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение";
 
         try { await postMessage(chatId, msgData, previewText); }
-        catch (err) { showToast(sendErrorText(err), "error"); }
+        catch (err) { return showToast(sendErrorText(err), "error"); }
+        // Упомянутым — уведомление в колокольчик (в беседе им ещё придёт обычный push)
+        if (mentioned.length) {
+            const where = chatId === "global" ? "глобальном чате" : `беседе «${groupsCache[chatId]?.name || "Беседа"}»`;
+            const snippet = text.replace(/\s+/g, " ").slice(0, 90);
+            mentioned.forEach(uid => addDoc(collection(db, "notifications"), { toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId }).catch(() => {}));
+        }
       }
       const sendErrorText = (err) => err && err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз";
       // Записать сообщение в чат: само сообщение и превью пишем одновременно, не дожидаясь сервера —
@@ -3865,7 +4046,23 @@
       }
 
       let msgInput = document.getElementById("message-input");
-      document.getElementById("send-button").addEventListener("click", () => { let t = msgInput.value.trim().replace(/\n{3,}/g, "\n\n"); if(t){ sendMessage(t); msgInput.value = ""; }});
+      let draftTimer = null;
+      msgInput.addEventListener("input", () => {
+          updateMentionBox();
+          if (editingMsgId || !currentChatId) return;
+          const cid = currentChatId, val = msgInput.value;
+          clearTimeout(draftTimer);
+          draftTimer = setTimeout(() => { const had = !!getDraft(cid); setDraft(cid, val); if (had !== !!(val && val.trim())) renderChatList(document.getElementById("search-input").value); }, 400);
+      });
+      msgInput.addEventListener("click", updateMentionBox);
+      msgInput.addEventListener("keydown", (e) => {
+          const box = document.getElementById("mention-box");
+          if (!box.classList.contains("on")) return;
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); mentionSel = (mentionSel + (e.key === "ArrowDown" ? 1 : mentionList.length - 1)) % mentionList.length; updateMentionBox(); }
+          else if ((e.key === "Enter" || e.key === "Tab") && mentionList[mentionSel]) { e.preventDefault(); e.stopImmediatePropagation(); insertMention(mentionList[mentionSel].uid); }
+          else if (e.key === "Escape") box.classList.remove("on");
+      }, true);
+      document.getElementById("send-button").addEventListener("click", () => { let t = msgInput.value.trim().replace(/\n{3,}/g, "\n\n"); if(t){ sendMessage(t); msgInput.value = ""; clearTimeout(draftTimer); if (getDraft(currentChatId)) { setDraft(currentChatId, ""); renderChatList(document.getElementById("search-input").value); } document.getElementById("mention-box").classList.remove("on"); }});
       msgInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); document.getElementById("send-button").click(); } });
       
       // ЗАГРУЗКА КАРТИНКИ ЧАТА (СОХРАНЯЕМ В BASE64)
@@ -4122,6 +4319,7 @@
             ta.style.height = "auto"; ta.style.height = Math.min(ta.scrollHeight, 140) + "px";
         };
         ta.addEventListener("input", fit);
+        ta.addEventListener("owl-fit", fit); // подставили черновик или упоминание
         document.addEventListener("click", () => setTimeout(fit, 0)); // после отправки, смены чата, редактирования
         window.addEventListener("resize", fit); fit();
         // Пересчитываем, когда поле стало видимым или изменило ширину (показ приложения после загрузки, открытие чата)
