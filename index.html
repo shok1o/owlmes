@@ -216,6 +216,13 @@
         .mm-actions button { padding: 13px 12px; font-size: 16px; }
       }
       @keyframes mm-up { from { transform: translateY(100%); } to { transform: none; } }
+      .qr-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; }
+      .qr-grid button { aspect-ratio: 1; border: 1px solid transparent; border-radius: 12px; background: color-mix(in srgb, var(--bg-panel) 60%, transparent); font-size: 24px; line-height: 1; cursor: pointer; padding: 0; transition: transform .12s, border-color .12s; }
+      .qr-grid button:active { transform: scale(.9); }
+      .qr-grid button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+      #qr-current { font-size: 22px; line-height: 1; }
+      .quick-pop { position: absolute; left: 50%; top: 50%; z-index: 30; font-size: 42px; line-height: 1; pointer-events: none; transform: translate(-50%, -50%) scale(.3); opacity: 0; animation: quick-pop .75s cubic-bezier(.2,.8,.2,1) forwards; filter: drop-shadow(0 6px 14px rgba(0,0,0,.35)); }
+      @keyframes quick-pop { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; } 30% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; } 60% { transform: translate(-50%, -60%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -110%) scale(.9); opacity: 0; } }
       .fwd-label { display: flex; align-items: center; gap: 5px; font-size: 12.5px; opacity: .8; margin-bottom: 3px; }
       .fwd-label b { font-weight: 600; }
       #forward-screen .modal-box { max-width: 400px; width: calc(100% - 32px); max-height: min(560px, 85vh); display: flex; flex-direction: column; text-align: left; }
@@ -776,6 +783,13 @@
         <button id="custom-bg-btn" style="display:none;"></button>
         <input type="file" id="custom-bg-input" accept="image/*" style="display:none;">
 
+        <div class="st-sec">Сообщения</div>
+        <div class="st-card">
+          <div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>Быстрая реакция</span><span id="qr-current">❤️</span></div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Ставится двойным нажатием на сообщение. Нажмите ещё раз — реакция снимется.</div>
+          <div class="qr-grid" id="qr-grid"></div>
+        </div>
+
         <div class="st-sec">Уведомления</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>Звук уведомлений</span><label class="st-toggle"><input type="checkbox" id="sound-toggle" checked><span></span></label></div>
           <div class="st-row" style="margin-top:12px;"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>Уведомления на устройстве</span><label class="st-toggle"><input type="checkbox" id="push-toggle"><span></span></label></div>
@@ -932,7 +946,7 @@
         </div>
         
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.31</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.32</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2030,6 +2044,7 @@
                 document.getElementById("settings-name").innerText = displayN;
                 document.getElementById("settings-email").innerText = currentUser.email || "";
                 document.getElementById("hide-online-toggle").checked = !!u.hideOnline;
+                renderQuickReactionSetting();
               }
           }
 
@@ -3161,6 +3176,45 @@
           try { await deleteDoc(doc(db, "messages", id)); } catch (e) { console.error(e); showToast("Не удалось удалить", "error"); }
       }
 
+      // ===== БЫСТРАЯ РЕАКЦИЯ (двойное нажатие) =====
+      // Выбор хранится в профиле (users/{я}.quickReaction), поэтому одинаков на всех устройствах
+      const QUICK_CHOICES = ["❤", "👍", "😂", "🔥", "😮", "😢", "👏", "🎉", "😍", "🤔", "💯", "🙏"];
+      const showEmoji = (r) => r === "❤" ? "❤️" : r;
+      const quickReaction = () => { const q = currentUser && usersCache[currentUser.uid]?.quickReaction; return QUICK_CHOICES.includes(q) ? q : "❤"; };
+      function renderQuickReactionSetting() {
+          const cur = quickReaction();
+          document.getElementById("qr-current").textContent = showEmoji(cur);
+          document.getElementById("qr-grid").innerHTML = QUICK_CHOICES.map(r => `<button data-qr="${r}" class="${r === cur ? "on" : ""}" title="Выбрать">${showEmoji(r)}</button>`).join("");
+      }
+      document.getElementById("qr-grid").addEventListener("click", async (e) => {
+          const b = e.target.closest("[data-qr]"); if (!b || !currentUser) return;
+          const r = b.getAttribute("data-qr"), me = usersCache[currentUser.uid];
+          if (me) me.quickReaction = r;
+          renderQuickReactionSetting();
+          try { await setDoc(doc(db, "users", currentUser.uid), { quickReaction: r }, { merge: true }); showToast("Быстрая реакция: " + showEmoji(r), "check"); }
+          catch (err) { console.error(err); showToast("Не удалось сохранить", "error"); }
+      });
+      function quickReact(id) {
+          const row = document.getElementById("msg-" + id), m = loadedMsgs[id];
+          if (!row || !m || row.classList.contains("from-blocked")) return;
+          const r = quickReaction();
+          const removing = m.reactions && m.reactions[currentUser.uid] === r;
+          if (!removing) {
+              const bubble = row.querySelector(".message-content");
+              const pop = document.createElement("span"); pop.className = "quick-pop"; pop.textContent = showEmoji(r);
+              bubble.appendChild(pop); setTimeout(() => pop.remove(), 800);
+          }
+          if (navigator.vibrate) navigator.vibrate(8);
+          addReaction(id, r);
+      }
+      // Двойной клик мышью (компьютер)
+      document.getElementById("chat-box").addEventListener("dblclick", (e) => {
+          const row = e.target.closest(".message-row[data-msg-id]");
+          if (!row || e.target.closest("a, audio, button, img, .reply-quote")) return;
+          try { window.getSelection().removeAllRanges(); } catch (_) {}
+          quickReact(row.getAttribute("data-msg-id"));
+      });
+
       // ===== МЕНЮ СООБЩЕНИЯ (долгое нажатие / правая кнопка мыши) =====
       const MENU_REACTIONS = ["👍", "❤", "😂", "😮", "😢", "🔥"];
       let menuMsgId = null, menuOpenedAt = 0;
@@ -3843,8 +3897,17 @@
               icon.style.opacity = p; icon.style.transform = `translate(100%, -50%) scale(${0.5 + p * 0.5})`;
               if (p >= 1 && !icon.dataset.buzz) { icon.dataset.buzz = "1"; if (navigator.vibrate) navigator.vibrate(10); }
           }, { passive: true });
-          box.addEventListener("touchend", () => {
-              cancelPress();
+          let lastTap = { id: null, t: 0 };
+          box.addEventListener("touchend", (e) => {
+              const wasPress = !!pressTimer; cancelPress();
+              // Двойное нажатие — быстрая реакция (не на фото, ссылках и кнопках)
+              if (wasPress && row && !locked && !e.target.closest("a, audio, button, img, .reply-quote")) {
+                  const id = row.getAttribute("data-msg-id"), now = Date.now();
+                  if (lastTap.id === id && now - lastTap.t < 320) {
+                      lastTap = { id: null, t: 0 }; e.preventDefault(); finish(); quickReact(id); return;
+                  }
+                  lastTap = { id, t: now };
+              }
               if (!row) return;
               const id = row.getAttribute("data-msg-id"); const go = locked && -dx >= TRIGGER;
               finish(); if (go) startReply(id);
