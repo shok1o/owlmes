@@ -1447,7 +1447,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.61</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.62</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3563,7 +3563,8 @@
       });
 
       document.getElementById("create-group-submit-btn").addEventListener("click", async () => {
-          let name = document.getElementById("new-group-name").value.trim();
+          // кавычки и апострофы — на типографские (база не принимает " ' < > ` в названиях)
+          let name = document.getElementById("new-group-name").value.trim().replace(/"/g, "”").replace(/'/g, "’").replace(/[<>`]/g, "").slice(0, 40);
           if(!name) return alert("Введите название беседы!");
           let selected = []; document.querySelectorAll('.group-friend-check:checked').forEach(cb => selected.push(cb.value));
           if(selected.length === 0) { if(!confirm("Вы не выбрали ни одного участника. Создать пустую беседу?")) return; }
