@@ -1499,7 +1499,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.67</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.68</div>
       </div>
       
       <!-- ЧАТ -->
@@ -4110,7 +4110,8 @@
       // Обязательно для аккаунтов, созданных начиная с этой даты; старые аккаунты не трогаем
       const EMAIL_GATE_SINCE = Date.parse("2026-10-08T00:00:00Z");
       function needsEmailCode(user) {
-          if (user.emailVerified || user.email === ADMIN_EMAIL) return false;
+          if (user.emailVerified) return false;
+          if (user.email === ADMIN_EMAIL) return true; // права админа в правилах требуют подтверждённую почту
           const created = Date.parse(user.metadata && user.metadata.creationTime || "");
           return isFinite(created) && created >= EMAIL_GATE_SINCE;
       }
