@@ -1447,7 +1447,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.60</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.61</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2146,11 +2146,20 @@
 
       // Аватарка заблокированного пользователя — мёртвая сова
       const DEAD_OWL_AVATAR = "data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 fill=%22%232a2f37%22/%3E%3Cellipse cx=%2250%22 cy=%2213%22 rx=%2217%22 ry=%224.5%22 fill=%22none%22 stroke=%22%23e8c35a%22 stroke-width=%223%22 opacity=%22.9%22/%3E%3Cpath d=%22M27 34 L31 16 L42 29 Z M73 34 L69 16 L58 29 Z%22 fill=%22%236f7680%22/%3E%3Cellipse cx=%2250%22 cy=%2260%22 rx=%2231%22 ry=%2233%22 fill=%22%236f7680%22/%3E%3Cellipse cx=%2250%22 cy=%2247%22 rx=%2225%22 ry=%2218%22 fill=%22%238d949d%22/%3E%3Ccircle cx=%2239%22 cy=%2246%22 r=%229.5%22 fill=%22%23dfe3e8%22/%3E%3Ccircle cx=%2261%22 cy=%2246%22 r=%229.5%22 fill=%22%23dfe3e8%22/%3E%3Cpath d=%22M34 41 L44 51 M44 41 L34 51 M56 41 L66 51 M66 41 L56 51%22 stroke=%22%232a2f37%22 stroke-width=%223.2%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M46 55 L54 55 L50 63 Z%22 fill=%22%23b8963a%22/%3E%3Cpath d=%22M50 63 q3 5 0 8 q-2 -3 0 -8%22 fill=%22%23c96a7a%22/%3E%3Cellipse cx=%2250%22 cy=%2280%22 rx=%2217%22 ry=%2212%22 fill=%22%238d949d%22/%3E%3Cpath d=%22M42 77 q4 4 8 0 q4 4 8 0 M44 84 q3 3 6 0 q3 3 6 0%22 fill=%22none%22 stroke=%22%236f7680%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E";
+      // Ссылка на картинку из базы попадает в разметку (src="…") — пропускаем только настоящие картинки:
+      // data:image/…;base64 или https-адрес без кавычек, пробелов и угловых скобок. Иначе — null (будет аватар-заглушка)
+      function safeImg(url) {
+        if (typeof url !== "string" || url.length > 3000000) return null;
+        if (/^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);base64,[A-Za-z0-9+\/=]+$/.test(url)) return url;
+        if (/^https:\/\/[^\s"'<>\\`]+$/.test(url)) return url;
+        return null;
+      }
       function getAvatar(uid, fallbackName) {
         if (uid && bansCache[uid]) return DEAD_OWL_AVATAR;
         let cached = usersCache[uid];
-        if (cached && cached.photoURL && (cached.photoURL.startsWith('data:image') || cached.photoURL.startsWith('http')) && allowedBy(cached, "photo")) {
-            return cached.photoURL;
+        const photo = cached && safeImg(cached.photoURL);
+        if (photo && allowedBy(cached, "photo")) {
+            return photo;
         }
         return generateAvatarSVG(fallbackName || (cached ? cached.name : "User"));
       }
@@ -2455,9 +2464,9 @@
       // Открыть чат по id (из уведомления)
       window.openChatById = (chatId) => {
           if (!chatId || !currentUser) return;
-          if (groupsCache[chatId]) return window.loadChat(chatId, escapeHTML(groupsCache[chatId].name), null, true);
+          if (groupsCache[chatId]) return window.loadChat(chatId, groupsCache[chatId].name, null, true); // экранирует сам loadChat
           const other = chatId.split("_").find(id => id !== currentUser.uid);
-          if (other && usersCache[other]) window.loadChat(chatId, escapeHTML(usersCache[other].name), other, false);
+          if (other && usersCache[other]) window.loadChat(chatId, usersCache[other].name, other, false);
       };
       if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open-chat") window.openChatById(e.data.chatId); });
       try { const pending = new URLSearchParams(location.search).get("chat"); if (pending) window.__pendingChat = pending; } catch (_) {}
@@ -3180,7 +3189,7 @@
                 let g = change.doc.data();
                 let docId = change.doc.id; 
                 if(change.type === 'removed') delete groupsCache[docId];
-                else groupsCache[docId] = { id: docId, ...g };
+                else if (SAFE_ID.test(docId)) groupsCache[docId] = { id: docId, ...g }; // беседу с «хитрым» номером не показываем
             });
             syncGroupMetaListeners();
             watchContacts();
@@ -3624,7 +3633,7 @@
         
         if (groupsCache[uid]) {
             let g = groupsCache[uid]; currentEditingGroupId = g.id; 
-            document.getElementById("group-avatar-display").src = g.photoURL || generateAvatarSVG(g.name, true);
+            document.getElementById("group-avatar-display").src = safeImg(g.photoURL) || generateAvatarSVG(g.name, true);
             document.getElementById("group-name-display").innerText = g.name;
             document.getElementById("group-members-count").innerText = g.members ? g.members.length : 0;
             
@@ -3858,7 +3867,7 @@
                   let meta = chatsMetaCache[g.id];
                   let preview = meta && meta.lastMessageText ? sharedPreview(meta) : `${g.members.length} участников`;
                   let time = meta && meta.timestamp ? getTime(meta.timestamp) : (g.createdAt ? getTime(g.createdAt) : 0);
-                  let safeName = escapeHTML(g.name); let av = g.photoURL || generateAvatarSVG(g.name, true);
+                  let safeName = escapeHTML(g.name); let av = safeImg(g.photoURL) || generateAvatarSVG(g.name, true);
                   chatItemsArray.push({
                       id: g.id, targetUid: g.id, isGroup: true, name: safeName, subtext: preview, namePrefix: groupIconSVG,
                       avatarHtml: `<img src="${av}" data-profile-target="${g.id}" title="Открыть профиль группы">`, time: time, unread: 0, isOfficial: false, isPinned: myPinned.includes(g.id)
@@ -4979,7 +4988,7 @@
               const u = usersCache[p]; if (!u || !u.name) return;
               add({ chatId: id, title: u.name, targetUid: p, isGroup: false, av: `<img src="${getAvatar(p, u.name)}">`, t: ts(id) });
           });
-          Object.values(groupsCache).forEach(g => { if ((g.members || []).includes(currentUser.uid)) add({ chatId: g.id, title: g.name || "Беседа", targetUid: null, isGroup: true, av: `<img src="${g.photoURL || generateAvatarSVG(g.name, true)}">`, t: ts(g.id) }); });
+          Object.values(groupsCache).forEach(g => { if ((g.members || []).includes(currentUser.uid)) add({ chatId: g.id, title: g.name || "Беседа", targetUid: null, isGroup: true, av: `<img src="${safeImg(g.photoURL) || generateAvatarSVG(g.name, true)}">`, t: ts(g.id) }); });
           (usersCache[currentUser.uid]?.following || []).forEach(p => {
               const u = usersCache[p]; if (!u || !u.name || iBlocked(p)) return;
               const id = currentUser.uid < p ? currentUser.uid + "_" + p : p + "_" + currentUser.uid;
@@ -5082,12 +5091,12 @@
             document.getElementById("mention-box").classList.remove("on");
             setTimeout(() => msgInput.dispatchEvent(new Event("owl-fit")), 0);
             
-            let titleHtml = title || "Чат"; let statusHtml = ""; let headerTrigger = document.getElementById("header-profile-trigger");
+            let titleHtml = escapeHTML(title || "Чат"); let statusHtml = ""; let headerTrigger = document.getElementById("header-profile-trigger");
             
             if (chatId === 'global') {
                 if (isAdmin) { titleHtml = `<span style="display:flex; align-items:center; gap:5px;">Глобальный чат <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>`; statusHtml = "Настройки (Админ)"; headerTrigger.setAttribute("data-profile-target", "admin-settings"); headerTrigger.style.cursor = "pointer"; } 
                 else { titleHtml = "Глобальный чат"; statusHtml = "Чат для всех пользователей приложения"; headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default"; }
-            } else if (isGroup) { let g = groupsCache[chatId]; titleHtml = `<span style="display:flex; align-items:center;">${groupIconSVG} ${title}</span>`; statusHtml = g && g.members ? `${g.members.length} участников` : "Группа"; headerTrigger.setAttribute("data-profile-target", chatId); headerTrigger.style.cursor = "pointer";
+            } else if (isGroup) { let g = groupsCache[chatId]; titleHtml = `<span style="display:flex; align-items:center;">${groupIconSVG} ${escapeHTML(title)}</span>`; statusHtml = g && g.members ? `${g.members.length} участников` : "Группа"; headerTrigger.setAttribute("data-profile-target", chatId); headerTrigger.style.cursor = "pointer";
             } else { 
                 if (targetUid) {
                     let u = usersCache[targetUid];
