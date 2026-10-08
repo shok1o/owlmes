@@ -635,7 +635,21 @@
       .eye-entry small { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
       .eye-chev { color: var(--text-muted); font-size: 20px; }
       #owl-eye-screen .modal-box { max-width: 420px; width: calc(100% - 32px); max-height: min(720px, 90vh); overflow-y: auto; text-align: left; }
-      .eye-hero { text-align: center; padding: 6px 0 4px; }
+      .eye-hero { text-align: center; padding: 0 0 4px; }
+      /* Пёрышко над глазами: покачивается, как от ветерка */
+      .owl-feather { transform-box: fill-box; transform-origin: 50% 100%; animation: featherSway 3.2s ease-in-out infinite; }
+      .owl-feather-v { fill: currentColor; }
+      .owl-feather-q { stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; }
+      #eye-art .owl-feather { color: var(--accent); }
+      @keyframes featherSway { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(12deg); } }
+      /* Мини-глаза в шапке */
+      .mini-eyes .me-ring { fill: none; stroke: currentColor; stroke-width: 2.2; }
+      .mini-eyes .me-pupils { fill: currentColor; animation: miniLook 5s ease-in-out infinite; }
+      .mini-eyes .me-eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: miniBlink 4.6s infinite; }
+      @keyframes miniLook { 0%, 30%, 100% { transform: translate(0, 0); } 40%, 55% { transform: translate(-2px, 0); } 65%, 80% { transform: translate(2px, -1px); } }
+      @keyframes miniBlink { 0%, 92%, 98%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
+      #eye-btn:hover .owl-feather { animation-duration: 1s; }
+      @media (prefers-reduced-motion: reduce) { .owl-feather, .mini-eyes .me-pupils, .mini-eyes .me-eyes { animation: none; } }
       .eye-hero h2 { margin: 8px 0 2px; font-size: 20px; }
       .eye-hero p { margin: 0; color: var(--text-muted); font-size: 13px; }
       .eye-white { fill: #f6f3ff; }
@@ -1107,7 +1121,8 @@
       <div class="modal-box">
         <button class="icon-btn" id="owl-eye-close" style="position: absolute; top: 12px; right: 12px;" title="Закрыть"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         <div class="eye-hero">
-          <svg id="eye-art" viewBox="0 0 120 52" width="132" height="58" aria-hidden="true">
+          <svg id="eye-art" viewBox="0 -22 120 74" width="132" height="81" aria-hidden="true">
+            <g transform="translate(31 -21) scale(1.8)"><g class="owl-feather owl-feather-big"><path class="owl-feather-q" d="M16 10.5 L16 4"/><path class="owl-feather-v" d="M16 1 C19 3 19.5 7 16 10 C12.5 7 13 3 16 1 Z"/></g></g>
             <defs><clipPath id="eye-clip-l"><circle cx="30" cy="26" r="21"/></clipPath><clipPath id="eye-clip-r"><circle cx="90" cy="26" r="21"/></clipPath></defs>
             <circle cx="30" cy="26" r="21" class="eye-white"/><circle cx="90" cy="26" r="21" class="eye-white"/>
             <g class="eye-l" clip-path="url(#eye-clip-l)"><circle cx="30" cy="27" r="10" class="eye-pupil"/><circle cx="34" cy="22" r="3" fill="#fff"/></g>
@@ -1250,6 +1265,11 @@
                 
                 <button id="dev-panel-btn" class="icon-btn" style="color: white; display: none;" title="Панель разработчика"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></button>
 
+                <!-- «СОВИНЫЙ ВЗГЛЯД»: кто видит мои данные -->
+                <button id="eye-btn" class="icon-btn" style="color: white;" title="Совиный взгляд — кто видит мои данные" aria-label="Совиный взгляд">
+                    <svg class="mini-eyes" viewBox="0 0 32 26" width="28" height="23" aria-hidden="true"><g class="owl-feather"><path class="owl-feather-q" d="M16 10.5 L16 4"/><path class="owl-feather-v" d="M16 1 C19 3 19.5 7 16 10 C12.5 7 13 3 16 1 Z"/></g><g class="me-eyes"><circle cx="9.5" cy="17" r="6.5" class="me-ring"/><circle cx="22.5" cy="17" r="6.5" class="me-ring"/><g class="me-pupils"><circle cx="9.5" cy="17" r="2.6"/><circle cx="22.5" cy="17" r="2.6"/></g></g></svg>
+                </button>
+
                 <!-- ЕДИНЫЙ КОЛОКОЛЬЧИК УВЕДОМЛЕНИЙ -->
                 <button id="notif-btn" class="icon-btn" style="color: white; position: relative;" title="Уведомления">
                     <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"></path><path d="M10.27 21a2 2 0 0 0 3.46 0"></path></svg>
@@ -1289,7 +1309,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.52</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.53</div>
       </div>
       
       <!-- ЧАТ -->
@@ -4221,6 +4241,7 @@
           } catch (e) { console.error(e); showToast("Не удалось сохранить", "error"); }
           btn.disabled = false; renderOwlEye();
       }
+      document.getElementById("eye-btn").addEventListener("click", (e) => { e.stopPropagation(); document.getElementById("owl-eye-screen").style.display = "flex"; renderOwlEye(); });
       document.getElementById("owl-eye-open").addEventListener("click", () => { document.getElementById("owl-eye-screen").style.display = "flex"; renderOwlEye(); });
       document.getElementById("owl-eye-close").addEventListener("click", () => { document.getElementById("owl-eye-screen").style.display = "none"; });
       document.getElementById("owl-eye-screen").addEventListener("click", (e) => { if (e.target.id === "owl-eye-screen") e.target.style.display = "none"; });
