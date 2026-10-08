@@ -786,6 +786,26 @@
       .poll-opt-row button { flex-shrink: 0; }
       #attach-menu { position: absolute; z-index: 31; display: none; flex-direction: column; padding: 6px; min-width: 190px; border-radius: 16px; background: color-mix(in srgb, var(--bg-panel) 90%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border-color); box-shadow: 0 -10px 30px rgba(0,0,0,.25); }
       #attach-menu.on { display: flex; }
+      /* Стикеры: панель над строкой ввода и крупный показ в чате без «пузыря» */
+      #sticker-panel { position: absolute; z-index: 32; left: 8px; right: 8px; display: none; flex-direction: column; max-height: min(340px, 52vh); border-radius: 20px; overflow: hidden;
+        background: color-mix(in srgb, var(--bg-panel) 88%, transparent); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); border: 1px solid var(--border-color); box-shadow: 0 18px 50px rgba(0,0,0,.35); transform-origin: 50% 100%; }
+      #sticker-panel.on { display: flex; animation: spIn .28s cubic-bezier(.2,1.25,.35,1); }
+      @keyframes spIn { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
+      .sp-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 4px; font-size: 13px; font-weight: 700; color: var(--text-muted); letter-spacing: .3px; }
+      .sp-close { border: none; background: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 4px 6px; }
+      .sp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px 10px 12px; overflow-y: auto; overscroll-behavior: contain; }
+      .sp-grid button { border: none; background: none; border-radius: 16px; padding: 4px; cursor: pointer; transition: transform .18s cubic-bezier(.2,1.4,.4,1), background .15s; -webkit-tap-highlight-color: transparent; }
+      .sp-grid button:hover { background: var(--input-bg); transform: translateY(-2px) scale(1.04); }
+      .sp-grid button:active { transform: scale(.9); }
+      .sp-grid img { width: 100%; aspect-ratio: 300 / 317; display: block; pointer-events: none; }
+      #sticker-btn.on { color: var(--accent); }
+      .message-row.sticker-msg .message-content { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0; max-width: 170px; }
+      .msg-sticker { width: 150px; height: auto; display: block; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+      .message-row.sticker-msg .msg-meta { align-self: flex-end; margin-top: -18px; padding: 2px 7px; border-radius: 10px; background: rgba(20, 14, 40, .55); color: #fff; position: relative; }
+      .message-row.sticker-msg .sender-name { padding: 2px 8px; border-radius: 10px; background: color-mix(in srgb, var(--bg-panel) 70%, transparent); align-self: flex-start; margin-bottom: 2px; }
+      .msg-sticker.fresh { animation: stickerIn .55s cubic-bezier(.2,1.5,.35,1); }
+      @keyframes stickerIn { 0% { transform: scale(.4) rotate(-8deg); opacity: 0; } 60% { transform: scale(1.08) rotate(3deg); opacity: 1; } 100% { transform: none; } }
+      @media (prefers-reduced-motion: reduce) { #sticker-panel.on, .msg-sticker.fresh { animation: none; } }
       #attach-menu button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none; background: none; border-radius: 10px; color: var(--text-main); font: inherit; font-size: 15px; cursor: pointer; text-align: left; }
       #attach-menu button:hover { background: var(--input-bg); }
       #attach-menu button svg { color: var(--accent); }
@@ -1369,7 +1389,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.58</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.59</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1411,6 +1431,7 @@
         <div id="chat-box"></div>
         <div id="mention-box"></div>
         <div id="attach-menu"><button data-attach="photo"></button><button data-attach="poll"></button></div>
+        <div id="sticker-panel" aria-label="Стикеры"><div class="sp-head"><span>Плюшевый совёнок</span><button type="button" class="sp-close" aria-label="Закрыть">✕</button></div><div class="sp-grid" id="sp-grid"></div></div>
         <button id="to-bottom-btn" title="К последним сообщениям"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg><b id="to-bottom-count"></b></button>
 
         <div id="reply-bar" class="reply-bar">
@@ -1423,6 +1444,9 @@
           <input type="file" id="image-input" accept="image/*" style="display: none;">
           <button id="attach-btn" class="icon-btn" title="Прикрепить фото">
               <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+          </button>
+          <button id="sticker-btn" class="icon-btn" title="Стикеры" aria-label="Стикеры">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h7l8-8V6a3 3 0 0 0-3-3h-2.5z"/><path d="M13 21v-5a3 3 0 0 1 3-3h5"/><circle cx="9" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="14" cy="10" r="1.2" fill="currentColor" stroke="none"/></svg>
           </button>
           
           
@@ -1537,6 +1561,7 @@
 
       // Набор иконок интерфейса (в стиле остальных SVG приложения)
       const ICONS = {
+          sticker: '<path d="M15.5 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h7l8-8V6a3 3 0 0 0-3-3h-2.5z"></path><path d="M13 21v-5a3 3 0 0 1 3-3h5"></path>',
           bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>',
           check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>',
           error: '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>',
@@ -1573,7 +1598,7 @@
           return `<svg class="ui-icon" viewBox="0 0 24 24" width="${size}" height="${size}" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.info}</svg>`;
       }
       // В базе превью хранятся с эмодзи-префиксом (📷/🎤/✏️) — при показе меняем его на иконку
-      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"]];
+      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"], ["🦉 ", "sticker"]];
       function iconizePreview(html) {
           for (const [emoji, name] of PREVIEW_ICONS) html = html.split(emoji).join(`<span class="inline-icon">${icon(name, 14)}</span>`);
           return html;
@@ -1788,6 +1813,34 @@
           if (b.getAttribute("data-attach") === "photo") document.getElementById("image-input").click(); else openPollEditor();
       });
       document.addEventListener("click", (e) => { if (!e.target.closest("#attach-menu, #attach-btn")) toggleAttachMenu(false); }, true);
+
+      // ===== СТИКЕРЫ «Плюшевый совёнок» =====
+      // Файлы sticker-<id>.png лежат рядом с index.html. Список совпадает с правилами базы (там разрешены только эти id)
+      const STICKERS = [["hi", "Привет"], ["love", "Люблю"], ["haha", "Ха-ха"], ["thanks", "Спасибо"], ["ok", "Ок"], ["think", "Думаю"], ["wait", "Жду"], ["party", "Поздравляю"],
+                        ["sad", "Обидно"], ["angry", "Злюсь"], ["shock", "В шоке"], ["coffee", "Кофе"], ["work", "Работаю"], ["night", "Спокойной ночи"], ["secret", "Секрет"], ["bye", "Пока"]];
+      const STICKER_IDS = new Set(STICKERS.map(s => s[0]));
+      function toggleStickerPanel(force) {
+          const panel = document.getElementById("sticker-panel"), btn = document.getElementById("sticker-btn"), main = document.getElementById("main-chat");
+          const on = force !== undefined ? force : !panel.classList.contains("on");
+          if (on) {
+              const grid = document.getElementById("sp-grid");
+              if (!grid.children.length) grid.innerHTML = STICKERS.map(([id, name]) => `<button type="button" data-sticker="${id}" title="${name}"><img src="sticker-${id}.png" alt="${name}" loading="lazy" draggable="false"></button>`).join("");
+              const mr = main.getBoundingClientRect(), ir = document.querySelector(".input-area").getBoundingClientRect();
+              panel.style.bottom = (mr.bottom - ir.top + 8) + "px";
+              toggleAttachMenu(false);
+          }
+          panel.classList.toggle("on", on); btn.classList.toggle("on", on);
+      }
+      document.getElementById("sticker-btn").addEventListener("click", (e) => { e.preventDefault(); toggleStickerPanel(); });
+      document.getElementById("sticker-btn").addEventListener("mousedown", (e) => e.preventDefault()); // не забираем фокус у поля
+      document.querySelector("#sticker-panel .sp-close").addEventListener("click", () => toggleStickerPanel(false));
+      document.getElementById("sp-grid").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-sticker]"); if (!b || !currentChatId) return;
+          b.style.transform = "scale(.85)"; setTimeout(() => { b.style.transform = ""; }, 160);
+          toggleStickerPanel(false);
+          sendMessage(null, null, null, null, b.getAttribute("data-sticker"));
+      });
+      document.addEventListener("click", (e) => { if (!e.target.closest("#sticker-panel, #sticker-btn")) toggleStickerPanel(false); }, true);
 
       // ===== ПРЕВЬЮ ССЫЛОК (карточку собирает наш сервер owl-push) =====
       const LP_KEY = "owl-lp-v3"; let lpCache = {};
@@ -4785,15 +4838,15 @@
           if (target.targetUid && (blockedMe(target.targetUid) || !canWriteTo(target.targetUid))) return showToast("Пользователь ограничил, кто может ему писать", "block");
           const orig = m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
-          if (m.text) data.text = m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl;
-          const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : "Сообщение";
+          if (m.text) data.text = m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
+          const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
           try { await postMessage(target.chatId, data, preview); showToast(`Переслано в «${target.title}»`, "forward"); }
           catch (err) { showToast(sendErrorText(err), "error"); }
       });
 
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
       let replyingTo = null;
-      function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : (m.poll ? "📊 Опрос: " + m.poll.q : "Сообщение"))); }
+      function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : (m.poll ? "📊 Опрос: " + m.poll.q : (m.sticker ? "🦉 Стикер" : "Сообщение")))); }
       window.startReply = (msgId) => {
           let m = loadedMsgs[msgId]; if (!m) return;
           if (editingMsgId) { editingMsgId = null; document.getElementById("message-input").value = ""; document.getElementById("send-button").innerHTML = sendIconSVG; }
@@ -4996,6 +5049,11 @@
                     if (msg.text) contentHtml += `<span class="msg-text-content">${highlightMentions(linkify(msg.text), msg)}</span>`;
                     if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
+                    if (msg.sticker && STICKER_IDS.has(msg.sticker)) {
+                        messageRow.classList.add("sticker-msg");
+                        const fresh = Date.now() - getTime(msg.timestamp) < 15000;
+                        contentHtml += `<img class="msg-sticker${fresh ? " fresh" : ""}" src="sticker-${msg.sticker}.png" alt="Стикер" draggable="false">`;
+                    }
                     if (msg.audioUrl) contentHtml += voicePlayerHtml(msg.id, msg.audioUrl);
                     if (msg.poll) contentHtml += `<div class="poll" data-poll="${escapeHTML(msg.id)}">${pollInner(msg)}</div>`;
                     { const lu = msg.text && firstExternalLink(msg.text); if (lu) contentHtml += `<a class="lp" data-lp-url="${escapeHTML(lu)}" href="${escapeHTML(lu)}" target="_blank" rel="noopener noreferrer nofollow"></a>`; }
@@ -5249,7 +5307,8 @@
       document.addEventListener("keydown", (e) => { if (e.key === "Escape" && rec) stopVoice(false); });
       syncVoiceBtn();
 
-      async function sendMessage(text, imageUrl = null, audioUrl = null, targetChat = null) {
+      async function sendMessage(text, imageUrl = null, audioUrl = null, targetChat = null, sticker = null) {
+        if (sticker && !STICKER_IDS.has(sticker)) return;
         if (!currentUser || iAmBanned) return;
         { const peer = dmPeer(targetChat || currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer) || !canWriteTo(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? "Вы заблокировали этого пользователя" : "Пользователь ограничил, кто может ему писать", "block"); } }
         
@@ -5269,11 +5328,11 @@
         let msgData = { chatId: chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false };
         const mentioned = text ? mentionsIn(text, chatId) : [];
         if (mentioned.length) msgData.mentions = mentioned;
-        if (text) msgData.text = text; if (imageUrl) msgData.imageUrl = imageUrl; if (audioUrl) msgData.audioUrl = audioUrl; 
+        if (text) msgData.text = text; if (imageUrl) msgData.imageUrl = imageUrl; if (audioUrl) msgData.audioUrl = audioUrl; if (sticker) msgData.sticker = sticker;
         if (replyingTo) { msgData.replyTo = replyingTo; cancelReply(); }
 
         let previewText = "";
-        if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение";
+        if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение"; else if (sticker) previewText = "🦉 Стикер";
 
         try { await postMessage(chatId, msgData, previewText); }
         catch (err) { return showToast(sendErrorText(err), "error"); }
