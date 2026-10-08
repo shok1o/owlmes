@@ -183,6 +183,29 @@
       #night-urgent-btn.active { background: #f5b942; border-color: #f5b942; color: #1d1830; }
       .st-time { background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 10px; padding: 5px 8px; font: inherit; font-size: 15px; color-scheme: dark light; }
       #night-opts .st-row { margin-top: 12px; gap: 10px; }
+      #night-screen .modal-box { max-width: 420px; width: calc(100% - 32px); max-height: min(760px, 90vh); overflow-y: auto; text-align: left; }
+      #night-screen .eye-hero h2 { margin-top: 4px; }
+      #night-status { display: inline-block; margin-top: 8px !important; padding: 5px 12px; border-radius: 14px; background: var(--input-bg); color: var(--text-main) !important; font-weight: 600; }
+      #night-status.asleep { background: color-mix(in srgb, #f5b942 22%, transparent); }
+      .night-how { margin: 14px 0 2px; padding: 0; list-style: none; font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+      .night-how li { display: flex; gap: 10px; padding: 7px 0; }
+      .night-how li b { color: var(--text-main); font-weight: 600; }
+      /* Спящая сова: глаза-дуги, луна и улетающие «z» */
+      #night-art .na-ring { fill: #f6f3ff; stroke: var(--accent); stroke-width: 3; }
+      #night-art .na-lid { fill: none; stroke: #1b1630; stroke-width: 3.2; stroke-linecap: round; }
+      #night-art .na-moon { fill: #f5b942; }
+      #night-art .na-z { fill: var(--accent); font-weight: 800; opacity: 0; animation: zFloat 3.6s ease-in infinite; }
+      #night-art .na-z2 { animation-delay: 1.2s; } #night-art .na-z3 { animation-delay: 2.4s; }
+      #night-art .na-head { transform-box: fill-box; transform-origin: 50% 100%; animation: owlBreath 4s ease-in-out infinite; }
+      @keyframes zFloat { 0% { opacity: 0; transform: translate(0, 6px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(10px, -16px); } }
+      @keyframes owlBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+      /* Луна в шапке: ночь — сова посапывает, выключено — луна бледная */
+      #night-btn .nb-z { opacity: 0; }
+      #night-btn.asleep .nb-z { animation: zMini 3s ease-in infinite; }
+      #night-btn.asleep .nb-z2 { animation-delay: 1.5s; }
+      #night-btn.off { opacity: .5; }
+      @keyframes zMini { 0% { opacity: 0; transform: translate(0, 3px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(3px, -5px); } }
+      @media (prefers-reduced-motion: reduce) { #night-art .na-z, #night-art .na-head, #night-btn.asleep .nb-z { animation: none; opacity: 1; } }
       #night-opts .night-hours > span:last-child { display: flex; align-items: center; gap: 6px; }
       #night-opts.off { opacity: .45; pointer-events: none; }
       .reply-bar .rb-icon { color: var(--accent); flex-shrink: 0; display: flex; }
@@ -1215,17 +1238,10 @@
           <button class="ob-mini-btn" id="push-test-btn" style="margin-top:10px;">Проверить уведомления</button>
           <div id="push-test-result" style="font-size:12px; color:var(--text-muted); margin-top:8px; white-space:pre-line;"></div></div>
 
-        <div class="st-sec">Сова не будит</div>
-        <div class="st-card" id="night-card">
-          <div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>Тихая ночь</span><label class="st-toggle"><input type="checkbox" id="night-toggle"><span></span></label></div>
-          <div class="st-hint">Ночью уведомления о сообщениях не приходят — утром одна сводка: кто писал. Собеседник видит, что у вас ночь, и не ждёт мгновенного ответа.</div>
-          <div id="night-opts">
-            <div class="st-row night-hours"><span>Ночь</span><span>с <input type="time" id="night-from" class="st-time"> до <input type="time" id="night-to" class="st-time"></span></div>
-            <div class="st-row"><span>Срочные сообщения будят</span><label class="st-toggle"><input type="checkbox" id="night-urgent"><span></span></label></div>
-            <div class="st-row"><span>Показывать собеседникам, что у меня ночь</span><label class="st-toggle"><input type="checkbox" id="night-show"><span></span></label></div>
-            <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">«Срочно» можно отметить только в личных сообщениях. Если скрыть ночь от собеседников, уведомления всё равно будут молчать, но кнопки «Срочно» у них не будет.</div>
-          </div>
-        </div>
+        <button type="button" class="st-card eye-entry" id="night-open" style="margin-top:10px;">
+          <svg class="eye-mini" viewBox="0 0 24 24" width="46" height="22" aria-hidden="true"><path d="M17 13.5A7 7 0 1 1 10.5 4a5.5 5.5 0 0 0 6.5 9.5z" fill="currentColor"/><text x="17" y="8" font-size="7" font-weight="700" fill="currentColor">z</text><text x="20.5" y="4.5" font-size="5" font-weight="700" fill="currentColor">z</text></svg>
+          <span><b>Сова не будит</b><small id="night-sum">Тихие ночи</small></span><span class="eye-chev">›</span>
+        </button>
 
         <div class="st-sec">Конфиденциальность</div>
         <button type="button" class="st-card eye-entry" id="owl-eye-open">
@@ -1292,6 +1308,39 @@
         <div id="eye-list"></div>
         <button type="button" id="eye-stealth" class="eye-stealth"></button>
         <p class="eye-legend"><span class="eye-db" id="eye-legend-ico"></span> — гарантирует база данных: даже в обход приложения эти данные не увидит никто лишний. Остальное соблюдает приложение.</p>
+      </div>
+    </div>
+    <div id="night-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="night-close" style="position: absolute; top: 12px; right: 12px;" title="Закрыть"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <div class="eye-hero">
+          <svg id="night-art" viewBox="0 -26 140 80" width="150" height="86" aria-hidden="true">
+            <path class="na-moon" d="M128 -8 A13 13 0 1 1 114 -22 A10 10 0 0 0 128 -8 Z"/>
+            <g class="na-head">
+              <circle cx="40" cy="28" r="21" class="na-ring"/><circle cx="100" cy="28" r="21" class="na-ring"/>
+              <path class="na-lid" d="M28 27 Q40 37 52 27"/><path class="na-lid" d="M88 27 Q100 37 112 27"/>
+            </g>
+            <text class="na-z" x="66" y="4" font-size="13">z</text><text class="na-z na-z2" x="74" y="-6" font-size="10">z</text><text class="na-z na-z3" x="81" y="-14" font-size="8">z</text>
+          </svg>
+          <h2>Сова не будит</h2>
+          <p>Ночью Owl молчит, а утром рассказывает, кто писал</p>
+          <p id="night-status"></p>
+        </div>
+        <div class="st-card" id="night-card" style="margin-top:14px;">
+          <div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>Тихая ночь</span><label class="st-toggle"><input type="checkbox" id="night-toggle"><span></span></label></div>
+          <div id="night-opts">
+            <div class="st-row night-hours"><span>Ночь</span><span>с <input type="time" id="night-from" class="st-time"> до <input type="time" id="night-to" class="st-time"></span></div>
+            <div class="st-row"><span>Срочные сообщения будят</span><label class="st-toggle"><input type="checkbox" id="night-urgent"><span></span></label></div>
+            <div class="st-row"><span>Показывать собеседникам, что у меня ночь</span><label class="st-toggle"><input type="checkbox" id="night-show"><span></span></label></div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">«Срочно» можно отметить только в личных сообщениях. Если скрыть ночь от собеседников, уведомления всё равно будут молчать, но кнопки «Срочно» у них не будет.</div>
+          </div>
+        </div>
+        <ul class="night-how">
+          <li><span>🌙</span><span><b>Ночью тишина.</b> Уведомления о сообщениях не приходят — телефон не зажжётся и не зазвучит.</span></li>
+          <li><span>🦉</span><span><b>Утром — одна сводка.</b> «Пока вы спали»: кто писал и сколько, без текста сообщений.</span></li>
+          <li><span>👀</span><span><b>Собеседник в курсе.</b> Он видит «🌙 ночь» и знает, что ответ будет утром.</span></li>
+          <li><span>⚡</span><span><b>Если очень нужно.</b> В личке сообщение можно отметить «Срочно» — оно разбудит. Это можно запретить.</span></li>
+        </ul>
       </div>
     </div>
     <div id="qr-screen" class="modal-screen" style="display: none;">
@@ -1482,6 +1531,11 @@
                     <svg class="mini-eyes" viewBox="0 0 32 26" width="28" height="23" aria-hidden="true"><g class="owl-feather"><path class="owl-feather-q" d="M16 10.5 L16 4"/><path class="owl-feather-v" d="M16 1 C19 3 19.5 7 16 10 C12.5 7 13 3 16 1 Z"/></g><g class="me-eyes"><circle cx="9.5" cy="17" r="6.5" class="me-ring"/><circle cx="22.5" cy="17" r="6.5" class="me-ring"/><g class="me-pupils"><circle cx="9.5" cy="17" r="2.6"/><circle cx="22.5" cy="17" r="2.6"/></g></g></svg>
                 </button>
 
+                <!-- «СОВА НЕ БУДИТ»: тихие ночи -->
+                <button id="night-btn" class="icon-btn" style="color: white;" title="Сова не будит — тихие ночи" aria-label="Сова не будит">
+                    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M16.5 14A7 7 0 1 1 10 4.5a5.5 5.5 0 0 0 6.5 9.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><text class="nb-z" x="16" y="9" font-size="7" font-weight="800" fill="currentColor">z</text><text class="nb-z nb-z2" x="19" y="5" font-size="5.5" font-weight="800" fill="currentColor">z</text></svg>
+                </button>
+
                 <!-- ЕДИНЫЙ КОЛОКОЛЬЧИК УВЕДОМЛЕНИЙ -->
                 <button id="notif-btn" class="icon-btn" style="color: white; position: relative;" title="Уведомления">
                     <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"></path><path d="M10.27 21a2 2 0 0 0 3.46 0"></path></svg>
@@ -1521,7 +1575,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.69</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.70</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2743,7 +2797,7 @@
       function nightIntro() {
           if (!myPrivate || myPrivate.night !== undefined) return;
           try { if (localStorage.getItem("owl-night-intro")) return; localStorage.setItem("owl-night-intro", "1"); } catch (_) { return; }
-          setTimeout(() => showToast("Новое — «Сова не будит»: с 23:00 до 08:00 уведомления молчат, утром придёт сводка. Настроить — в настройках", "moon"), 2500);
+          setTimeout(() => showToast("Новое — «Сова не будит»: с 23:00 до 08:00 уведомления молчат, утром придёт сводка. Настроить — кнопка 🌙 вверху", "moon"), 2500);
       }
 
       function renderNightSettings() {
@@ -2755,7 +2809,22 @@
           document.getElementById("night-urgent").checked = p.u !== false;
           document.getElementById("night-show").checked = p.show !== false;
           document.getElementById("night-opts").classList.toggle("off", !p.on);
+          // Пункт в настройках, луна в шапке и статус на экране
+          const asleep = iAmAsleep(), from = minToHM(p.f), to = minToHM(p.t);
+          document.getElementById("night-sum").textContent = p.on ? (asleep ? `Сейчас ночь · тихо до ${to}` : `Тихо с ${from} до ${to}`) : "Выключено";
+          const btn = document.getElementById("night-btn");
+          btn.classList.toggle("asleep", asleep); btn.classList.toggle("off", !p.on);
+          btn.title = p.on ? (asleep ? `Сова не будит — тихо до ${to}` : `Сова не будит — тихо с ${from} до ${to}`) : "Сова не будит — выключено";
+          const st = document.getElementById("night-status");
+          st.textContent = !p.on ? "Выключено — уведомления приходят круглосуточно" : asleep ? `Сейчас ночь — тихо до ${to}` : `Сейчас день — тишина начнётся в ${from}`;
+          st.classList.toggle("asleep", asleep);
       }
+      setInterval(renderNightSettings, 60 * 1000);
+      const openNight = () => { renderNightSettings(); document.getElementById("night-screen").style.display = "flex"; };
+      document.getElementById("night-btn").addEventListener("click", (e) => { e.stopPropagation(); openNight(); });
+      document.getElementById("night-open").addEventListener("click", openNight);
+      document.getElementById("night-close").addEventListener("click", () => { document.getElementById("night-screen").style.display = "none"; });
+      document.getElementById("night-screen").addEventListener("click", (e) => { if (e.target.id === "night-screen") e.target.style.display = "none"; });
       async function saveNight(patch) {
           if (!currentUser) return;
           const next = { ...nightPrefs(), ...patch };
