@@ -1447,7 +1447,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.62</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.63</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1530,7 +1530,7 @@
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
       // ВАЖНО: Добавлены deleteField и getDoc для отмены реакций
-      import { getFirestore, enableIndexedDbPersistence, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+      import { getFirestore, enableIndexedDbPersistence, serverTimestamp, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
       import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
       import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -5526,12 +5526,26 @@
             mentioned.forEach(uid => addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId }).catch(() => {}));
         }
       }
-      const sendErrorText = (err) => err && err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз";
+      const sendErrorText = (err) => err && err.code === "owl/rate" ? "Не так быстро — в общий чат можно писать раз в секунду" : err && err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз";
       // Записать сообщение в чат: само сообщение и превью пишем одновременно, не дожидаясь сервера —
       // Firestore сразу обновляет локальную копию, поэтому список чатов меняется мгновенно
+      // Глобальный чат видят все — не чаще одного сообщения в секунду от человека. Вместе с сообщением пишем
+      // отметку ratelimits/{я}.g = время сервера, правила базы сверяют её с прошлой (защита от флуда скриптами)
+      let lastGlobalSend = 0;
+      const globalTooFast = () => currentChatId === "global" && !isAdmin && Date.now() - lastGlobalSend < 1100;
       async function postMessage(chatId, msgData, previewText) {
+        if (chatId === "global" && !isAdmin) {
+            if (globalTooFast()) throw Object.assign(new Error("rate"), { code: "owl/rate" });
+            lastGlobalSend = Date.now();
+        }
         const msgRef = doc(collection(db, "messages"));
-        const saving = setDoc(msgRef, msgData);
+        let saving;
+        if (chatId === "global" && !isAdmin) {
+            const b = writeBatch(db);
+            b.set(msgRef, msgData);
+            b.set(doc(db, "ratelimits", currentUser.uid), { g: serverTimestamp() });
+            saving = b.commit();
+        } else saving = setDoc(msgRef, msgData);
         setDoc(doc(db, "chats_metadata", chatId), {
             ...(chatId.includes("_") ? { members: chatId.split("_") } : {}),
             lastMessageText: previewText,
@@ -5581,7 +5595,7 @@
           else if ((e.key === "Enter" || e.key === "Tab") && mentionList[mentionSel]) { e.preventDefault(); e.stopImmediatePropagation(); insertMention(mentionList[mentionSel].uid); }
           else if (e.key === "Escape") box.classList.remove("on");
       }, true);
-      document.getElementById("send-button").addEventListener("click", () => { let t = msgInput.value.trim().replace(/\n{3,}/g, "\n\n"); if(t){ sendMessage(t); msgInput.value = ""; clearTimeout(draftTimer); if (getDraft(currentChatId)) { setDraft(currentChatId, ""); renderChatList(document.getElementById("search-input").value); } document.getElementById("mention-box").classList.remove("on"); }});
+      document.getElementById("send-button").addEventListener("click", () => { let t = msgInput.value.trim().replace(/\n{3,}/g, "\n\n"); if (t && !editingMsgId && globalTooFast()) { showToast("Не так быстро — в общий чат можно писать раз в секунду", "clock"); return; } if(t){ sendMessage(t); msgInput.value = ""; clearTimeout(draftTimer); if (getDraft(currentChatId)) { setDraft(currentChatId, ""); renderChatList(document.getElementById("search-input").value); } document.getElementById("mention-box").classList.remove("on"); }});
       msgInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); document.getElementById("send-button").click(); } });
       
       // ЗАГРУЗКА КАРТИНКИ ЧАТА (СОХРАНЯЕМ В BASE64)
