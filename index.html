@@ -640,7 +640,9 @@
       .owl-feather { transform-box: fill-box; transform-origin: 50% 100%; animation: featherSway 3.2s ease-in-out infinite; }
       .owl-feather-v { fill: currentColor; }
       .owl-feather-q { stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; }
-      #eye-art .owl-feather { color: var(--accent); }
+      /* Большое пёрышко в «Совином взгляде»: наклонено вправо и плавно качается само по себе (не в такт глазам) */
+      #eye-art .owl-feather-big { color: var(--accent); transform-box: fill-box; transform-origin: 50% 100%; animation: featherBig 4.3s ease-in-out infinite; }
+      @keyframes featherBig { 0%, 100% { transform: rotate(14deg); } 50% { transform: rotate(34deg); } }
       @keyframes featherSway { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(12deg); } }
       /* Мини-глаза в шапке */
       .mini-eyes .me-ring { fill: none; stroke: currentColor; stroke-width: 2.2; }
@@ -649,7 +651,7 @@
       @keyframes miniLook { 0%, 30%, 100% { transform: translate(0, 0); } 40%, 55% { transform: translate(-2px, 0); } 65%, 80% { transform: translate(2px, -1px); } }
       @keyframes miniBlink { 0%, 92%, 98%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
       #eye-btn:hover .owl-feather { animation-duration: 1s; }
-      @media (prefers-reduced-motion: reduce) { .owl-feather, .mini-eyes .me-pupils, .mini-eyes .me-eyes { animation: none; } }
+      @media (prefers-reduced-motion: reduce) { #eye-art .owl-feather-big { animation: none; transform: rotate(24deg); } .owl-feather, .mini-eyes .me-pupils, .mini-eyes .me-eyes { animation: none; } }
       .eye-hero h2 { margin: 8px 0 2px; font-size: 20px; }
       .eye-hero p { margin: 0; color: var(--text-muted); font-size: 13px; }
       .eye-white { fill: #f6f3ff; }
@@ -1121,8 +1123,8 @@
       <div class="modal-box">
         <button class="icon-btn" id="owl-eye-close" style="position: absolute; top: 12px; right: 12px;" title="Закрыть"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         <div class="eye-hero">
-          <svg id="eye-art" viewBox="0 -22 120 74" width="132" height="81" aria-hidden="true">
-            <g transform="translate(31 -21) scale(1.8)"><g class="owl-feather owl-feather-big"><path class="owl-feather-q" d="M16 10.5 L16 4"/><path class="owl-feather-v" d="M16 1 C19 3 19.5 7 16 10 C12.5 7 13 3 16 1 Z"/></g></g>
+          <svg id="eye-art" viewBox="0 -26 120 78" width="132" height="86" aria-hidden="true">
+            <g transform="translate(22 -25.5) scale(2.4)"><g class="owl-feather-big"><path class="owl-feather-q" d="M16 10.5 L16 4"/><path class="owl-feather-v" d="M16 1 C19 3 19.5 7 16 10 C12.5 7 13 3 16 1 Z"/></g></g>
             <defs><clipPath id="eye-clip-l"><circle cx="30" cy="26" r="21"/></clipPath><clipPath id="eye-clip-r"><circle cx="90" cy="26" r="21"/></clipPath></defs>
             <circle cx="30" cy="26" r="21" class="eye-white"/><circle cx="90" cy="26" r="21" class="eye-white"/>
             <g class="eye-l" clip-path="url(#eye-clip-l)"><circle cx="30" cy="27" r="10" class="eye-pupil"/><circle cx="34" cy="22" r="3" fill="#fff"/></g>
