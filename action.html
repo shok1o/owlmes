@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Owl Messenger</title>
+<meta name="theme-color" content="#0b0913">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+  :root { --bg: #0b0913; --panel: #141120; --text: #f4f1ff; --muted: #8c86a6; --accent: #8b5cf6; --border: #2a2440; --ok: #34c759; --err: #ff6b6b; --input: #1c1735; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #ece8f5; --panel: #ffffff; --text: #1c1530; --muted: #8a83a0; --accent: #7c4dff; --border: #e4dcf6; --ok: #1f9d55; --err: #d93636; --input: #f3effa; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 28%, var(--bg)) 0%, var(--bg) 60%) fixed, var(--bg); color: var(--text); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; padding: 24px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .card { width: 100%; max-width: 380px; background: color-mix(in srgb, var(--panel) 82%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--border); border-radius: 24px; padding: 22px 22px 24px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.25); animation: cardIn .5s cubic-bezier(.2,1.2,.4,1); }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+  h1 { margin: 0 0 6px; font-size: 22px; line-height: 1.25; }
+  p { margin: 0 0 18px; color: var(--muted); font-size: 14.5px; }
+  p b { color: var(--text); font-weight: 600; word-break: break-all; }
+  .btn { display: block; width: 100%; border: 0; border-radius: 14px; padding: 14px; background: var(--accent); color: #fff; font: 600 16px/1.2 inherit; font-family: inherit; text-decoration: none; cursor: pointer; transition: transform .1s, opacity .2s; }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .pw-wrap { position: relative; margin-bottom: 10px; }
+  input { width: 100%; padding: 14px 48px 14px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--input); color: var(--text); font: 16px inherit; font-family: inherit; outline: none; }
+  input:focus { border-color: var(--accent); }
+  .pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 0; background: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .pw-eye .slash { display: none; } .pw-eye.on .slash { display: inline; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; text-align: left; }
+  .msg { min-height: 20px; font-size: 13.5px; color: var(--err); margin: -4px 0 12px; }
+  .foot { margin-top: 16px; font-size: 12px; color: var(--muted); }
+  .foot a { color: var(--muted); }
+  .badge { display: inline-flex; width: 44px; height: 44px; border-radius: 50%; align-items: center; justify-content: center; margin: -8px auto 10px; background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); animation: pop .45s cubic-bezier(.3,1.6,.5,1); }
+  .badge.err { background: color-mix(in srgb, var(--err) 16%, transparent); color: var(--err); }
+  @keyframes pop { from { transform: scale(.3); opacity: 0; } }
+  .dots { display: flex; gap: 7px; justify-content: center; margin: 8px 0 6px; }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: dot 1.2s ease-in-out infinite; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes dot { 0%, 80%, 100% { transform: scale(.6); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
+  [hidden] { display: none !important; }
+
+  /* сова — как на экране входа */
+  .owl-art { display: block; overflow: hidden; width: 104px; height: 99px; margin: 0 auto 8px; }
+  .owl-face { fill: #fff; } .owl-iris { fill: var(--accent); } .owl-white { fill: #fff; } .owl-glint { fill: #fff; }
+  .owl-pupil { fill: #241552; transition: transform .25s ease-out; animation: owlLook 4.8s ease-in-out infinite; }
+  .owl-beak { fill: color-mix(in srgb, var(--accent) 75%, #241552); }
+  .owl-lid { fill: color-mix(in srgb, var(--accent) 85%, #fff); transform-box: fill-box; transform-origin: top; transform: scaleY(0); transition: transform .18s ease-in-out; animation: owlBlink 3.6s infinite; }
+  .owl-wing { fill: color-mix(in srgb, var(--accent) 22%, #fff); stroke: color-mix(in srgb, var(--accent) 60%, #fff); stroke-width: 3; transition: transform .45s cubic-bezier(.3,1.35,.5,1); }
+  .owl-wing-l { transform: translate(-24px, 170px) rotate(-18deg); transform-origin: 30% 100%; transform-box: fill-box; }
+  .owl-wing-r { transform: translate(24px, 170px) rotate(18deg); transform-origin: 70% 100%; transform-box: fill-box; }
+  .owl-head { transform-box: fill-box; transform-origin: 50% 90%; }
+  .owl-art.cover .owl-wing-l, .owl-art.cover .owl-wing-r { transform: none; }
+  .owl-art.peek .owl-wing-r { transform: translate(14px, 66px) rotate(16deg); }
+  .owl-art.happy .owl-lid { animation: none; transform: scaleY(.55); }
+  .owl-art.happy .owl-head { animation: owlHop .6s cubic-bezier(.3,1.6,.5,1); }
+  .owl-art.shake .owl-head { animation: owlShake .5s ease-in-out; }
+  .owl-art.cover .owl-pupil, .owl-art.happy .owl-pupil { animation: none; }
+  @keyframes owlShake { 20% { transform: rotate(-7deg); } 40% { transform: rotate(6deg); } 60% { transform: rotate(-4deg); } 80% { transform: rotate(2deg); } }
+  @keyframes owlHop { 40% { transform: translateY(-10px); } }
+  @keyframes owlLook { 0%, 25%, 100% { transform: translate(0, 0); } 35%, 50% { transform: translate(-6px, 1px); } 60%, 75% { transform: translate(6px, 1px); } 85% { transform: translate(0, -3px); } }
+  @keyframes owlBlink { 0%, 90%, 100% { transform: scaleY(0); } 94% { transform: scaleY(1); } }
+  @media (prefers-reduced-motion: reduce) { .card, .owl-pupil, .owl-lid, .owl-head, .badge, .dots i { animation: none !important; } .owl-wing, .owl-pupil { transition: none; } }
+</style>
+</head>
+<body>
+<main class="card">
+  <svg class="owl-art" id="owl" viewBox="0 0 200 190" aria-hidden="true">
+    <defs><clipPath id="oc-l"><circle cx="70" cy="96" r="17"/></clipPath><clipPath id="oc-r"><circle cx="130" cy="96" r="17"/></clipPath></defs>
+    <g class="owl-head">
+      <path class="owl-face" d="M46 30 Q58 46 70 52 Q100 42 130 52 Q142 46 154 30 Q172 62 172 104 Q172 150 136 168 Q100 184 64 168 Q28 150 28 104 Q28 62 46 30 Z"/>
+      <circle cx="70" cy="96" r="27" class="owl-iris"/><circle cx="130" cy="96" r="27" class="owl-iris"/>
+      <circle cx="70" cy="96" r="17" class="owl-white"/><circle cx="130" cy="96" r="17" class="owl-white"/>
+      <g clip-path="url(#oc-l)"><g class="owl-pupil"><circle cx="70" cy="97" r="8.5"/><circle cx="74" cy="92" r="3" class="owl-glint"/></g><rect x="50" y="78" width="40" height="36" class="owl-lid"/></g>
+      <g clip-path="url(#oc-r)"><g class="owl-pupil"><circle cx="130" cy="97" r="8.5"/><circle cx="134" cy="92" r="3" class="owl-glint"/></g><rect x="110" y="78" width="40" height="36" class="owl-lid"/></g>
+      <path class="owl-beak" d="M90 128 L110 128 L100 145 Z"/>
+    </g>
+    <path class="owl-wing owl-wing-l" d="M24 190 C18 140 38 92 72 74 C96 84 104 112 98 136 C92 160 64 186 24 190 Z"/>
+    <path class="owl-wing owl-wing-r" d="M176 190 C182 140 162 92 128 74 C104 84 96 112 102 136 C108 160 136 186 176 190 Z"/>
+  </svg>
+
+  <section id="v-loading">
+    <h1>Секундочку…</h1>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </section>
+
+  <section id="v-reset" hidden>
+    <h1>Новый пароль</h1>
+    <p>для <b id="reset-email"></b></p>
+    <form id="reset-form" novalidate>
+      <div class="pw-wrap">
+        <input type="password" id="pw" autocomplete="new-password" placeholder="Новый пароль" minlength="6" required>
+        <button type="button" class="pw-eye" id="pw-eye" aria-label="Показать пароль"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line class="slash" x1="3" y1="3" x2="21" y2="21"/></svg></button>
+      </div>
+      <div class="hint">Минимум 6 символов. Лучше — фраза из нескольких слов.</div>
+      <div class="msg" id="reset-msg"></div>
+      <button class="btn" id="reset-btn" type="submit">Сохранить пароль</button>
+    </form>
+  </section>
+
+  <section id="v-done" hidden>
+    <div class="badge" id="done-badge"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+    <h1 id="done-title"></h1>
+    <p id="done-text"></p>
+    <a class="btn" href="/">Открыть Owl</a>
+  </section>
+
+  <section id="v-error" hidden>
+    <div class="badge err"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg></div>
+    <h1 id="err-title">Ссылка не сработала</h1>
+    <p id="err-text"></p>
+    <a class="btn" href="/">Открыть Owl</a>
+  </section>
+
+  <div class="foot">Owl Messenger · <a href="/privacy.html">Конфиденциальность</a></div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
+  import { getAuth, applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+  const app = initializeApp({
+    apiKey: "AIzaSyCYeKCL1hqaDwmNp6bRuSZ4MPjMvMikqbY",
+    authDomain: "mymessenger-12ec5.firebaseapp.com",
+    projectId: "mymessenger-12ec5",
+  });
+  // App Check обязателен для Authentication (Enforced) — без него ссылки из писем не сработают
+  try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LciOuQtAAAAACzfAsHZMSxZ13E4hyN9kYvXcVK3"), isTokenAutoRefreshEnabled: false }); } catch (e) { console.log("appcheck:", e); }
+  const auth = getAuth(app);
+  auth.languageCode = "ru";
+
+  const $ = (id) => document.getElementById(id);
+  const owl = $("owl");
+  const params = new URLSearchParams(location.search);
+  const mode = params.get("mode"), code = params.get("oobCode");
+  // убираем одноразовый код из адресной строки и истории
+  try { history.replaceState(null, "", location.pathname); } catch (_) {}
+
+  function show(id) { for (const s of ["v-loading", "v-reset", "v-done", "v-error"]) $(s).hidden = s !== id; }
+  function react(kind) { owl.classList.remove("happy", "shake"); void owl.getBoundingClientRect(); owl.classList.add(kind); }
+  function done(title, text) { $("done-title").textContent = title; $("done-text").textContent = text; show("v-done"); react("happy"); }
+  function fail(err) {
+    const c = (err && err.code) || "";
+    console.log("action error:", c, err);
+    const texts = {
+      "auth/expired-action-code": "Срок действия ссылки истёк. Запросите новое письмо в приложении.",
+      "auth/invalid-action-code": "Ссылка уже использована или устарела. Если вы запрашивали письмо несколько раз — откройте самое последнее.",
+      "auth/user-disabled": "Этот аккаунт отключён.",
+      "auth/user-not-found": "Аккаунт не найден — возможно, он удалён.",
+      "auth/network-request-failed": "Нет соединения с интернетом. Проверьте сеть и откройте ссылку ещё раз.",
+      "auth/too-many-requests": "Слишком много попыток. Подождите немного и попробуйте снова.",
+    };
+    $("err-text").textContent = texts[c] || (c.includes("app-check") ? "Не удалось пройти проверку безопасности. Отключите блокировщик рекламы или откройте ссылку в другом браузере." : "Что-то пошло не так. Попробуйте открыть ссылку ещё раз или запросите новое письмо.");
+    show("v-error"); react("shake");
+  }
+
+  async function run() {
+    if (!mode || !code) { $("err-title").textContent = "Здесь пусто"; $("err-text").textContent = "Эта страница открывается по ссылке из письма Owl."; show("v-error"); return; }
+    try {
+      if (mode === "verifyEmail") {
+        await applyActionCode(auth, code);
+        done("Почта подтверждена!", "Спасибо! Теперь ваш аккаунт Owl надёжнее защищён. Можно возвращаться к общению.");
+      } else if (mode === "resetPassword") {
+        const email = await verifyPasswordResetCode(auth, code);
+        $("reset-email").textContent = email;
+        show("v-reset"); setTimeout(() => $("pw").focus(), 300);
+      } else if (mode === "recoverEmail") {
+        const info = await checkActionCode(auth, code);
+        await applyActionCode(auth, code);
+        done("Почта восстановлена", "Для аккаунта снова указан адрес " + (info.data.email || "") + ". Если почту меняли не вы — смените пароль.");
+      } else if (mode === "verifyAndChangeEmail") {
+        await applyActionCode(auth, code);
+        done("Почта изменена", "Новый адрес подтверждён. Используйте его для входа в Owl.");
+      } else {
+        throw { code: "auth/invalid-action-code" };
+      }
+    } catch (e) { fail(e); }
+  }
+
+  // форма нового пароля: сова закрывает глаза, пока вы печатаете
+  const pw = $("pw"), eye = $("pw-eye");
+  pw.addEventListener("focus", () => owl.classList.toggle(pw.type === "password" ? "cover" : "peek", true));
+  pw.addEventListener("blur", () => owl.classList.remove("cover", "peek"));
+  pw.addEventListener("input", () => { $("reset-msg").textContent = ""; });
+  eye.addEventListener("mousedown", (e) => e.preventDefault());
+  eye.addEventListener("click", () => {
+    const show = pw.type === "password";
+    pw.type = show ? "text" : "password"; eye.classList.toggle("on", show);
+    if (document.activeElement === pw) { owl.classList.toggle("cover", !show); owl.classList.toggle("peek", show); }
+  });
+  $("reset-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const val = pw.value;
+    if (val.length < 6) { $("reset-msg").textContent = "Пароль должен быть не короче 6 символов"; react("shake"); return; }
+    const btn = $("reset-btn"); btn.disabled = true; btn.textContent = "Сохраняем…";
+    try {
+      await confirmPasswordReset(auth, code, val);
+      pw.blur(); owl.classList.remove("cover", "peek");
+      done("Пароль изменён!", "Войдите в Owl с новым паролем. Если вы были авторизованы на других устройствах — там тоже понадобится новый пароль.");
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Сохранить пароль";
+      if (err.code === "auth/weak-password") { $("reset-msg").textContent = "Слишком простой пароль — придумайте сложнее"; react("shake"); }
+      else fail(err);
+    }
+  });
+
+  run();
+</script>
+</body>
+</html>
