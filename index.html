@@ -1447,7 +1447,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.63</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.64</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2206,7 +2206,7 @@
               b.update(doc(db, "users", targetUid), { followersCount: increment(1) });
               b.update(doc(db, "users", uid), { followingCount: increment(1) });
               await b.commit();
-              addDoc(collection(db, "notifications"), { fromUid: uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false }).catch(e => console.log("Уведомление о подписке:", e.code));
+              addDoc(collection(db, "notifications"), { fromUid: uid, toUid: targetUid, text: `${currentUser.displayName} подписался на вас!`, timestamp: new Date(), read: false, type: "follow" }).catch(e => console.log("Уведомление о подписке:", e.code));
               return;
           }
           if (myFollowsOut && myFollowsOut.has(targetUid)) {
@@ -2231,7 +2231,7 @@
               try {
                   await setDoc(doc(db, "group_invites", gid + "_" + to), { gid, groupName: String(groupName || "Беседа").slice(0, 100), toUid: to, fromUid: currentUser.uid, fromName: (currentUser.displayName || "").slice(0, 64), createdAt: new Date() });
                   sent++;
-                  addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: to, text: `${currentUser.displayName} приглашает вас в беседу «${groupName}»`, timestamp: new Date(), read: false }).catch(() => {});
+                  addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: to, text: `${currentUser.displayName} приглашает вас в беседу «${groupName}»`, timestamp: new Date(), read: false, type: "invite", chatId: gid }).catch(() => {});
               } catch (e) { console.log("Приглашение " + to + ":", e.code || e); }
           }));
           return sent;
@@ -3337,6 +3337,14 @@
 
       let notificationsListener = null;
       // От кого уведомление: официальные — «Owl Messenger» с синей галочкой, остальные — ник отправителя
+      // Текст уведомления: для «подписался» и «удалил переписку» собираем сами из типа и имени отправителя —
+      // присланный текст не показываем (его можно было бы подделать). Остальное — как есть (упоминание цитирует сообщение)
+      function notifText(n) {
+          const who = (n.fromUid && usersCache[n.fromUid]?.name) || "Пользователь";
+          if (n.type === "follow") return `${who} подписался(ась) на вас!`;
+          if (n.type === "chat_deleted") return `${who} удалил(а) вашу переписку`;
+          return String(n.text || "");
+      }
       function notifSourceLabel(n) {
           const official = n.type === "broadcast" || (n.fromUid && usersCache[n.fromUid]?.email === ADMIN_EMAIL);
           if (official) return `<b style="color:#3390ec">Owl Messenger ✓</b> · `;
@@ -3357,7 +3365,7 @@
           notifs.forEach(n => {
               if (!n.read) unreadCount++;
               listHtml += `<div style="padding:10px; border-radius:10px; background: ${n.read ? 'transparent' : 'var(--input-bg)'}; border:1px solid var(--border-color); text-align:left; opacity: ${n.read ? '0.7' : '1'}">
-                 <div style="font-size:14px; color:var(--text-main); font-weight: ${n.read ? 'normal' : 'bold'}; white-space: pre-wrap; word-break: break-word;">${escapeHTML(n.text)}</div>
+                 <div style="font-size:14px; color:var(--text-main); font-weight: ${n.read ? 'normal' : 'bold'}; white-space: pre-wrap; word-break: break-word;">${escapeHTML(notifText(n))}</div>
                  <div style="font-size:11px; color:var(--accent); margin-top:4px;">${notifSourceLabel(n)}${new Date(getTime(n.timestamp)).toLocaleString()}</div>
               </div>`;
           });
@@ -3380,7 +3388,7 @@
           if (fresh.length > 2) {
               showToast(`Новых уведомлений: ${fresh.length}. Нажмите, чтобы посмотреть`, "bell", { onClick: () => document.getElementById("notif-btn").click() });
               playNotifySound();
-          } else fresh.forEach(c => { showToast(c.doc.data().text, "bell", { onClick: () => document.getElementById("notif-btn").click() }); playNotifySound(); });
+          } else fresh.forEach(c => { showToast(notifText(c.doc.data()), "bell", { onClick: () => document.getElementById("notif-btn").click() }); playNotifySound(); });
           fresh.forEach(c => updateDoc(doc(db, "notifications", c.doc.id), { toasted: true }).catch(e=>{}));
         };
         notificationsListener = onSnapshot(qLatest, handleNotifs, (err) => {
@@ -3803,7 +3811,7 @@
               await deleteDoc(doc(db, "chats_metadata", chatId)).catch(() =>
                   setDoc(doc(db, "chats_metadata", chatId), { members: chatId.split("_"), lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
               delete chatsMetaCache[chatId];
-              addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, timestamp: new Date(), read: false }).catch(() => {});
+              addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, type: "chat_deleted", chatId, timestamp: new Date(), read: false }).catch(() => {});
               loadedMsgs = {}; document.getElementById("chat-box").innerHTML = "";
               renderChatList(document.getElementById("search-input").value);
               showToast("Переписка удалена", "trash");
