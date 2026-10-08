@@ -1369,7 +1369,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.57</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.58</div>
       </div>
       
       <!-- ЧАТ -->
@@ -5050,6 +5050,8 @@
       // УМНАЯ СИСТЕМА ДОБАВЛЕНИЯ/УДАЛЕНИЯ РЕАКЦИЙ
       window.addReaction = async (msgId, emoji) => {
         if(!currentUser) return;
+        emoji = String(emoji).replace(/\ufe0f/g, ""); // база принимает ❤ без «эмодзи-модификатора»
+        if (!REACTION_SET.has(emoji) || !SAFE_ID.test(msgId)) return;
         try { 
             const msgRef = doc(db, "messages", msgId);
             const snap = await getDoc(msgRef);
