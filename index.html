@@ -714,8 +714,9 @@
       .my-new { position: absolute; top: -7px; right: 8px; font-style: normal; font-size: 11px; font-weight: 800; color: #fff; background: var(--accent); border-radius: 10px; padding: 2px 7px; transform: scale(0); transition: transform .35s cubic-bezier(.2,1.5,.4,1); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 50%, transparent); }
       .my-new.on { transform: scale(1); animation: newPulse 2.2s ease-in-out infinite .4s; }
       @keyframes newPulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent), 0 4px 12px color-mix(in srgb, var(--accent) 50%, transparent); transform: scale(1.06); } }
-      #follow-tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: var(--input-bg); border-radius: 14px; padding: 4px !important; margin: 0 0 6px !important; }
-      #follow-tabs .tab { justify-content: center; position: relative; z-index: 1; background: transparent !important; transition: color .25s; }
+      #follow-tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: var(--input-bg); border-radius: 14px; padding: 4px !important; margin: 0 0 6px !important; flex-shrink: 0; overflow: visible; }
+      #follow-tabs .tab { justify-content: center; align-items: center; position: relative; z-index: 1; background: transparent !important; transition: color .25s; padding: 9px 10px; font-size: 14px; line-height: 1.2; }
+      #follow-screen h2 { flex-shrink: 0; }
       #follow-tabs .tab.active { color: #fff; }
       #follow-tabs::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 10px; background: var(--accent); transition: transform .35s cubic-bezier(.3,1.3,.5,1); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent); }
       #follow-tabs.second::before { transform: translateX(100%); }
@@ -1368,7 +1369,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.54</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.55</div>
       </div>
       
       <!-- ЧАТ -->
@@ -4436,7 +4437,7 @@
           document.getElementById("follow-tabs").classList.toggle("second", tab === "following");
           const isMe = uid === currentUser.uid;
           if (isMe && tab === "followers") { try { localStorage.setItem("owl-seen-followers-" + uid, String(Date.now())); } catch (_) {} setTimeout(renderMyStats, 50); }
-          document.getElementById("follow-title").textContent = u.name || "Профиль";
+          document.getElementById("follow-title").textContent = uid === currentUser.uid ? (tab === "followers" ? "Мои подписчики" : "Мои подписки") : (u.name || "Профиль");
           document.getElementById("public-profile-screen").style.display = "none";
           document.getElementById("follow-screen").style.display = "flex";
           const list = document.getElementById("follow-list");
