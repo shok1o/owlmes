@@ -1369,7 +1369,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.55</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.57</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3008,7 +3008,7 @@
           // (watchUser). Раньше каждый скачивал профили всех пользователей.
           window.__ingestUser = (u, quiet) => {
               ingestUser(u, quiet);
-              if (u && currentUser && u.uid === currentUser.uid) { watchContacts(); migrateMyPrivate(); migrateMyRestricted(); if (Array.isArray(u.blocked)) migrateBlockedList(u).catch(e => console.log("Перенос блокировок:", e.code || e)); }
+              if (u && currentUser && u.uid === currentUser.uid) { watchContacts(); migrateMyPrivate(); migrateMyRestricted(); renderMyStats(); if (Array.isArray(u.blocked)) migrateBlockedList(u).catch(e => console.log("Перенос блокировок:", e.code || e)); }
           };
           startOwnListeners();
           if (!isAdmin) { usersListener = null; watchUser(currentUser.uid); }
@@ -3332,6 +3332,9 @@
         if (e.target.closest('#logout-btn-header') || e.target.closest('#open-create-group-btn') || e.target.closest('#notif-btn') || e.target.closest('#dev-panel-btn')) return; 
         document.getElementById("edit-name-row").style.display = "none";
         if (currentUser) {
+            // при каждом открытии счётчики «докручиваются» с нуля — и заодно гарантированно актуальны
+            ["my-followers-n", "my-following-n"].forEach(id => { const el = document.getElementById(id); el.dataset.n = 0; el.textContent = "0"; });
+            setTimeout(renderMyStats, 120);
             let u = usersCache[currentUser.uid];
             let displayN = u ? u.name : (currentUser.displayName || "Пользователь");
             document.getElementById("settings-avatar").src = getAvatar(currentUser.uid, displayN);
@@ -3526,6 +3529,7 @@
                     if (u) {
                         let av = getAvatar(u.uid, u.name);
                         let adminLabel = (g.adminUid === u.uid) ? `<span style="font-size:10px; background:var(--accent); color:white; padding:2px 5px; border-radius:5px; margin-left:5px;">Админ</span>` : "";
+                        if (!SAFE_ID.test(g.id) || !SAFE_ID.test(mUid)) return;
                         let makeAdminBtn = (isGroupAdmin && mUid !== currentUser.uid) ? `<button onclick="makeGroupAdmin('${g.id}', '${mUid}')" style="margin-left:auto; background:var(--input-bg); border:none; color:var(--text-main); font-size:11px; padding:4px 8px; border-radius:8px; cursor:pointer;">Сделать админом</button>` : "";
                         let removeUserBtn = (isGroupAdmin && mUid !== currentUser.uid) ? `<button onclick="removeGroupMember('${g.id}', '${mUid}')" style="margin-left:5px; background:#ff3b30; border:none; color:white; font-size:11px; padding:4px 8px; border-radius:8px; cursor:pointer;">Исключить</button>` : "";
                         mList.innerHTML += `<div style="display:flex; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color);"><img src="${av}" style="width:30px; height:30px; border-radius:50%; margin-right:10px; object-fit:cover;"><span style="font-size:14px; color:var(--text-main); font-weight:bold;">${escapeHTML(u.name)} ${adminLabel}</span><div style="margin-left:auto; display:flex; gap:5px;">${makeAdminBtn}${removeUserBtn}</div></div>`;
@@ -3989,12 +3993,17 @@
       });
 
       // Хелпер для умной отрисовки реакций
+      // Реакции — только из нашего набора: чужое значение из базы (например, подсунутый HTML) не показываем.
+      // ❤ без «эмодзи-модификатора» компьютер рисует белым символом — показываем с ним (❤️)
+      const REACTION_SET = new Set(["❤", "👍", "😂", "🔥", "😮", "😢", "👏", "🎉", "😍", "🤔", "💯", "🙏"]);
+      const rxShow = (r) => r === "❤" ? "❤️" : r;
       window.buildReactionsHtml = function(msg) {
           let html = "";
-          if (msg.reactions && Object.keys(msg.reactions).length > 0) {
-              let counts = {}; for(let u in msg.reactions) { let r = msg.reactions[u]; counts[r] = (counts[r] || 0) + 1; }
+          if (msg.reactions && Object.keys(msg.reactions).length > 0 && SAFE_ID.test(msg.id)) {
+              let counts = {}; for(let u in msg.reactions) { let r = msg.reactions[u]; if (REACTION_SET.has(r)) counts[r] = (counts[r] || 0) + 1; }
+              if (!Object.keys(counts).length) return "";
               html += `<div class="reactions-list">`;
-              for(let r in counts) { html += `<span class="reaction-badge" onclick="addReaction('${msg.id}', '${r}')">${r} ${counts[r]}</span>`; }
+              for(let r in counts) { html += `<span class="reaction-badge" onclick="addReaction('${msg.id}', '${r}')">${rxShow(r)} ${counts[r]}</span>`; }
               html += `</div>`;
           }
           return html;
@@ -4002,6 +4011,9 @@
 
       let initialChatLoads = {}; 
       let loadedMsgs = {};
+      // Номера документов, которые мы вставляем в разметку: настоящие всегда из латиницы и цифр.
+      // Документ с «хитрым» номером (кавычки, скобки) мог бы выполнить чужой код — такие не показываем вовсе
+      const SAFE_ID = /^[A-Za-z0-9]{1,40}$/;
 
       // Подгрузка истории: при прокрутке вверх увеличиваем лимит и переподписываемся
       const PAGE_SIZE = 30;
@@ -4901,6 +4913,7 @@
               firstSnap = false;
 
               snapshot.forEach(docSnap => {
+                if (!SAFE_ID.test(docSnap.id)) return;
                 let msg = { id: docSnap.id, ...docSnap.data(), _pending: docSnap.metadata.hasPendingWrites };
                 messages.push(msg); loadedMsgs[docSnap.id] = msg;
               });
