@@ -86,6 +86,9 @@
       }
       .sidebar-profile-header:hover { opacity: 0.95; }
       .sph-top { display: flex; justify-content: space-between; align-items: flex-start; }
+      /* Кнопки в шапке — плотным рядом (высота 44 — удобно попадать пальцем) */
+      .sph-actions { gap: 0; }
+      .sph-actions .icon-btn { min-width: 36px; width: 36px; border-radius: 12px; }
       .sph-top img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 5px rgba(0,0,0,0.2); background: var(--bg-main); }
       .sph-info { display: flex; flex-direction: column; }
       .sph-name { font-weight: 600; font-size: 16px; display: flex; align-items: center; justify-content: space-between;}
@@ -1570,7 +1573,7 @@
         <div class="sidebar-profile-header" id="open-settings-btn" title="Мой профиль и настройки">
           <div class="sph-top">
             <img id="my-avatar" src="" alt="Me">
-            <div style="display:flex; gap:10px; z-index:10; position:absolute; right:15px; top:calc(20px + env(safe-area-inset-top, 0px));">
+            <div class="sph-actions" style="display:flex; z-index:10; position:absolute; right:10px; top:calc(20px + env(safe-area-inset-top, 0px));">
                 
                 <button id="dev-panel-btn" class="icon-btn" style="color: white; display: none;" title="Панель разработчика"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></button>
 
@@ -1623,7 +1626,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.71</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.72</div>
       </div>
       
       <!-- ЧАТ -->
