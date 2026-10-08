@@ -332,6 +332,24 @@
       #auth-screen .modal-box { background: color-mix(in srgb, var(--bg-panel) 82%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--border-color); padding-top: 18px; animation: authIn .5s cubic-bezier(.2,1.2,.4,1); }
       @keyframes authIn { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
       .owl-auth { width: 104px; height: 99px; margin: 0 auto 6px; }
+      #verify-screen { background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 28%, var(--bg-main)) 0%, var(--bg-main) 60%); }
+      #verify-screen .modal-box { background: color-mix(in srgb, var(--bg-panel) 82%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid var(--border-color); padding-top: 18px; animation: authIn .5s cubic-bezier(.2,1.2,.4,1); }
+      #verify-screen p { color: var(--text-muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5; }
+      #verify-screen p b { color: var(--text-main); display: block; overflow-wrap: anywhere; }
+      .owl-idle .owl-pupil { animation: owlLook 4.8s ease-in-out infinite; }
+      .owl-idle .owl-lid { animation: owlBlink 3.6s infinite; }
+      .owl-idle.happy .owl-lid { animation: none; }
+      .otp-wrap { position: relative; display: flex; gap: 8px; justify-content: center; margin: 4px 0 6px; }
+      .otp-wrap span { width: 46px; height: 56px; border-radius: 12px; background: var(--input-bg); border: 2px solid transparent; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: var(--text-main); font-variant-numeric: tabular-nums; transition: border-color .15s, transform .15s; }
+      .otp-wrap span.cur { border-color: var(--accent); }
+      .otp-wrap span.fill { transform: scale(1.04); }
+      .otp-wrap.bad span { border-color: #ff5a5f; }
+      .otp-wrap input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; border: 0; padding: 0; margin: 0; color: transparent; background: transparent; caret-color: transparent; }
+      .otp-msg { min-height: 20px; font-size: 13px; color: #ff6b6b; margin: 2px 0 8px; }
+      .verify-links { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; font-size: 14px; }
+      .verify-links button { background: none; border: 0; color: var(--text-muted); font: inherit; cursor: pointer; padding: 2px; }
+      .verify-links button:disabled { opacity: .55; cursor: default; }
+      .verify-links .accent { color: var(--accent); font-weight: 600; }
       .auth-tagline { margin: 0 0 18px; font-size: 13px; color: var(--text-muted); }
       @media (prefers-reduced-motion: reduce) { .owl-loader, .owl-loader .owl-pupil, .owl-loader .owl-lid, .owl-stars i, .owl-dots i, #auth-screen .modal-box { animation: none; } .owl-wing, .owl-pupil { transition: none; } }
       .global-loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px; transition: opacity 0.4s; }
@@ -1391,6 +1409,40 @@
       </div>
     </div>
 
+    <!-- Подтверждение почты кодом (новые аккаунты) -->
+    <div id="verify-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <svg class="owl-art owl-auth owl-idle" id="owl-vf" viewBox="0 0 200 190" aria-hidden="true">
+          <defs><clipPath id="oc-l-vf"><circle cx="70" cy="96" r="17"/></clipPath><clipPath id="oc-r-vf"><circle cx="130" cy="96" r="17"/></clipPath></defs>
+          <g class="owl-head">
+            <path class="owl-face" d="M46 30 Q58 46 70 52 Q100 42 130 52 Q142 46 154 30 Q172 62 172 104 Q172 150 136 168 Q100 184 64 168 Q28 150 28 104 Q28 62 46 30 Z"/>
+            <circle cx="70" cy="96" r="27" class="owl-iris"/><circle cx="130" cy="96" r="27" class="owl-iris"/>
+            <circle cx="70" cy="96" r="17" class="owl-white"/><circle cx="130" cy="96" r="17" class="owl-white"/>
+            <g clip-path="url(#oc-l-vf)"><g class="owl-pupil"><circle cx="70" cy="97" r="8.5"/><circle cx="74" cy="92" r="3" class="owl-glint"/></g><rect x="50" y="78" width="40" height="36" class="owl-lid"/></g>
+            <g clip-path="url(#oc-r-vf)"><g class="owl-pupil"><circle cx="130" cy="97" r="8.5"/><circle cx="134" cy="92" r="3" class="owl-glint"/></g><rect x="110" y="78" width="40" height="36" class="owl-lid"/></g>
+            <path class="owl-beak" d="M90 128 L110 128 L100 145 Z"/>
+          </g>
+          <path class="owl-wing owl-wing-l" d="M24 190 C18 140 38 92 72 74 C96 84 104 112 98 136 C92 160 64 186 24 190 Z"/>
+          <path class="owl-wing owl-wing-r" d="M176 190 C182 140 162 92 128 74 C104 84 96 112 102 136 C108 160 136 186 176 190 Z"/>
+        </svg>
+        <h2 style="margin: 0 0 6px; color: var(--text-main);" id="verify-title">Подтвердите почту</h2>
+        <p id="verify-text">Мы отправили код из 5 цифр на <b id="verify-email"></b></p>
+        <div id="verify-code-box">
+          <div class="otp-wrap" id="otp-wrap"><span></span><span></span><span></span><span></span><span></span><input id="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="5" pattern="[0-9]*" aria-label="Код из письма"></div>
+          <div class="otp-msg" id="otp-msg"></div>
+          <button id="verify-btn" class="modal-btn">Подтвердить</button>
+        </div>
+        <div id="verify-link-box" style="display: none;">
+          <button id="verify-link-done" class="modal-btn">Я перешёл по ссылке</button>
+        </div>
+        <div class="verify-links">
+          <button id="verify-resend">Отправить код ещё раз</button>
+          <button id="verify-by-link">Письмо не приходит? Подтвердить по ссылке</button>
+          <button id="verify-logout">Выйти</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
     <div id="app-container" style="display: none;">
       
@@ -1447,7 +1499,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.66</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.67</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3974,7 +4026,16 @@
           forgotBtn.addEventListener("click", async () => {
             let email = document.getElementById("auth-email").value.trim();
             if (!email) return alert("Введите ваш Email в поле выше.");
-            try { await sendPasswordResetEmail(auth, email); alert(`Письмо для сброса пароля отправлено на ${email}.`); } catch (error) { alert("Ошибка: Убедитесь, что email введен верно."); }
+            forgotBtn.style.pointerEvents = "none";
+            try {
+              // Красивое письмо от Owl через сервер; если сервер писем недоступен — стандартное письмо Firebase
+              const r = await emailPost("/email/reset", { email });
+              if (r.status === 429) return showToast(`Слишком часто. Попробуйте через ${fmtWait(r.data.retryAfter)}`, "shield");
+              if (r.status === 400) return showToast("Проверьте email — похоже, в нём ошибка", "alert");
+              if (!r.ok) await sendPasswordResetEmail(auth, email);
+              showToast(`Если аккаунт с ${email} существует, письмо для сброса пароля уже летит 🦉`, "bell");
+            } catch (error) { showToast("Не удалось отправить письмо. Проверьте email и интернет", "alert"); }
+            finally { forgotBtn.style.pointerEvents = ""; }
           });
       }
 
@@ -4018,8 +4079,7 @@
               await deleteUser(userCred.user).catch(() => {}); // откат: не оставляем аккаунт без профиля
               throw profileErr;
             }
-            // ждём отправку (App Check добавляет задержку) — иначе reload обрывает запрос
-            await Promise.race([sendEmailVerification(userCred.user).catch(e => console.log("verify email:", e.code)), new Promise(r => setTimeout(r, 8000))]);
+            // Код подтверждения почты отправит экран «Подтвердите почту» после перезагрузки
             location.reload(); 
           }
         } catch (error) { 
@@ -4046,6 +4106,112 @@
         }
       });
 
+      // ===== ПОДТВЕРЖДЕНИЕ ПОЧТЫ КОДОМ =====
+      // Обязательно для аккаунтов, созданных начиная с этой даты; старые аккаунты не трогаем
+      const EMAIL_GATE_SINCE = Date.parse("2026-10-08T00:00:00Z");
+      function needsEmailCode(user) {
+          if (user.emailVerified || user.email === ADMIN_EMAIL) return false;
+          const created = Date.parse(user.metadata && user.metadata.creationTime || "");
+          return isFinite(created) && created >= EMAIL_GATE_SINCE;
+      }
+      const fmtWait = (sec) => { sec = Math.max(1, Number(sec) || 60); return sec < 90 ? `${sec} сек` : `${Math.ceil(sec / 60)} мин`; };
+      // Запрос к серверу писем: App Check обязателен, ID token — если вошли
+      async function emailPost(path, data) {
+          let ac = null; if (appCheck) try { ac = (await getAppCheckToken(appCheck)).token; } catch (e) { console.log("App Check токен:", e.code || e.message || e); }
+          const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+          try {
+              const res = await fetch(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token, appCheck: ac }) });
+              return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
+          } catch (e) { return { ok: false, status: 0, data: {} }; }
+      }
+      function showVerifyScreen(user) {
+          const $v = (id) => document.getElementById(id);
+          const owl = $v("owl-vf"), input = $v("otp-input"), wrap = $v("otp-wrap"), cells = wrap.querySelectorAll("span"), msg = $v("otp-msg");
+          const resendBtn = $v("verify-resend"), verifyBtn = $v("verify-btn");
+          const react = (k) => { owl.classList.remove("happy", "shake"); void owl.getBoundingClientRect(); owl.classList.add(k); };
+          stopPresence(false);
+          $v("global-loader").style.display = "none";
+          $v("auth-screen").style.display = "none";
+          $v("verify-screen").style.display = "flex";
+          $v("verify-email").textContent = user.email;
+
+          const paint = () => {
+              const v = input.value;
+              cells.forEach((c, i) => { c.textContent = v[i] || ""; c.classList.toggle("fill", !!v[i]); c.classList.toggle("cur", document.activeElement === input && i === Math.min(v.length, 4)); });
+          };
+          input.addEventListener("input", () => {
+              input.value = input.value.replace(/\D/g, "").slice(0, 5);
+              wrap.classList.remove("bad"); msg.textContent = ""; paint();
+              if (input.value.length === 5) verify();
+          });
+          input.addEventListener("focus", paint); input.addEventListener("blur", paint);
+          wrap.addEventListener("click", () => input.focus());
+
+          let cooldownTimer = null;
+          const cooldown = (sec) => {
+              clearInterval(cooldownTimer); let left = Math.max(1, sec | 0);
+              resendBtn.disabled = true;
+              const tick = () => { resendBtn.textContent = `Отправить код ещё раз (${left})`; if (--left < 0) { clearInterval(cooldownTimer); resendBtn.disabled = false; resendBtn.textContent = "Отправить код ещё раз"; } };
+              tick(); cooldownTimer = setInterval(tick, 1000);
+          };
+          const sentKey = "owl-otp-sent-" + user.uid;
+          async function sendCode(manual) {
+              resendBtn.disabled = true;
+              const r = await emailPost("/email/send-code", {});
+              if (r.ok && r.data.verified) return finish();
+              if (r.ok) { try { sessionStorage.setItem(sentKey, String(Date.now())); } catch (_) {} if (manual) showToast("Новый код отправлен 🦉", "bell"); cooldown(60); return; }
+              if (r.status === 429) { cooldown(r.data.retryAfter || 60); if (manual) showToast(`Слишком часто. Новый код можно запросить через ${fmtWait(r.data.retryAfter)}`, "shield"); return; }
+              // Сервер писем недоступен — переходим на подтверждение ссылкой от Firebase
+              resendBtn.disabled = false;
+              if (r.status === 503 || r.status === 0 || r.status >= 500) return useLink(true);
+              msg.textContent = "Не удалось отправить код. Попробуйте ещё раз";
+          }
+          async function verify() {
+              const code = input.value;
+              if (code.length !== 5) { wrap.classList.add("bad"); msg.textContent = "Введите все 5 цифр"; react("shake"); return; }
+              verifyBtn.disabled = true; verifyBtn.textContent = "Проверяем…";
+              const r = await emailPost("/email/verify-code", { code });
+              verifyBtn.disabled = false; verifyBtn.textContent = "Подтвердить";
+              if (r.ok) return finish();
+              wrap.classList.add("bad"); react("shake"); input.value = ""; paint(); input.focus();
+              const e = r.data.error;
+              msg.textContent = e === "wrong code" ? (r.data.left > 0 ? `Неверный код. Осталось попыток: ${r.data.left}` : "Неверный код. Запросите новый")
+                  : e === "expired" ? "Код устарел — запросите новый"
+                  : e === "too many tries" ? "Слишком много попыток — запросите новый код"
+                  : "Не получилось проверить код. Попробуйте ещё раз";
+          }
+          async function finish() {
+              react("happy"); $v("verify-title").textContent = "Почта подтверждена!"; msg.textContent = "";
+              try { sessionStorage.removeItem(sentKey); await user.reload(); await user.getIdToken(true); } catch (_) {}
+              setTimeout(() => location.reload(), 900);
+          }
+          // Запасной путь: ссылка из стандартного письма Firebase
+          async function useLink(auto) {
+              $v("verify-code-box").style.display = "none"; $v("verify-link-box").style.display = "block";
+              $v("verify-by-link").style.display = "none"; resendBtn.style.display = "none";
+              $v("verify-text").innerHTML = "";
+              $v("verify-text").append("Мы отправили ссылку для подтверждения на ", Object.assign(document.createElement("b"), { textContent: user.email }), ". Откройте письмо, перейдите по ссылке и вернитесь сюда.");
+              try { await sendEmailVerification(user, { url: "https://owlmes.ru/" }); }
+              catch (e) { showToast(e.code === "auth/too-many-requests" ? "Письмо уже отправлено недавно — проверьте почту и папку «Спам»" : "Не удалось отправить письмо, попробуйте позже", "alert"); }
+              if (auto) console.log("Сервер писем недоступен — подтверждение по ссылке");
+          }
+          verifyBtn.addEventListener("click", verify);
+          resendBtn.addEventListener("click", () => sendCode(true));
+          $v("verify-by-link").addEventListener("click", () => useLink(false));
+          $v("verify-link-done").addEventListener("click", async () => {
+              try { await user.reload(); } catch (_) {}
+              if (auth.currentUser && auth.currentUser.emailVerified) finish();
+              else showToast("Почта ещё не подтверждена — откройте ссылку из письма (проверьте и «Спам»)", "alert");
+          });
+          $v("verify-logout").addEventListener("click", () => { $v("verify-screen").style.display = "none"; signOut(auth); });
+
+          paint();
+          // Код отправляем сами, но не чаще раза в минуту при перезагрузках
+          let last = 0; try { last = Number(sessionStorage.getItem(sentKey)) || 0; } catch (_) {}
+          if (Date.now() - last > 60000) sendCode(false); else cooldown(60 - Math.floor((Date.now() - last) / 1000));
+          setTimeout(() => input.focus(), 400);
+      }
+
       onAuthStateChanged(auth, async (user) => {
         if (user) {
           currentUser = user; isAdmin = (user.email === ADMIN_EMAIL);
@@ -4054,6 +4220,8 @@
 
           // Аккаунт удалён админом — профиль заново не создаём, показываем экран и выходим
           try { if ((await getDoc(doc(db, "deleted_accounts", user.uid))).exists()) { showDeletedScreen(); return; } } catch (_) {}
+          // Новые аккаунты сначала подтверждают почту кодом из письма
+          if (needsEmailCode(user)) { showVerifyScreen(user); return; }
 
           let safeName = user.displayName || "Загрузка...";
           // Ник пишем, только если он уже есть (при регистрации он появится чуть позже — его занимает claimNickname)
