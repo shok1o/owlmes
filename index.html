@@ -392,6 +392,13 @@
         animation: toastIn .45s cubic-bezier(.2,1.3,.3,1); transition: opacity .3s, transform .3s; }
       .toast .toast-icon { color: var(--accent); }
       .toast.out { opacity: 0; transform: translateY(-14px) scale(.96); }
+      #toast-container { gap: 0; }
+      .toast { margin-bottom: 10px; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; will-change: transform; }
+      .toast.drag { transition: none; cursor: grabbing; }
+      .toast.gone { pointer-events: none; }
+      #toast-clear { align-self: center; pointer-events: none; opacity: 0; transform: translateY(-8px) scale(.9); transition: opacity .25s, transform .3s cubic-bezier(.2,1.3,.3,1); border: 1px solid rgba(255,255,255,.22); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--text-main); cursor: pointer;
+        background: color-mix(in srgb, var(--bg-panel) 60%, transparent); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+      #toast-clear.on { pointer-events: auto; opacity: 1; transform: none; }
       @keyframes toastIn { from { transform: translateY(-22px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
       .toast span:first-child { flex-shrink: 0; }
       .toast-icon { display: flex; padding-top: 1px; }
@@ -698,6 +705,52 @@
       .fl-row:hover { background: var(--input-bg); }
       .fl-row img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
       .fl-row b { font-size: 15px; color: var(--text-main); }
+      /* ===== Мои подписчики, список подписок, плавные анимации ===== */
+      .my-stats { display: flex; gap: 10px; margin: 0 0 16px; }
+      .my-stat { flex: 1; position: relative; border: 1px solid var(--border-color); background: var(--input-bg); border-radius: 16px; padding: 10px 8px; cursor: pointer; color: var(--text-main); font: inherit; display: flex; flex-direction: column; align-items: center; gap: 1px; transition: transform .2s cubic-bezier(.2,1.3,.4,1), background .2s; }
+      .my-stat:active { transform: scale(.96); }
+      .my-stat b { font-size: 20px; font-variant-numeric: tabular-nums; }
+      .my-stat span { font-size: 12px; color: var(--text-muted); }
+      .my-new { position: absolute; top: -7px; right: 8px; font-style: normal; font-size: 11px; font-weight: 800; color: #fff; background: var(--accent); border-radius: 10px; padding: 2px 7px; transform: scale(0); transition: transform .35s cubic-bezier(.2,1.5,.4,1); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 50%, transparent); }
+      .my-new.on { transform: scale(1); animation: newPulse 2.2s ease-in-out infinite .4s; }
+      @keyframes newPulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent), 0 4px 12px color-mix(in srgb, var(--accent) 50%, transparent); transform: scale(1.06); } }
+      #follow-tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0; background: var(--input-bg); border-radius: 14px; padding: 4px !important; margin: 0 0 6px !important; }
+      #follow-tabs .tab { justify-content: center; position: relative; z-index: 1; background: transparent !important; transition: color .25s; }
+      #follow-tabs .tab.active { color: #fff; }
+      #follow-tabs::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 10px; background: var(--accent); transition: transform .35s cubic-bezier(.3,1.3,.5,1); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent); }
+      #follow-tabs.second::before { transform: translateX(100%); }
+      .fl-count { font-size: 12px; color: var(--text-muted); font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 6px 10px 2px; }
+      .fl-row { animation: flIn .42s cubic-bezier(.2,1,.3,1) both; animation-delay: calc(var(--i, 0) * 32ms); transition: background .15s, transform .15s; }
+      .fl-row:active { transform: scale(.985); }
+      @keyframes flIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      .fl-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .fl-txt b { display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .fl-txt span { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+      .fl-new { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 8px; padding: 1px 6px; margin-left: 4px; }
+      .fl-back { border: none; border-radius: 12px; padding: 7px 12px; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: transform .2s; }
+      .fl-back:active { transform: scale(.93); }
+      .fl-mutual { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: #34c759; flex-shrink: 0; animation: flIn .3s ease both; }
+      .fl-search { display: flex; align-items: center; gap: 8px; margin: 4px 8px 6px; padding: 9px 12px; border-radius: 12px; background: var(--input-bg); color: var(--text-muted); }
+      .fl-search input { flex: 1; border: none; outline: none; background: none; color: var(--text-main); font: inherit; font-size: 14px; }
+      .fl-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 10px; text-align: center; color: var(--text-main); }
+      .fl-empty span { font-size: 13px; color: var(--text-muted); }
+      .fl-eyes .fl-pupils { animation: owlLook 4.8s ease-in-out infinite; transform-box: fill-box; }
+      .fl-invite { margin-top: 8px; border: none; border-radius: 12px; padding: 10px 16px; background: var(--accent); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      .burst { position: fixed; width: 0; height: 0; pointer-events: none; z-index: 10001; }
+      .burst i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: burst .65s cubic-bezier(.2,.8,.3,1) forwards; }
+      .burst i:nth-child(3n) { background: #f5b942; width: 5px; height: 5px; }
+      .burst i:nth-child(4n) { background: #fff; }
+      @keyframes burst { from { transform: translate(0, 0) scale(1); opacity: 1; } to { transform: translate(var(--x), var(--y)) scale(.3); opacity: 0; } }
+      .pop { animation: btnPop .45s cubic-bezier(.2,1.6,.4,1); }
+      @keyframes btnPop { 30% { transform: scale(.9); } 65% { transform: scale(1.08); } }
+      /* Окна открываются мягко: фон проявляется, карточка «всплывает» с лёгкой пружиной */
+      .modal-screen[style*="flex"] { animation: scrIn .22s ease-out; }
+      .modal-screen[style*="flex"] > .modal-box { animation: boxIn .38s cubic-bezier(.2,1.25,.35,1); }
+      @keyframes scrIn { from { background-color: rgba(0,0,0,0); } }
+      /* без transform: иначе закреплённые в углу экрана крестики на время анимации «прилипли» бы к карточке */
+      @keyframes boxIn { from { opacity: 0; top: 18px; } to { opacity: 1; top: 0; } }
+      @media (prefers-reduced-motion: reduce) { .fl-row, .fl-mutual, .my-new.on, .fl-eyes .fl-pupils, .pop, .modal-screen[style*="flex"], .modal-screen[style*="flex"] > .modal-box { animation: none !important; } #follow-tabs::before, .my-stat, .my-new { transition: none; } }
+
       #group-invites { flex-shrink: 0; }
       #group-invites:empty { display: none; }
       .gi-card { margin: 6px 12px; padding: 10px 12px; border-radius: 14px; background: var(--input-bg); border: 1px solid var(--border-color); font-size: 13px; color: var(--text-main); }
@@ -1038,6 +1091,10 @@
         </div>
         
         <p id="settings-email" style="margin: 0 0 15px 0; color: var(--text-muted); font-size: 14px;">Email</p>
+        <div class="my-stats">
+          <button type="button" class="my-stat" data-my-follow="followers"><b id="my-followers-n">0</b><span>Подписчики</span><i id="my-followers-new" class="my-new"></i></button>
+          <button type="button" class="my-stat" data-my-follow="following"><b id="my-following-n">0</b><span>Подписки</span></button>
+        </div>
         
         <label class="settings-label">О себе (Видят все)</label>
         <textarea id="settings-bio" rows="2" placeholder="Расскажите немного о себе..."></textarea>
@@ -1311,7 +1368,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.53</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.54</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1521,15 +1578,68 @@
           return html;
       }
 
-      function showToast(message, icon_ = "bell") {
+      // Всплывающие уведомления: смахнуть в сторону или вверх — закрыть, нажать — закрыть (или открыть, если есть действие),
+      // пока палец на уведомлении — оно не исчезает. Когда их несколько — кнопка «Скрыть все».
+      const TOAST_MAX = 4;
+      function showToast(message, icon_ = "bell", opts = {}) {
         const container = document.getElementById("toast-container"); if(!container) return;
         const toast = document.createElement("div"); toast.className = "toast";
         let msg = String(message == null ? "" : message); if (msg.length > 140) msg = msg.slice(0, 137).trimEnd() + "…";
         const ic = document.createElement("span"); ic.className = "toast-icon"; ic.innerHTML = icon(ICONS[icon_] ? icon_ : "info", 18);
         const tx = document.createElement("span"); tx.textContent = msg;
         toast.append(ic, tx);
-        container.appendChild(toast);
-        setTimeout(() => { toast.classList.add("out"); setTimeout(() => toast.remove(), 300); }, msg.length > 60 ? 6000 : 4000);
+        container.insertBefore(toast, document.getElementById("toast-clear"));
+        const live = [...container.querySelectorAll(".toast:not(.gone)")];
+        if (live.length > TOAST_MAX) live.slice(0, live.length - TOAST_MAX).forEach(t => dismissToast(t, "up"));
+        let left = msg.length > 60 ? 6000 : 4000, started = Date.now(), timer = null;
+        const arm = () => { started = Date.now(); timer = setTimeout(() => dismissToast(toast, "up"), left); };
+        const hold = () => { clearTimeout(timer); left = Math.max(1200, left - (Date.now() - started)); };
+        arm();
+        // Жест: тянем за пальцем, отпустили далеко или резко — улетает, иначе пружинит назад
+        let x0 = 0, y0 = 0, dx = 0, dy = 0, t0 = 0, drag = false;
+        toast.addEventListener("pointerdown", (e) => { drag = true; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = Date.now(); hold(); toast.classList.add("drag"); try { toast.setPointerCapture(e.pointerId); } catch (_) {} });
+        toast.addEventListener("pointermove", (e) => {
+          if (!drag) return;
+          dx = e.clientX - x0; dy = Math.min(0, e.clientY - y0);
+          const up = Math.abs(dy) > Math.abs(dx);
+          toast.style.transform = up ? `translateY(${dy}px)` : `translateX(${dx}px) rotate(${dx / 40}deg)`;
+          toast.style.opacity = String(Math.max(.15, 1 - (up ? -dy / 90 : Math.abs(dx) / 220)));
+        });
+        const end = () => {
+          if (!drag) return; drag = false; toast.classList.remove("drag");
+          const dt = Math.max(1, Date.now() - t0), vx = dx / dt, vy = dy / dt, moved = Math.abs(dx) > 6 || dy < -6;
+          if (Math.abs(dx) > 80 || Math.abs(vx) > .6) return dismissToast(toast, dx > 0 ? "right" : "left");
+          if (dy < -40 || vy < -.5) return dismissToast(toast, "up");
+          toast.style.transform = ""; toast.style.opacity = "";
+          if (!moved) { if (opts.onClick) opts.onClick(); return dismissToast(toast, "up"); }
+          arm();
+        };
+        toast.addEventListener("pointerup", end); toast.addEventListener("pointercancel", end);
+        toast.addEventListener("mouseenter", hold); toast.addEventListener("mouseleave", () => { if (!drag && !toast.classList.contains("gone")) arm(); });
+        toast._stop = () => clearTimeout(timer);
+        syncToastClear();
+        return toast;
+      }
+      function dismissToast(toast, dir = "up") {
+        if (!toast || toast.classList.contains("gone")) return;
+        toast.classList.add("gone"); if (toast._stop) toast._stop();
+        const h = toast.offsetHeight;
+        toast.style.transition = "transform .32s cubic-bezier(.3,.7,.4,1), opacity .25s";
+        toast.style.transform = dir === "left" ? "translateX(-120%) rotate(-6deg)" : dir === "right" ? "translateX(120%) rotate(6deg)" : "translateY(-26px) scale(.94)";
+        toast.style.opacity = "0";
+        // Освободившееся место схлопываем плавно — соседние уведомления подъезжают, а не прыгают
+        toast.style.height = h + "px";
+        setTimeout(() => { toast.style.transition += ", height .28s ease, margin .28s ease, padding .28s ease"; toast.style.height = "0px"; toast.style.marginBottom = "0px"; toast.style.paddingTop = toast.style.paddingBottom = "0px"; }, 170);
+        setTimeout(() => { toast.remove(); syncToastClear(); }, 480);
+        syncToastClear();
+      }
+      function syncToastClear() {
+        const container = document.getElementById("toast-container"); if (!container) return;
+        let btn = document.getElementById("toast-clear");
+        const n = container.querySelectorAll(".toast:not(.gone)").length;
+        if (!btn) { btn = document.createElement("button"); btn.id = "toast-clear"; btn.type = "button"; btn.addEventListener("click", () => container.querySelectorAll(".toast:not(.gone)").forEach((t, i) => setTimeout(() => dismissToast(t, i % 2 ? "right" : "left"), i * 60))); container.appendChild(btn); }
+        btn.textContent = "Скрыть все · " + n;
+        btn.classList.toggle("on", n >= 2);
       }
 
       // Последнее сообщение чата моё? (по uid; старые записи — по имени)
@@ -1956,7 +2066,7 @@
       // Старые поля (following/followers/pinnedChats/…) в профиле ещё могут быть до миграции — их учитываем.
       const PRIVATE_PREFS = ["pinnedChats", "quickReaction", "onboarded", "invitedByNick"];
       const LEGACY_FIELDS = ["followers", "following", ...PRIVATE_PREFS];
-      let myPrivate = null, myFollowsOut = null, myFollowsIn = null, myRawProfile = null, ownListeners = [];
+      let myPrivate = null, myFollowsOut = null, myFollowsIn = null, myRawProfile = null, ownListeners = [], myFollowersAt = {};
       let healedFollowing = -1, privMigrating = false;
       // Наложить личные данные на мой профиль в кэше (остальной код читает usersCache[я].following / pinnedChats / …)
       function overlayMe(u) {
@@ -2838,7 +2948,7 @@
           const uid = currentUser.uid;
           const changed = () => {
               const me = usersCache[uid];
-              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); migrateMyRestricted(); }
+              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); migrateMyRestricted(); renderMyStats(); }
               Object.values(usersCache).forEach(ensureRestrictedWatch);
               watchContacts(); usersChanged();
           };
@@ -2848,7 +2958,7 @@
               (e) => { console.log("users_private/я:", e.code); myPrivate = myPrivate || {}; changed(); }));
           ownListeners.push(onSnapshot(query(collection(db, "follows"), where("from", "==", uid)), (s) => { myFollowsOut = new Set(s.docs.map(d => d.data().to)); changed(); },
               (e) => { console.log("follows (мои подписки):", e.code); }));
-          ownListeners.push(onSnapshot(query(collection(db, "follows"), where("to", "==", uid)), (s) => { myFollowsIn = new Set(s.docs.map(d => d.data().from)); rDenied.clear(); changed(); },
+          ownListeners.push(onSnapshot(query(collection(db, "follows"), where("to", "==", uid)), (s) => { myFollowsIn = new Set(s.docs.map(d => d.data().from)); myFollowersAt = {}; s.docs.forEach(d => { myFollowersAt[d.data().from] = getTime(d.data().createdAt); }); rDenied.clear(); changed(); renderMyStats(); },
               (e) => { console.log("follows (мои подписчики):", e.code); }));
       }
       // Мои личные настройки из публичного профиля → users_private (уже сохранённые там значения важнее)
@@ -3144,16 +3254,13 @@
               }
           });
 
-          snapshot.docChanges().forEach(change => {
-            if (change.type === "added") {
-              let n = change.doc.data();
-              if(!n.read && !n.toasted) { 
-                  showToast(n.text, "bell");
-                  playNotifySound();
-                  updateDoc(doc(db, "notifications", change.doc.id), { toasted: true }).catch(e=>{});
-              }
-            }
-          });
+          // Новые непоказанные уведомления. Если их сразу много (например, при входе) — одно общее, а не стопка
+          const fresh = snapshot.docChanges().filter(c => c.type === "added" && !c.doc.data().read && !c.doc.data().toasted);
+          if (fresh.length > 2) {
+              showToast(`Новых уведомлений: ${fresh.length}. Нажмите, чтобы посмотреть`, "bell", { onClick: () => document.getElementById("notif-btn").click() });
+              playNotifySound();
+          } else fresh.forEach(c => { showToast(c.doc.data().text, "bell", { onClick: () => document.getElementById("notif-btn").click() }); playNotifySound(); });
+          fresh.forEach(c => updateDoc(doc(db, "notifications", c.doc.id), { toasted: true }).catch(e=>{}));
         };
         notificationsListener = onSnapshot(qLatest, handleNotifs, (err) => {
             console.warn("Уведомления: нет индекса, загружаю по-старому —", err.code, err.message);
@@ -3467,8 +3574,10 @@
         document.getElementById("public-bio").innerText = !allowedBy(u, "bio") ? "Статус скрыт" : (u.bio ? u.bio : "Статус не указан");
         window.__profileUid = uid;
         const cnt = isAdmin || uid === currentUser.uid || privacyOf(u, "showCounts");
-        document.getElementById("public-followers").innerText = cnt || allowedBy(u, "showFollowers") ? followCount(u, "followers") : "—";
-        document.getElementById("public-following").innerText = cnt || allowedBy(u, "showFollowing") ? followCount(u, "following") : "—";
+        const setStat = (id, v) => { const el = document.getElementById(id); if (v === "—") { el.textContent = "—"; el.dataset.n = 0; } else { if (window.__statUid !== uid) el.dataset.n = 0; countTo(el, v); } };
+        setStat("public-followers", cnt || allowedBy(u, "showFollowers") ? followCount(u, "followers") : "—");
+        setStat("public-following", cnt || allowedBy(u, "showFollowing") ? followCount(u, "following") : "—");
+        window.__statUid = uid;
 
         let followBtn = document.getElementById("public-follow-btn"); let msgBtn = document.getElementById("public-msg-btn");
         const blkBtn = document.getElementById("public-block-btn");
@@ -3495,7 +3604,7 @@
         let targetUid = e.target.getAttribute("data-action-uid"); let myFollowing = usersCache[currentUser.uid]?.following || []; let isFollowing = myFollowing.includes(targetUid);
         try {
           if (isFollowing) { await setFollow(targetUid, false); showToast("Вы отписались", "info"); }
-          else { await setFollow(targetUid, true); showToast("Вы подписались!", "check"); }
+          else { await setFollow(targetUid, true); burstAt(e.target); showToast("Вы подписались!", "check"); }
           openPublicProfile(targetUid); 
         } catch (err) { console.error("Ошибка подписки", err); showToast("Не удалось изменить подписку", "error"); }
       });
@@ -4281,11 +4390,52 @@
           }
           return [...new Set([...ids, ...(Array.isArray(legacy) ? legacy : [])])];
       }
+      // ===== АНИМАЦИИ-МЕЛОЧИ =====
+      const calmMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // Число плавно «докручивается» до нового значения
+      function countTo(el, to) {
+          if (!el) return; to = Number(to) || 0;
+          const from = Number(el.dataset.n || 0); el.dataset.n = to;
+          if (calmMotion() || from === to || !isFinite(from)) { el.textContent = to; return; }
+          const t0 = performance.now(), dur = Math.min(900, 300 + Math.abs(to - from) * 40);
+          const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(from + (to - from) * e); if (k < 1) requestAnimationFrame(step); };
+          requestAnimationFrame(step);
+      }
+      // «Вспышка» из точек вокруг кнопки — при подписке
+      function burstAt(el) {
+          if (!el || calmMotion()) return;
+          const r = el.getBoundingClientRect(), box = document.createElement("div");
+          box.className = "burst"; box.style.left = (r.left + r.width / 2) + "px"; box.style.top = (r.top + r.height / 2) + "px";
+          for (let i = 0; i < 12; i++) { const d = document.createElement("i"), a = i / 12 * Math.PI * 2, dist = 34 + (i % 3) * 10; d.style.setProperty("--x", Math.cos(a) * dist + "px"); d.style.setProperty("--y", Math.sin(a) * dist + "px"); d.style.animationDelay = (i % 3) * 25 + "ms"; box.appendChild(d); }
+          document.body.appendChild(box); setTimeout(() => box.remove(), 800);
+          el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+      }
+      // Мои подписчики/подписки в профиле (Настройки) + «+N новых» с прошлого просмотра
+      function renderMyStats() {
+          const me = currentUser && usersCache[currentUser.uid]; if (!me) return;
+          const nIn = followCount(me, "followers"), nOut = followCount(me, "following");
+          countTo(document.getElementById("my-followers-n"), nIn);
+          countTo(document.getElementById("my-following-n"), nOut);
+          let seen = 0; try { seen = Number(localStorage.getItem("owl-seen-followers-" + currentUser.uid)) || 0; } catch (_) {}
+          const fresh = Object.values(myFollowersAt).filter(t => t > seen).length, badge = document.getElementById("my-followers-new");
+          if (badge) { badge.textContent = fresh ? "+" + fresh : ""; badge.classList.toggle("on", fresh > 0 && seen > 0); }
+          if (!seen) try { localStorage.setItem("owl-seen-followers-" + currentUser.uid, String(Date.now())); } catch (_) {}
+      }
+      document.querySelectorAll("[data-my-follow]").forEach(b => b.addEventListener("click", () => openFollowList(currentUser.uid, b.getAttribute("data-my-follow"))));
+      const eyesMini = () => `<svg class="fl-eyes" viewBox="0 0 120 52" width="96" aria-hidden="true"><circle cx="30" cy="26" r="21" fill="#f6f3ff"/><circle cx="90" cy="26" r="21" fill="#f6f3ff"/><g class="fl-pupils"><circle cx="30" cy="28" r="9" fill="#1b1630"/><circle cx="90" cy="28" r="9" fill="#1b1630"/></g><circle cx="30" cy="26" r="21" fill="none" stroke="var(--accent)" stroke-width="3"/><circle cx="90" cy="26" r="21" fill="none" stroke="var(--accent)" stroke-width="3"/></svg>`;
+      const agoText = (t) => {
+          if (!t) return ""; const d = Date.now() - t, m = 60000, h = 60 * m, day = 24 * h;
+          if (d < h) return "только что"; if (d < day) return Math.floor(d / h) + " ч назад"; if (d < 2 * day) return "вчера";
+          if (d < 30 * day) return Math.floor(d / day) + " дн. назад"; return new Date(t).toLocaleDateString([], { day: "numeric", month: "short" });
+      };
       async function openFollowList(uid, tab) {
           followTarget = uid;
           const u = usersCache[uid]; if (!u) return;
           if (!allowedBy(u, tab === "followers" ? "showFollowers" : "showFollowing")) return showToast(tab === "followers" ? "Пользователь скрыл список подписчиков" : "Пользователь скрыл список подписок", "eye");
           document.querySelectorAll("#follow-tabs .tab").forEach(t => t.classList.toggle("active", t.getAttribute("data-ft") === tab));
+          document.getElementById("follow-tabs").classList.toggle("second", tab === "following");
+          const isMe = uid === currentUser.uid;
+          if (isMe && tab === "followers") { try { localStorage.setItem("owl-seen-followers-" + uid, String(Date.now())); } catch (_) {} setTimeout(renderMyStats, 50); }
           document.getElementById("follow-title").textContent = u.name || "Профиль";
           document.getElementById("public-profile-screen").style.display = "none";
           document.getElementById("follow-screen").style.display = "flex";
@@ -4294,11 +4444,34 @@
           const uids = await followUids(uid, tab);
           if (followTarget !== uid) return;
           if (!uids) { list.innerHTML = `<div class="dev-empty">Список скрыт настройками конфиденциальности</div>`; return; }
-          if (!uids.length) { list.innerHTML = `<div class="dev-empty">${tab === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</div>`; return; }
+          if (!uids.length) {
+              const own = uid === currentUser.uid;
+              list.innerHTML = `<div class="fl-empty">${eyesMini()}<b>${tab === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</b>${own ? `<span>${tab === "followers" ? "Позовите друзей — и они появятся здесь" : "Найдите друзей по нику через поиск"}</span>${tab === "followers" ? '<button class="fl-invite" id="fl-invite">Пригласить друзей</button>' : ""}` : ""}</div>`;
+              const inv = document.getElementById("fl-invite"); if (inv) inv.addEventListener("click", () => shareInvite());
+              return;
+          }
           await ensureUsers(uids);
           if (followTarget !== uid) return;
           const rows = uids.map(id => usersCache[id]).filter(x => x && x.name && !bansCache[x.uid]);
-          list.innerHTML = rows.length ? rows.map(x => `<div class="fl-row" data-fl-uid="${escapeHTML(x.uid)}"><img src="${getAvatar(x.uid, x.name)}" alt=""><b>${escapeHTML(x.name)}</b>${verifiedBadge(x.uid, 13)}</div>`).join("") : `<div class="dev-empty">Никого нет</div>`;
+          const myOut = new Set(usersCache[currentUser.uid]?.following || []);
+          // Свои подписчики — сначала новые
+          if (isMe && tab === "followers") rows.sort((a, b) => (myFollowersAt[b.uid] || 0) - (myFollowersAt[a.uid] || 0));
+          const rowHtml = (x, i) => {
+              const mutual = tab === "followers" ? myOut.has(x.uid) : followsMe(x);
+              let sub = "", act = "";
+              if (isMe && tab === "followers") {
+                  sub = (mutual ? "взаимная подписка" : "подписан(а) на вас") + (myFollowersAt[x.uid] ? " · " + agoText(myFollowersAt[x.uid]) : "");
+                  act = mutual ? `<span class="fl-mutual">${icon("check", 14)}Взаимно</span>` : `<button class="fl-back" data-fl-back="${escapeHTML(x.uid)}">В ответ</button>`;
+              } else if (isMe && tab === "following") sub = mutual ? "взаимная подписка" : "вы подписаны";
+              else if (x.uid === currentUser.uid) sub = "это вы";
+              else sub = myOut.has(x.uid) ? "вы подписаны" : "";
+              const isNew = isMe && tab === "followers" && myFollowersAt[x.uid] && Date.now() - myFollowersAt[x.uid] < 3 * 86400000;
+              return `<div class="fl-row" data-fl-uid="${escapeHTML(x.uid)}" style="--i:${Math.min(i, 14)}"><img src="${getAvatar(x.uid, x.name)}" alt=""><div class="fl-txt"><b>${escapeHTML(x.name)}${verifiedBadge(x.uid, 13)}${isNew ? '<em class="fl-new">новый</em>' : ""}</b>${sub ? `<span>${sub}</span>` : ""}</div>${act}</div>`;
+          };
+          const search = rows.length > 8 ? `<div class="fl-search">${icon("search", 16)}<input id="fl-q" placeholder="Поиск по имени" autocomplete="off"></div>` : "";
+          list.innerHTML = rows.length ? search + `<div class="fl-count">${tab === "followers" ? "Подписчиков" : "Подписок"}: ${rows.length}</div><div id="fl-rows">` + rows.map(rowHtml).join("") + "</div>" : `<div class="dev-empty">Никого нет</div>`;
+          const q = document.getElementById("fl-q");
+          if (q) q.addEventListener("input", () => { const v = q.value.trim().toLowerCase(); document.getElementById("fl-rows").innerHTML = rows.filter(x => x.name.toLowerCase().includes(v)).map(rowHtml).join("") || `<div class="dev-empty">Никого не нашли</div>`; });
       }
       document.querySelectorAll(".profile-stats [data-follow-tab]").forEach(el => el.addEventListener("click", () => {
           const uid = document.getElementById("public-follow-btn").getAttribute("data-action-uid") || (document.getElementById("public-report-btn").getAttribute("data-action-uid")) || currentUser.uid;
@@ -4306,6 +4479,12 @@
       }));
       document.getElementById("follow-tabs").addEventListener("click", (e) => { const t = e.target.closest("[data-ft]"); if (t && followTarget) openFollowList(followTarget, t.getAttribute("data-ft")); });
       document.getElementById("follow-close").addEventListener("click", () => { document.getElementById("follow-screen").style.display = "none"; followTarget = null; });
+      document.getElementById("follow-list").addEventListener("click", async (e) => {
+          const b = e.target.closest("[data-fl-back]"); if (!b) return;
+          e.stopImmediatePropagation(); b.disabled = true;
+          try { await setFollow(b.getAttribute("data-fl-back"), true); burstAt(b); b.outerHTML = `<span class="fl-mutual">${icon("check", 14)}Взаимно</span>`; }
+          catch (err) { console.error(err); b.disabled = false; showToast("Не удалось подписаться", "error"); }
+      }, true);
       document.getElementById("follow-list").addEventListener("click", (e) => { const r = e.target.closest("[data-fl-uid]"); if (r) { document.getElementById("follow-screen").style.display = "none"; openPublicProfile(r.getAttribute("data-fl-uid")); } });
 
       // ===== ЛИЧНАЯ БЛОКИРОВКА =====
