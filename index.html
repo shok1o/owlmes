@@ -1447,7 +1447,7 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.64</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.65</div>
       </div>
       
       <!-- ЧАТ -->
@@ -5525,13 +5525,14 @@
         let previewText = "";
         if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение"; else if (sticker) previewText = "🦉 Стикер";
 
-        try { await postMessage(chatId, msgData, previewText); }
+        let sentRef;
+        try { sentRef = await postMessage(chatId, msgData, previewText); }
         catch (err) { return showToast(sendErrorText(err), "error"); }
         // Упомянутым — уведомление в колокольчик (в беседе им ещё придёт обычный push)
         if (mentioned.length) {
             const where = chatId === "global" ? "глобальном чате" : `беседе «${groupsCache[chatId]?.name || "Беседа"}»`;
             const snippet = text.replace(/\s+/g, " ").slice(0, 90);
-            mentioned.forEach(uid => addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId }).catch(() => {}));
+            mentioned.forEach(uid => addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId, msgId: sentRef.id }).catch(() => {})); // база сверит: сообщение есть и в нём упомянут получатель
         }
       }
       const sendErrorText = (err) => err && err.code === "owl/rate" ? "Не так быстро — в общий чат можно писать раз в секунду" : err && err.code === "permission-denied" ? "Сообщение не отправлено: нет доступа к этому чату" : "Сообщение не отправлено. Попробуйте ещё раз";
