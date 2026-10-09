@@ -1682,7 +1682,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.74</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.75</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1766,7 +1766,7 @@
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
       // ВАЖНО: Добавлены deleteField и getDoc для отмены реакций
-      import { getFirestore, enableIndexedDbPersistence, serverTimestamp, collection, addDoc, onSnapshot, query, where, getDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+      import { getFirestore, enableIndexedDbPersistence, serverTimestamp, collection, addDoc, onSnapshot as fsOnSnapshot, query, where, getDocs as fsGetDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc as fsGetDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
       import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
       import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -1795,6 +1795,39 @@
       });
       
       const ADMIN_EMAIL = "jst@shok1o.ru"; 
+
+      // ===== СЧЁТЧИК ЧТЕНИЙ (примерно, только это устройство) =====
+      // Бесплатно — 50 000 чтений базы в сутки на весь проект. Считаем, что пришло с сервера (не из кэша), по источникам;
+      // админ видит итог в панели разработчика → «Статистика». Чтения при «прогреве» кэша считаются не все — это оценка снизу
+      const readDay = () => { const d = new Date(Date.now() - 7 * 3600e3); return d.toISOString().slice(0, 10); }; // сутки квоты: с ~10:00 МСК
+      let readStats = { day: readDay(), total: 0, by: {} };
+      try { const r = JSON.parse(localStorage.getItem("owl-reads") || "null"); if (r && r.day === readStats.day && r.by) readStats = r; } catch (_) {}
+      let readSaveTimer = null;
+      function countReads(label, n) {
+          if (!n) return;
+          if (readStats.day !== readDay()) readStats = { day: readDay(), total: 0, by: {} };
+          readStats.total += n; readStats.by[label] = (readStats.by[label] || 0) + n;
+          if (!readSaveTimer) readSaveTimer = setTimeout(() => { readSaveTimer = null; try { localStorage.setItem("owl-reads", JSON.stringify(readStats)); } catch (_) {} }, 3000);
+      }
+      function refLabel(ref) {
+          try {
+              if (ref.type === "document") return ref.parent.id + "/{id}";
+              if (ref.type === "collection") return ref.id + " (все)";
+              const segs = ref._query && ref._query.path && ref._query.path.segments;
+              return (segs ? segs[segs.length - 1] : "запрос") + " (выборка)";
+          } catch (_) { return "?"; }
+      }
+      const fromServer = (snap) => snap && snap.metadata && !snap.metadata.fromCache;
+      function onSnapshot(ref, ...args) {
+          const label = refLabel(ref), i = args.findIndex(a => typeof a === "function");
+          if (i >= 0) { const cb = args[i]; args[i] = (snap) => {
+              if (fromServer(snap) && !snap.metadata.hasPendingWrites) countReads(label, typeof snap.docChanges === "function" ? snap.docChanges().length : 1);
+              return cb(snap);
+          }; }
+          return fsOnSnapshot(ref, ...args);
+      }
+      async function getDocs(q) { const snap = await fsGetDocs(q); if (fromServer(snap)) countReads(refLabel(q), Math.max(1, snap.size)); return snap; }
+      async function getDoc(ref) { const snap = await fsGetDoc(ref); if (fromServer(snap)) countReads(refLabel(ref), 1); return snap; }
 
       let currentUser = null;
       let isAdmin = false;
@@ -2811,8 +2844,8 @@
       });
 
       // ===== ОНЛАЙН-СТАТУС =====
-      const ONLINE_TTL = 3 * 60 * 1000;     // считаем онлайн, если пульс был не позже 3 мин назад
-      const HEARTBEAT_MS = 2 * 60 * 1000; // каждый пульс рассылается всем, кто слушает профили, — реже значит дешевле
+      const ONLINE_TTL = 5 * 60 * 1000;     // считаем онлайн, если пульс был не позже 5 мин назад
+      const HEARTBEAT_MS = 4 * 60 * 1000; // каждый пульс — это чтение у каждого, кто слушает профиль (у админа — всех), поэтому редко
       let presenceTimer = null; let presenceInit = false;
       const myHideOnline = () => !!(currentUser && usersCache[currentUser.uid]?.hideOnline);
 
@@ -3595,7 +3628,12 @@
               }, (e) => console.log("chats_metadata (беседа):", e.code));
             }
           }
-          if (isAdmin) { migrateMetaMembers(); setTimeout(migrateEmails, 4000); setTimeout(migrateFollows, 8000); setTimeout(migrateAllRestricted, 11000); }
+          // Разовые миграции давно прошли, а migrateMetaMembers читает ВСЕ превью чатов — запускаем не чаще раза в месяц
+          let migAt = 0; try { migAt = +localStorage.getItem("owl-admin-mig") || 0; } catch (_) {}
+          if (isAdmin && Date.now() - migAt > 30 * 864e5) {
+              try { localStorage.setItem("owl-admin-mig", String(Date.now())); } catch (_) {}
+              migrateMetaMembers(); setTimeout(migrateEmails, 4000); setTimeout(migrateFollows, 8000); setTimeout(migrateAllRestricted, 11000);
+          }
       }
       // Удаление аккаунта: убрать его подписки (со счётчиками у тех, на кого он подписан) и подписки на него
       async function deleteFollowEdges(uid) {
@@ -3783,9 +3821,9 @@
 
       function startNotificationsListener() {
         if(notificationsListener) notificationsListener();
-        // Только последние 30 уведомлений (раньше грузились все за всё время — с каждой рассылкой дороже).
+        // Только последние 20 уведомлений (раньше грузились все за всё время — с каждой рассылкой дороже).
         // Нужен составной индекс notifications: toUid ↑ + timestamp ↓; пока его нет — старый запрос.
-        const qLatest = query(collection(db, "notifications"), where("toUid", "==", currentUser.uid), orderBy("timestamp", "desc"), limit(30));
+        const qLatest = query(collection(db, "notifications"), where("toUid", "==", currentUser.uid), orderBy("timestamp", "desc"), limit(20));
         const qAll = query(collection(db, "notifications"), where("toUid", "==", currentUser.uid));
         const handleNotifs = (snapshot) => {
           let unreadCount = 0; let notifs = [];
@@ -4815,7 +4853,17 @@
             <div class="st-chart"><h4>Кто приводит друзей<small>по ссылкам-приглашениям</small></h4>
               ${invList.length ? invList.slice(0, 10).map(x => `<div class="st-inv"><span>${escapeHTML(x.name)}</span><b>${x.n}</b></div>`).join("") : `<div class="st-note" style="margin:6px 0">Пока никто не пришёл по приглашению</div>`}
             </div>
+            ${readsBlock()}
             <div style="text-align:center;margin:4px 0 8px"><button class="ob-mini-btn" id="st-refresh">${icon("clock", 16)}Обновить</button></div>`;
+      }
+      // Чтения базы с этого устройства за текущие сутки квоты — откуда берутся (чтобы понимать, что оптимизировать)
+      function readsBlock() {
+          if (readStats.day !== readDay()) readStats = { day: readDay(), total: 0, by: {} };
+          const rows = Object.entries(readStats.by).sort((a, b) => b[1] - a[1]).slice(0, 12);
+          return `<div class="st-chart"><h4>Чтения базы с этого устройства<small>с 10:00 МСК, примерно · лимит проекта 50 000 в сутки</small></h4>
+              <div class="st-inv"><span><b>Всего</b></span><b>${readStats.total.toLocaleString("ru")}</b></div>
+              ${rows.map(([k, v]) => `<div class="st-inv"><span>${escapeHTML(k)}</span><b>${v.toLocaleString("ru")}</b></div>`).join("") || `<div class="st-note" style="margin:6px 0">Пока ничего</div>`}
+            </div>`;
       }
       // Подсказка при наведении на столбик
       document.getElementById("dev-list").addEventListener("mousemove", (e) => {
@@ -5905,6 +5953,8 @@
       // ===== ГОЛОСОВЫЕ: удерживать — запись, отпустить — отправить, влево — отмена, вверх — закрепить =====
       // Короткое нажатие (или клик мышью) сразу включает закреплённую запись с кнопками «Отмена» / «Отправить».
       const REC_CANCEL_DX = 110, REC_LOCK_DY = 70, REC_MIN_MS = 600, REC_TAP_MS = 300;
+      // Запись в базе — до 1 МБ (1 048 576 байт), а при сохранении текстом голосовое вырастает на треть: 700 КБ звука ≈ 0,93 МБ
+      const VOICE_MAX_BYTES = 700000, VOICE_MAX_DATAURL = 1000000;
       const recArea = document.querySelector(".input-area"), voiceBtn = document.getElementById("voice-btn");
       const recTimeEl = document.getElementById("rec-time"), recWave = document.getElementById("rec-wave");
       let rec = null; // { chatId, startedAt, x0, y0, locked, tapPending, pointerId, ctx, raf, levels }
@@ -5953,9 +6003,15 @@
               setAudioSession("play-and-record"); // в режиме ambient (для звуков уведомлений) iOS не даёт микрофон
               const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
               if (rec !== my) { stream.getTracks().forEach(t => t.stop()); restoreAmbient(); return; } // отпустили/отменили, пока спрашивали доступ
-              mediaRecorder = new MediaRecorder(stream); audioChunks = [];
-              mediaRecorder.ondataavailable = ev => { if (ev.data.size > 0) audioChunks.push(ev.data); };
-              mediaRecorder.start(); isRecording = true;
+              // Голосовое хранится прямо в сообщении, а запись в базе — не больше 1 МБ. Поэтому пишем в «голосовом»
+              // качестве (~32 кбит/с — несколько минут речи) и следим за размером: у предела запись сама остановится и отправится
+              try { mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 32000 }); } catch (_) { mediaRecorder = new MediaRecorder(stream); }
+              audioChunks = []; let recBytes = 0;
+              mediaRecorder.ondataavailable = ev => {
+                  if (ev.data.size > 0) { audioChunks.push(ev.data); recBytes += ev.data.size; }
+                  if (rec === my && recBytes > VOICE_MAX_BYTES && !my.autoStop) { my.autoStop = true; showToast("Достигнута максимальная длина голосового — отправляем", "mic"); stopVoice(true); }
+              };
+              mediaRecorder.start(1000); isRecording = true; // кусочки раз в секунду — чтобы знать размер во время записи
               rec.startedAt = Date.now(); rec.stream = stream;
               try { // уровень громкости — для ореола и волны
                   const AC = window.AudioContext || window.webkitAudioContext;
@@ -5996,7 +6052,10 @@
                   const chunks = audioChunks; audioChunks = [];
                   if (send && dur >= REC_MIN_MS && chunks.length) {
                       const reader = new FileReader();
-                      reader.onload = (ev) => sendMessage(null, null, ev.target.result, chatId);
+                      reader.onload = (ev) => {
+                          if (ev.target.result.length > VOICE_MAX_DATAURL) return showToast("Голосовое слишком длинное — запишите покороче или разбейте на несколько", "error");
+                          sendMessage(null, null, ev.target.result, chatId);
+                      };
                       reader.readAsDataURL(new Blob(chunks, { type: recorder.mimeType || "audio/mp4" }));
                   }
                   restoreAmbient();
