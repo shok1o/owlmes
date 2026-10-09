@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutzungsbedingungen — Owl Messenger</title>
+<meta name="description" content="Die Regeln für die Nutzung von Owl Messenger.">
+<meta name="theme-color" content="#141120">
+<link rel="icon" href="/icon-192.png">
+<link rel="alternate" hreflang="ru" href="https://owlmes.ru/terms.html"><link rel="alternate" hreflang="en" href="https://owlmes.ru/terms-en.html"><link rel="alternate" hreflang="de" href="https://owlmes.ru/terms-de.html"><link rel="alternate" hreflang="pl" href="https://owlmes.ru/terms-pl.html">
+<style>
+  :root {
+    --bg: #0b0913; --panel: #15112a; --panel-2: #1c1735; --text: #f4f1ff; --muted: #a39cbd;
+    --accent: #8b5cf6; --accent-2: #b49bff; --gold: #f5b942; --border: #2a2440; --ok: #34c759;
+    --hero: radial-gradient(1200px 400px at 80% -10%, rgba(139,92,246,.45), transparent 60%), radial-gradient(800px 300px at 0% 0%, rgba(245,185,66,.12), transparent 60%);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f6f3fd; --panel: #ffffff; --panel-2: #f1ecfc; --text: #1c1530; --muted: #625b7c; --accent: #6d3dff; --accent-2: #6d3dff; --gold: #b7791f; --border: #e4dcf6; --ok: #1f9d55;
+      --hero: radial-gradient(1200px 400px at 80% -10%, rgba(109,61,255,.18), transparent 60%), radial-gradient(800px 300px at 0% 0%, rgba(245,185,66,.18), transparent 60%); }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent-2); }
+  .hero { background: var(--hero); border-bottom: 1px solid var(--border); }
+  .hero-in { max-width: 1040px; margin: 0 auto; padding: 22px 16px 44px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; }
+  .brand img { width: 36px; height: 36px; border-radius: 10px; }
+  .eyebrow { margin: 40px 0 8px; color: var(--gold); font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); line-height: 1.1; letter-spacing: -.5px; }
+  .lead { max-width: 640px; margin: 14px 0 0; color: var(--muted); font-size: 17px; }
+  .meta { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { padding: 5px 12px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .tldr { max-width: 1040px; margin: -26px auto 0; padding: 0 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; position: relative; }
+  .tl { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .tl svg { width: 26px; height: 26px; color: var(--accent-2); }
+  .tl b { display: block; margin: 8px 0 2px; font-size: 15px; }
+  .tl span { color: var(--muted); font-size: 13.5px; line-height: 1.45; display: block; }
+  .layout { max-width: 1040px; margin: 0 auto; padding: 36px 16px 70px; display: grid; grid-template-columns: 230px 1fr; gap: 40px; align-items: start; }
+  nav.toc { position: sticky; top: 20px; font-size: 14px; }
+  nav.toc b { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+  nav.toc a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { background: var(--panel-2); color: var(--text); }
+  section { margin: 0 0 34px; scroll-margin-top: 20px; }
+  h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font-size: 22px; line-height: 1.25; }
+  h2 .n { flex: 0 0 34px; height: 34px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); color: var(--accent-2); font-size: 15px; display: flex; align-items: center; justify-content: center; }
+  p { margin: 0 0 12px; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--accent); }
+  .table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--panel); }
+  .row { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr; gap: 14px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14.5px; }
+  .row:first-child { border-top: 0; background: var(--panel-2); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+  .row b { font-weight: 650; }
+  .note { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 15px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+  .card b { display: block; margin-bottom: 2px; }
+  .card span { color: var(--muted); font-size: 14px; }
+  .rights .card b::before { content: "✓ "; color: var(--ok); }
+  footer { border-top: 1px solid var(--border); }
+  .foot { max-width: 1040px; margin: 0 auto; padding: 22px 16px 40px; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 14px; }
+  .foot .cta { margin-left: auto; padding: 10px 18px; border-radius: 12px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  @media (max-width: 860px) {
+    .tldr { grid-template-columns: 1fr 1fr; }
+    .layout { grid-template-columns: 1fr; gap: 0; padding-top: 28px; }
+    nav.toc { display: none; }
+  }
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; gap: 2px; }
+    .row:first-child { display: none; }
+    .row span:nth-child(2), .row span:nth-child(3) { color: var(--muted); font-size: 13.5px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .foot .cta { margin-left: 0; }
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .langs { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); }
+  .langs a { padding: 4px 10px; border-radius: 999px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700; }
+  .langs a.on { background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+
+<header class="hero"><div class="hero-in">
+  <div class="top"><a class="brand" href="/"><img src="/icon-192.png" alt="">Owl Messenger</a><nav class="langs" aria-label="Language"><a href="/terms.html" hreflang="ru" lang="ru">RU</a><a href="/terms-en.html" hreflang="en" lang="en">EN</a><a href="/terms-de.html" class="on" hreflang="de" lang="de">DE</a><a href="/terms-pl.html" hreflang="pl" lang="pl">PL</a></nav></div>
+  <div class="eyebrow">Rechtliches</div>
+  <h1>Nutzungsbedingungen</h1>
+  <p class="lead">Die Regeln, an die wir uns bei Owl alle halten. Kurz gesagt: Respektiert euch gegenseitig, kein Spam und keine Gesetzesverstöße.</p>
+  <div class="meta"><span class="pill">Fassung vom 9. Oktober 2026</span><span class="pill">≈ 4 Min. Lesezeit</span></div>
+</div></header>
+
+<div class="tldr">
+  <div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg><b>Kostenlos</b><span>Owl ist kostenlos und werbefrei.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><b>Respekt</b><span>Keine Beleidigungen, kein Mobbing, keine Drohungen.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><b>Moderation</b><span>Meldungen prüft der Administrator.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><b>Fair</b><span>Gegen eine Sperre kannst du direkt in der App Einspruch einlegen.</span></div>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <b>Inhalt</b>
+    <a href="#s1">1. Allgemeines</a><a href="#s2">2. Dein Konto</a><a href="#s3">3. Was nicht erlaubt ist</a><a href="#s4">4. Moderation</a><a href="#s5">5. Deine Inhalte</a><a href="#s6">6. Profil-Abzeichen</a><a href="#s7">7. Haftung</a><a href="#s8">8. Konto löschen</a><a href="#s9">9. Änderungen und Kontakt</a>
+  </nav>
+
+  <main>
+    <section id="s1">
+      <h2><span class="n">1</span>Allgemeines</h2>
+      <p>Diese Bedingungen sind die Regeln für die Nutzung von <b>Owl Messenger</b> (die Website owlmes.ru und die darüber installierte App; „Owl“). Owl wird von shok1o, einem unabhängigen Entwickler, als kostenloses, nicht kommerzielles Projekt betrieben. Mit der Registrierung oder Nutzung von Owl akzeptierst du diese Bedingungen und die <a href="/privacy-de.html">Datenschutzerklärung</a>.</p>
+    </section>
+
+    <section id="s2">
+      <h2><span class="n">2</span>Dein Konto</h2>
+      <ul>
+<li>In der EU darf Owl ab 16 Jahren genutzt werden. Wenn du jünger bist – nur mit Einwilligung deiner Eltern oder Erziehungsberechtigten.</li>
+<li>Gib eine funktionierende E-Mail-Adresse an: Du brauchst sie, um den Zugang wiederherzustellen.</li>
+<li>Du bist dafür verantwortlich, dein Passwort zu schützen, und für alles, was über dein Konto geschieht.</li>
+<li>Nicknames sind einzigartig. Nutze keinen Nickname, um dich als andere Person, Marke oder als Owl-Administration auszugeben.</li>
+</ul>
+    </section>
+
+    <section id="s3">
+      <h2><span class="n">3</span>Was nicht erlaubt ist</h2>
+      <div class="grid2">
+<div class="card"><b>Spam</b><span>Massennachrichten und aufdringliche Werbung.</span></div>
+<div class="card"><b>Mobbing</b><span>Beleidigungen, Drohungen, Hassrede.</span></div>
+<div class="card"><b>Betrug</b><span>Anderen Geld, Passwörter oder persönliche Daten entlocken.</span></div>
+<div class="card"><b>Verbotene Inhalte</b><span>Inhalte ab 18, Gewalt und jegliches sexuelle Material mit Minderjährigen.</span></div>
+<div class="card"><b>Daten anderer</b><span>Persönliche Daten anderer ohne deren Zustimmung veröffentlichen.</span></div>
+<div class="card"><b>Identitätstäuschung</b><span>Sich als andere Person oder als Administration ausgeben.</span></div>
+<div class="card"><b>Rechtsverstöße</b><span>Alles, was gegen das für dich geltende Recht verstößt.</span></div>
+<div class="card"><b>Hacking</b><span>Umgehen von Beschränkungen, Bots, Angriffe auf den Dienst.</span></div>
+</div>
+    </section>
+
+    <section id="s4">
+      <h2><span class="n">4</span>Moderation</h2>
+      <ul>
+<li>Du kannst eine Nachricht oder einen Nutzer über den Fahnen-Knopf melden. Meldungen prüft der Administrator, die meldende Person bleibt anonym.</li>
+<li>Bei Verstößen kann der Administrator Nachrichten löschen oder Konten sperren bzw. löschen.</li>
+<li>Gesperrte Nutzer sehen den Grund und können direkt in der App Einspruch einlegen.</li>
+<li>Du kannst auch selbst jeden blockieren – dann kann dir diese Person nicht mehr schreiben.</li>
+</ul>
+    </section>
+
+    <section id="s5">
+      <h2><span class="n">5</span>Deine Inhalte</h2>
+      <ul>
+<li>Deine Nachrichten, Fotos und Sprachnachrichten bleiben deine. Du erlaubst Owl, sie zu speichern und den Empfängern anzuzeigen – anders kann ein Messenger nicht funktionieren.</li>
+<li>Du bist für das verantwortlich, was du sendest, und darfst keine Rechte anderer verletzen, auch keine Urheberrechte.</li>
+<li>Eine gelöschte Nachricht verschwindet für alle in der Unterhaltung.</li>
+</ul>
+    </section>
+
+    <section id="s6">
+      <h2><span class="n">6</span>Profil-Abzeichen</h2>
+      <div class="grid2">
+<div class="card"><b>Blauer Haken</b><span>Das offizielle Owl-Konto.</span></div>
+<div class="card"><b>Grauer Haken</b><span>Ein vom Administrator verifizierter Nutzer. Wird nach Ermessen des Administrators vergeben und entzogen.</span></div>
+</div>
+    </section>
+
+    <section id="s7">
+      <h2><span class="n">7</span>Haftung</h2>
+      <ul>
+<li>Owl wird weiterentwickelt und „wie besehen“ bereitgestellt. Wir sorgen für einen möglichst stabilen Betrieb, können aber keine fehler- oder unterbrechungsfreie Nutzung garantieren.</li>
+<li>Für den Inhalt von Nutzernachrichten sind wir nicht verantwortlich, entfernen aber Verstöße, von denen wir erfahren.</li>
+<li>Nutze Owl nicht als einzigen Speicherort für wichtige Informationen.</li>
+<li>Deine zwingenden Verbraucherrechte nach dem Recht deines Landes bleiben von diesen Bedingungen unberührt.</li>
+</ul>
+    </section>
+
+    <section id="s8">
+      <h2><span class="n">8</span>Konto löschen</h2>
+      <p>Du kannst dein Konto jederzeit löschen: Einstellungen → „Konto endgültig löschen“. Was dabei gelöscht wird, steht in der <a href="/privacy-de.html">Datenschutzerklärung</a>.</p>
+    </section>
+
+    <section id="s9">
+      <h2><span class="n">9</span>Änderungen und Kontakt</h2>
+      <p>Wir können diese Bedingungen aktualisieren. Die neue Fassung erscheint mit neuem Datum auf dieser Seite, über wichtige Änderungen informieren wir dich in der App. Wenn du Owl weiter nutzt, akzeptierst du die neue Fassung.</p>
+<p class="note">Fragen: <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a> oder das offizielle Owl-Konto (blauer Haken) in der App.</p>
+    </section>
+  </main>
+</div>
+
+<footer><div class="foot">
+  <a href="/privacy-de.html">Datenschutzerklärung</a>
+  <span>© Owl Messenger, 2026</span>
+  <a class="cta" href="/">Owl öffnen</a>
+</div></footer>
+
+</body>
+</html>

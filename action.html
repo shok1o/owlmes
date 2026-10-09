@@ -134,6 +134,8 @@
   const DICT = DICTS[LANG] || {};
   const t = (ru, vars) => { let s = DICT[ru] || ru; if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m); return s; };
   document.documentElement.lang = LANG;
+  // «Политика» и «Соглашение» — на языке интерфейса
+  if (LANG !== "ru") document.querySelectorAll('a[href="/privacy.html"], a[href="/terms.html"]').forEach(a => a.setAttribute("href", a.getAttribute("href").replace(".html", "-" + LANG + ".html")));
   if (LANG !== "ru") {
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) {

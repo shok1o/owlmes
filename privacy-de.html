@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutzerklärung — Owl Messenger</title>
+<meta name="description" content="Welche Daten Owl Messenger verarbeitet, wozu und wie du sie kontrollierst.">
+<meta name="theme-color" content="#141120">
+<link rel="icon" href="/icon-192.png">
+<link rel="alternate" hreflang="ru" href="https://owlmes.ru/privacy.html"><link rel="alternate" hreflang="en" href="https://owlmes.ru/privacy-en.html"><link rel="alternate" hreflang="de" href="https://owlmes.ru/privacy-de.html"><link rel="alternate" hreflang="pl" href="https://owlmes.ru/privacy-pl.html">
+<style>
+  :root {
+    --bg: #0b0913; --panel: #15112a; --panel-2: #1c1735; --text: #f4f1ff; --muted: #a39cbd;
+    --accent: #8b5cf6; --accent-2: #b49bff; --gold: #f5b942; --border: #2a2440; --ok: #34c759;
+    --hero: radial-gradient(1200px 400px at 80% -10%, rgba(139,92,246,.45), transparent 60%), radial-gradient(800px 300px at 0% 0%, rgba(245,185,66,.12), transparent 60%);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f6f3fd; --panel: #ffffff; --panel-2: #f1ecfc; --text: #1c1530; --muted: #625b7c; --accent: #6d3dff; --accent-2: #6d3dff; --gold: #b7791f; --border: #e4dcf6; --ok: #1f9d55;
+      --hero: radial-gradient(1200px 400px at 80% -10%, rgba(109,61,255,.18), transparent 60%), radial-gradient(800px 300px at 0% 0%, rgba(245,185,66,.18), transparent 60%); }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent-2); }
+  .hero { background: var(--hero); border-bottom: 1px solid var(--border); }
+  .hero-in { max-width: 1040px; margin: 0 auto; padding: 22px 16px 44px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; }
+  .brand img { width: 36px; height: 36px; border-radius: 10px; }
+  .eyebrow { margin: 40px 0 8px; color: var(--gold); font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); line-height: 1.1; letter-spacing: -.5px; }
+  .lead { max-width: 640px; margin: 14px 0 0; color: var(--muted); font-size: 17px; }
+  .meta { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { padding: 5px 12px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .tldr { max-width: 1040px; margin: -26px auto 0; padding: 0 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; position: relative; }
+  .tl { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .tl svg { width: 26px; height: 26px; color: var(--accent-2); }
+  .tl b { display: block; margin: 8px 0 2px; font-size: 15px; }
+  .tl span { color: var(--muted); font-size: 13.5px; line-height: 1.45; display: block; }
+  .layout { max-width: 1040px; margin: 0 auto; padding: 36px 16px 70px; display: grid; grid-template-columns: 230px 1fr; gap: 40px; align-items: start; }
+  nav.toc { position: sticky; top: 20px; font-size: 14px; }
+  nav.toc b { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+  nav.toc a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { background: var(--panel-2); color: var(--text); }
+  section { margin: 0 0 34px; scroll-margin-top: 20px; }
+  h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font-size: 22px; line-height: 1.25; }
+  h2 .n { flex: 0 0 34px; height: 34px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); color: var(--accent-2); font-size: 15px; display: flex; align-items: center; justify-content: center; }
+  p { margin: 0 0 12px; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--accent); }
+  .table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--panel); }
+  .row { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr; gap: 14px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14.5px; }
+  .row:first-child { border-top: 0; background: var(--panel-2); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+  .row b { font-weight: 650; }
+  .note { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 15px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+  .card b { display: block; margin-bottom: 2px; }
+  .card span { color: var(--muted); font-size: 14px; }
+  .rights .card b::before { content: "✓ "; color: var(--ok); }
+  footer { border-top: 1px solid var(--border); }
+  .foot { max-width: 1040px; margin: 0 auto; padding: 22px 16px 40px; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 14px; }
+  .foot .cta { margin-left: auto; padding: 10px 18px; border-radius: 12px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  @media (max-width: 860px) {
+    .tldr { grid-template-columns: 1fr 1fr; }
+    .layout { grid-template-columns: 1fr; gap: 0; padding-top: 28px; }
+    nav.toc { display: none; }
+  }
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; gap: 2px; }
+    .row:first-child { display: none; }
+    .row span:nth-child(2), .row span:nth-child(3) { color: var(--muted); font-size: 13.5px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .foot .cta { margin-left: 0; }
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .langs { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); }
+  .langs a { padding: 4px 10px; border-radius: 999px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700; }
+  .langs a.on { background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+
+<header class="hero"><div class="hero-in">
+  <div class="top"><a class="brand" href="/"><img src="/icon-192.png" alt="">Owl Messenger</a><nav class="langs" aria-label="Language"><a href="/privacy.html" hreflang="ru" lang="ru">RU</a><a href="/privacy-en.html" hreflang="en" lang="en">EN</a><a href="/privacy-de.html" class="on" hreflang="de" lang="de">DE</a><a href="/privacy-pl.html" hreflang="pl" lang="pl">PL</a></nav></div>
+  <div class="eyebrow">Rechtliches</div>
+  <h1>Datenschutzerklärung</h1>
+  <p class="lead">Welche Daten Owl erhält, wozu sie nötig sind, wer sie sieht und wie du sie kontrollierst – in einfachen Worten.</p>
+  <div class="meta"><span class="pill">Fassung vom 9. Oktober 2026</span><span class="pill">≈ 6 Min. Lesezeit</span></div>
+</div></header>
+
+<div class="tldr">
+  <div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg><b>Keine Werbung</b><span>Wir verkaufen keine Daten und nutzen keine Tracker oder Analysedienste.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><b>E-Mail bleibt verborgen</b><span>Nur du und der Administrator sehen sie.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><b>Minimale Daten</b><span>Nur E-Mail und Nickname – keine Telefonnummer, kein Ausweis.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><b>Löschen mit einem Tipp</b><span>Konto und Daten lassen sich in den Einstellungen löschen.</span></div>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <b>Inhalt</b>
+    <a href="#s1">1. Wer wir sind</a><a href="#s2">2. Welche Daten wir verarbeiten</a><a href="#s3">3. Zwecke und Rechtsgrundlagen</a><a href="#s4">4. Wer deine Daten sieht</a><a href="#s5">5. Dienstleister und Übermittlung in Drittländer</a><a href="#s6">6. Wie lange wir Daten speichern</a><a href="#s7">7. Wie wir Daten schützen</a><a href="#s8">8. Deine Rechte</a><a href="#s9">9. Alter</a><a href="#s10">10. Daten auf deinem Gerät</a><a href="#s11">11. Änderungen und Kontakt</a>
+  </nav>
+
+  <main>
+    <section id="s1">
+      <h2><span class="n">1</span>Wer wir sind</h2>
+      <p>Diese Erklärung beschreibt, wie <b>Owl Messenger</b> (die Website owlmes.ru und die darüber installierte App; „Owl“, „wir“) personenbezogene Daten verarbeitet. Sie berücksichtigt die Anforderungen der EU-Datenschutz-Grundverordnung (DSGVO).</p>
+<p><b>Verantwortlicher:</b> shok1o, ein unabhängiger Entwickler mit Sitz in Russland, der Owl als kostenloses, nicht kommerzielles Projekt betreibt.<br><b>Kontakt für alle Datenschutzanfragen:</b> <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a></p>
+    </section>
+
+    <section id="s2">
+      <h2><span class="n">2</span>Welche Daten wir verarbeiten</h2>
+      <p>Owl prüft deine Identität nicht: Wir fragen nie nach deinem echten Namen, deiner Telefonnummer oder einem Ausweis. Nickname, Foto und Info wählst du selbst.</p>
+<div class="table">
+<div class="row"><span>Daten</span><span>Was ist das</span><span>Für andere sichtbar?</span></div>
+<div class="row"><span><b>E-Mail und Passwort</b></span><span>Für die Anmeldung und die Wiederherstellung des Zugangs. Das Passwort speichert der Anmeldedienst nur als Hash – wir sehen es nicht.</span><span>Nein</span></div>
+<div class="row"><span><b>Profil</b></span><span>Nickname, Foto, Info, Personen, denen du folgst, und deine Follower.</span><span>Ja (du legst fest, wer was sieht)</span></div>
+<div class="row"><span><b>Nachrichten</b></span><span>Text, Fotos, Sprachnachrichten, Sticker, Umfragen, Reaktionen, Antworten, Lesebestätigungen.</span><span>Nur Chat-Mitglieder</span></div>
+<div class="row"><span><b>Online-Status</b></span><span>Wann du zuletzt online warst. Lässt sich in den Einstellungen verbergen.</span><span>Ja, wenn nicht verborgen</span></div>
+<div class="row"><span><b>Ruhezeiten</b></span><span>Deine Nachtzeiten und deine Zeitzonen-Verschiebung für „Die Eule weckt nicht“. Kontakte sehen, dass bei dir Nacht ist – das lässt sich abschalten.</span><span>Nur wenn aktiviert</span></div>
+<div class="row"><span><b>Benachrichtigungen</b></span><span>Eine technische Adresse deines Geräts für Push-Nachrichten und deine App-Sprache – nur wenn du Benachrichtigungen aktivierst.</span><span>Nein</span></div>
+<div class="row"><span><b>Moderation</b></span><span>Meldungen, Blockierungen, Sperren und Einsprüche gegen Sperren.</span><span>Nein</span></div>
+<div class="row"><span><b>Sicherheitsdaten</b></span><span>Technische Signale deines Browsers, um Menschen von Bots zu unterscheiden (IP-Adresse, Geräte- und Browserdaten).</span><span>Nein</span></div>
+</div>
+<p style="margin-top:12px">Wir erheben <b>keine</b> Standortdaten, Telefonkontakte oder Werbe-IDs und nutzen keine Analysedienste.</p>
+    </section>
+
+    <section id="s3">
+      <h2><span class="n">3</span>Zwecke und Rechtsgrundlagen</h2>
+      <ul>
+<li><b>Bereitstellung des Messengers</b> – Registrierung, Anmeldung, Zustellung von Nachrichten und Benachrichtigungen. Rechtsgrundlage: Erfüllung unseres Vertrags mit dir (Art. 6 Abs. 1 lit. b DSGVO).</li>
+<li><b>Sicherheit und Moderation</b> – Schutz vor Spam, Bots, Betrug und Missbrauch, Bearbeitung von Meldungen. Rechtsgrundlage: unser berechtigtes Interesse an einem sicheren Dienst (Art. 6 Abs. 1 lit. f DSGVO).</li>
+<li><b>Push-Benachrichtigungen</b> – nur nachdem du sie auf deinem Gerät erlaubt hast. Rechtsgrundlage: deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du jederzeit in den Einstellungen widerrufen kannst.</li>
+<li><b>Service-E-Mails</b> – Bestätigungscodes und Passwort-Zurücksetzung. Rechtsgrundlage: Vertragserfüllung.</li>
+<li><b>Rechtliche Pflichten</b> – soweit das Gesetz uns zum Handeln verpflichtet (Art. 6 Abs. 1 lit. c DSGVO).</li>
+</ul>
+<p>Deine Daten werden nicht für Werbung, Profiling oder automatisierte Entscheidungen verwendet, die deine Rechte berühren.</p>
+    </section>
+
+    <section id="s4">
+      <h2><span class="n">4</span>Wer deine Daten sieht</h2>
+      <ul>
+<li><b>Andere Nutzer</b> – dein Profil (gemäß deinen Datenschutz-Einstellungen) und deine Nachrichten in gemeinsamen Chats und Unterhaltungen mit dir.</li>
+<li><b>Der Administrator</b> – deine E-Mail-Adresse und technische Kontoinformationen. Der Administrator hat technischen Zugriff auf die Datenbank, liest Unterhaltungen aber nicht ohne Grund: Eine Nachricht wird nur angesehen, wenn sie gemeldet wurde oder ein Regelverstoß vermutet wird.</li>
+<li><b>Wer jemanden meldet</b>, bleibt für die gemeldete Person anonym.</li>
+</ul>
+<p class="note">Wir verkaufen deine Daten nicht und geben sie nicht für Werbung weiter. An Behörden geben wir sie nur heraus, wenn das Gesetz es ausdrücklich verlangt.</p>
+    </section>
+
+    <section id="s5">
+      <h2><span class="n">5</span>Dienstleister und Übermittlung in Drittländer</h2>
+      <p>Owl nutzt folgende Dienstleister, die Daten in unserem Auftrag verarbeiten (Auftragsverarbeiter):</p>
+<div class="grid2">
+<div class="card"><b>Google Firebase</b><span>Anmeldung, Speicherung von Profilen und Nachrichten, Bot-Schutz (reCAPTCHA). Die Datenbank liegt in der EU (Belgien und Niederlande).</span></div>
+<div class="card"><b>Cloudflare</b><span>Domain, Bot-Schutz (Turnstile), der Push-Server und sein Speicher (Geräteadressen, Ruhezeiten, Sprache).</span></div>
+<div class="card"><b>Resend</b><span>Versand von Bestätigungscodes und E-Mails zum Zurücksetzen des Passworts (EU-Region).</span></div>
+<div class="card"><b>GitHub Pages</b><span>Hosting der Website-Dateien. Wie jeder Webserver sieht es deine IP-Adresse, wenn du die Seite öffnest.</span></div>
+<div class="card"><b>Apple, Google, Mozilla</b><span>Zustellung von Push-Nachrichten. Der Inhalt ist verschlüsselt – nur dein Gerät kann ihn lesen.</span></div>
+</div>
+<p style="margin-top:12px">Einige dieser Dienstleister haben ihren Sitz in den USA. Die Übermittlung stützt sich auf das EU-U.S. Data Privacy Framework und/oder die Standardvertragsklauseln der Europäischen Kommission. Owl wird von Russland aus betrieben, einem Land ohne Angemessenheitsbeschluss der EU: Deine Daten werden in der EU gespeichert, der Administrator kann für Support und Moderation aus der Ferne darauf zugreifen.</p>
+    </section>
+
+    <section id="s6">
+      <h2><span class="n">6</span>Wie lange wir Daten speichern</h2>
+      <ul>
+<li>Profil und Nachrichten – bis du sie oder dein Konto löschst.</li>
+<li>Eine gelöschte Nachricht wird sofort für alle Chat-Mitglieder aus der Datenbank entfernt.</li>
+<li>Wenn du dein Konto löschst, werden Profil, Nickname, E-Mail, Privatchats und Benachrichtigungen gelöscht. Nachrichten in Gruppen können ohne Verknüpfung zu deinem Profil erhalten bleiben.</li>
+<li>Die Push-Adresse deines Geräts wird gelöscht, wenn du Benachrichtigungen ausschaltest oder dich abmeldest.</li>
+<li>Bestätigungscodes verfallen nach 15 Minuten; die Zusammenfassung „Während du geschlafen hast“ (nur Namen, kein Nachrichtentext) wird gelöscht, sobald sie morgens gesendet wurde.</li>
+</ul>
+    </section>
+
+    <section id="s7">
+      <h2><span class="n">7</span>Wie wir Daten schützen</h2>
+      <ul>
+<li>die Verbindung zu Owl ist immer verschlüsselt (HTTPS);</li>
+<li>der Zugriff ist durch Datenbankregeln beschränkt: Jeder kann nur seine eigenen Chats lesen, deine E-Mail wird separat und für andere unzugänglich gespeichert;</li>
+<li>Push-Benachrichtigungen werden mit dem Schlüssel deines Geräts verschlüsselt;</li>
+<li>die Registrierung ist vor Bots geschützt, und niemand kann Benachrichtigungen im Namen anderer senden.</li>
+</ul>
+    </section>
+
+    <section id="s8" class="rights">
+      <h2><span class="n">8</span>Deine Rechte</h2>
+      <p>Nach der DSGVO hast du das Recht auf <b>Auskunft</b>, <b>Berichtigung</b> und <b>Löschung</b>, auf <b>Einschränkung</b> der Verarbeitung, auf <b>Widerspruch</b>, auf <b>Datenübertragbarkeit</b> und darauf, deine <b>Einwilligung</b> jederzeit zu <b>widerrufen</b>. Vieles davon kannst du selbst erledigen:</p>
+<div class="grid2">
+<div class="card"><b>Daten ändern</b><span>Nickname, Foto und Info – in den Einstellungen.</span></div>
+<div class="card"><b>Festlegen, wer was sieht</b><span>Einstellungen → Privatsphäre oder der Knopf „Eulenblick“.</span></div>
+<div class="card"><b>Benachrichtigungen ausschalten</b><span>In den Einstellungen, jederzeit.</span></div>
+<div class="card"><b>Konto löschen</b><span>Einstellungen → „Konto endgültig löschen“.</span></div>
+</div>
+<p style="margin-top:12px">Für alles andere – zum Beispiel eine Kopie deiner Daten – schreib an <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a>. Wir antworten innerhalb eines Monats.</p>
+<p class="note">Außerdem hast du das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren, insbesondere in dem EU-Land, in dem du lebst (in Deutschland bei der Aufsichtsbehörde deines Bundeslandes).</p>
+    </section>
+
+    <section id="s9">
+      <h2><span class="n">9</span>Alter</h2>
+      <p>In der EU darf Owl ab <b>16 Jahren</b> genutzt werden. Wenn du jünger bist, darfst du Owl nur mit Einwilligung deiner Eltern oder Erziehungsberechtigten nutzen.</p>
+    </section>
+
+    <section id="s10">
+      <h2><span class="n">10</span>Daten auf deinem Gerät</h2>
+      <p>Owl speichert deine Einstellungen und eine Kopie geladener Chats auf deinem Gerät, damit die App schneller startet und offline funktioniert. Das ist für den Betrieb der App unbedingt erforderlich. Es gibt keine Werbe- oder Tracking-Cookies.</p>
+    </section>
+
+    <section id="s11">
+      <h2><span class="n">11</span>Änderungen und Kontakt</h2>
+      <p>Wenn sich diese Erklärung ändert, erscheint die neue Fassung mit neuem Datum auf dieser Seite, und über wichtige Änderungen informieren wir dich in der App.</p>
+<p class="note">Fragen zu deinen Daten: <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a> – oder direkt in der App an das offizielle Owl-Konto (blauer Haken).</p>
+    </section>
+  </main>
+</div>
+
+<footer><div class="foot">
+  <a href="/terms-de.html">Nutzungsbedingungen</a>
+  <span>© Owl Messenger, 2026</span>
+  <a class="cta" href="/">Owl öffnen</a>
+</div></footer>
+
+</body>
+</html>

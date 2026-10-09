@@ -1698,7 +1698,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.77</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.78</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1839,6 +1839,8 @@
           if (DICT[document.title]) document.title = DICT[document.title];
       }
       translateDom(document.body);
+      // «Политика» и «Соглашение» — на языке интерфейса
+      if (LANG !== "ru") document.querySelectorAll('a[href="/privacy.html"], a[href="/terms.html"]').forEach(a => a.setAttribute("href", a.getAttribute("href").replace(".html", "-" + LANG + ".html")));
       function setLang(code) {
           if (!LANGS[code] || code === LANG) return;
           try { localStorage.setItem("owl-lang", code); } catch (_) {}

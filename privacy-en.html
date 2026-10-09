@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Owl Messenger</title>
+<meta name="description" content="What data Owl Messenger processes, why, and how you can control it.">
+<meta name="theme-color" content="#141120">
+<link rel="icon" href="/icon-192.png">
+<link rel="alternate" hreflang="ru" href="https://owlmes.ru/privacy.html"><link rel="alternate" hreflang="en" href="https://owlmes.ru/privacy-en.html"><link rel="alternate" hreflang="de" href="https://owlmes.ru/privacy-de.html"><link rel="alternate" hreflang="pl" href="https://owlmes.ru/privacy-pl.html">
+<style>
+  :root {
+    --bg: #0b0913; --panel: #15112a; --panel-2: #1c1735; --text: #f4f1ff; --muted: #a39cbd;
+    --accent: #8b5cf6; --accent-2: #b49bff; --gold: #f5b942; --border: #2a2440; --ok: #34c759;
+    --hero: radial-gradient(1200px 400px at 80% -10%, rgba(139,92,246,.45), transparent 60%), radial-gradient(800px 300px at 0% 0%, rgba(245,185,66,.12), transparent 60%);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f6f3fd; --panel: #ffffff; --panel-2: #f1ecfc; --text: #1c1530; --muted: #625b7c; --accent: #6d3dff; --accent-2: #6d3dff; --gold: #b7791f; --border: #e4dcf6; --ok: #1f9d55;
+      --hero: radial-gradient(1200px 400px at 80% -10%, rgba(109,61,255,.18), transparent 60%), radial-gradient(800px 300px at 0% 0%, rgba(245,185,66,.18), transparent 60%); }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent-2); }
+  .hero { background: var(--hero); border-bottom: 1px solid var(--border); }
+  .hero-in { max-width: 1040px; margin: 0 auto; padding: 22px 16px 44px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; }
+  .brand img { width: 36px; height: 36px; border-radius: 10px; }
+  .eyebrow { margin: 40px 0 8px; color: var(--gold); font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); line-height: 1.1; letter-spacing: -.5px; }
+  .lead { max-width: 640px; margin: 14px 0 0; color: var(--muted); font-size: 17px; }
+  .meta { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { padding: 5px 12px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  .tldr { max-width: 1040px; margin: -26px auto 0; padding: 0 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; position: relative; }
+  .tl { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  .tl svg { width: 26px; height: 26px; color: var(--accent-2); }
+  .tl b { display: block; margin: 8px 0 2px; font-size: 15px; }
+  .tl span { color: var(--muted); font-size: 13.5px; line-height: 1.45; display: block; }
+  .layout { max-width: 1040px; margin: 0 auto; padding: 36px 16px 70px; display: grid; grid-template-columns: 230px 1fr; gap: 40px; align-items: start; }
+  nav.toc { position: sticky; top: 20px; font-size: 14px; }
+  nav.toc b { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+  nav.toc a { display: block; padding: 6px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { background: var(--panel-2); color: var(--text); }
+  section { margin: 0 0 34px; scroll-margin-top: 20px; }
+  h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font-size: 22px; line-height: 1.25; }
+  h2 .n { flex: 0 0 34px; height: 34px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border); color: var(--accent-2); font-size: 15px; display: flex; align-items: center; justify-content: center; }
+  p { margin: 0 0 12px; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 6px 0; }
+  li::marker { color: var(--accent); }
+  .table { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--panel); }
+  .row { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr; gap: 14px; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 14.5px; }
+  .row:first-child { border-top: 0; background: var(--panel-2); color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+  .row b { font-weight: 650; }
+  .note { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 15px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; }
+  .card b { display: block; margin-bottom: 2px; }
+  .card span { color: var(--muted); font-size: 14px; }
+  .rights .card b::before { content: "✓ "; color: var(--ok); }
+  footer { border-top: 1px solid var(--border); }
+  .foot { max-width: 1040px; margin: 0 auto; padding: 22px 16px 40px; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 14px; }
+  .foot .cta { margin-left: auto; padding: 10px 18px; border-radius: 12px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  @media (max-width: 860px) {
+    .tldr { grid-template-columns: 1fr 1fr; }
+    .layout { grid-template-columns: 1fr; gap: 0; padding-top: 28px; }
+    nav.toc { display: none; }
+  }
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; gap: 2px; }
+    .row:first-child { display: none; }
+    .row span:nth-child(2), .row span:nth-child(3) { color: var(--muted); font-size: 13.5px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .foot .cta { margin-left: 0; }
+  }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .langs { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); }
+  .langs a { padding: 4px 10px; border-radius: 999px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700; }
+  .langs a.on { background: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+
+<header class="hero"><div class="hero-in">
+  <div class="top"><a class="brand" href="/"><img src="/icon-192.png" alt="">Owl Messenger</a><nav class="langs" aria-label="Language"><a href="/privacy.html" hreflang="ru" lang="ru">RU</a><a href="/privacy-en.html" class="on" hreflang="en" lang="en">EN</a><a href="/privacy-de.html" hreflang="de" lang="de">DE</a><a href="/privacy-pl.html" hreflang="pl" lang="pl">PL</a></nav></div>
+  <div class="eyebrow">Legal</div>
+  <h1>Privacy Policy</h1>
+  <p class="lead">What data Owl receives, why it's needed, who can see it and how you can control it — in plain language.</p>
+  <div class="meta"><span class="pill">Version of 9 October 2026</span><span class="pill">≈ 6 min read</span></div>
+</div></header>
+
+<div class="tldr">
+  <div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg><b>No ads</b><span>We don't sell data and use no trackers or analytics.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><b>Email stays hidden</b><span>Only you and the administrator can see it.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><b>Minimal data</b><span>Just an email and a nickname — no phone number or ID.</span></div><div class="tl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><b>Delete in one tap</b><span>Your account and data can be deleted in settings.</span></div>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <b>Contents</b>
+    <a href="#s1">1. Who we are</a><a href="#s2">2. What data we process</a><a href="#s3">3. Purposes and legal bases</a><a href="#s4">4. Who can see your data</a><a href="#s5">5. Service providers and international transfers</a><a href="#s6">6. How long we keep data</a><a href="#s7">7. How we protect data</a><a href="#s8">8. Your rights</a><a href="#s9">9. Age</a><a href="#s10">10. Data on your device</a><a href="#s11">11. Changes and contact</a>
+  </nav>
+
+  <main>
+    <section id="s1">
+      <h2><span class="n">1</span>Who we are</h2>
+      <p>This policy explains how <b>Owl Messenger</b> (the website owlmes.ru and the app installed from it; “Owl”, “we”) processes personal data. It is written to meet the requirements of the EU General Data Protection Regulation (GDPR).</p>
+<p><b>Controller:</b> shok1o, an independent developer based in Russia, who runs Owl as a free, non-commercial project.<br><b>Contact for any privacy request:</b> <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a></p>
+    </section>
+
+    <section id="s2">
+      <h2><span class="n">2</span>What data we process</h2>
+      <p>Owl doesn't verify your identity: we never ask for your real name, phone number or ID. You choose your nickname, photo and bio yourself.</p>
+<div class="table">
+<div class="row"><span>Data</span><span>What it is</span><span>Visible to others?</span></div>
+<div class="row"><span><b>Email and password</b></span><span>To sign in and recover access. The password is stored in hashed form by the sign-in provider — we can't see it.</span><span>No</span></div>
+<div class="row"><span><b>Profile</b></span><span>Nickname, photo, bio, people you follow and your followers.</span><span>Yes (you control who sees what)</span></div>
+<div class="row"><span><b>Messages</b></span><span>Text, photos, voice messages, stickers, polls, reactions, replies, read receipts.</span><span>Only chat members</span></div>
+<div class="row"><span><b>Online status</b></span><span>When you were last online. Can be hidden in settings.</span><span>Yes, unless hidden</span></div>
+<div class="row"><span><b>Quiet hours</b></span><span>Your night hours and time-zone offset for “Owl Won't Wake You”. Contacts can see that it's night for you — this can be turned off.</span><span>Only if enabled</span></div>
+<div class="row"><span><b>Notifications</b></span><span>A technical address of your device for push delivery and your app language — only if you turn notifications on.</span><span>No</span></div>
+<div class="row"><span><b>Moderation</b></span><span>Reports, blocks, bans and ban appeals.</span><span>No</span></div>
+<div class="row"><span><b>Security data</b></span><span>Technical signals from your browser used to tell people from bots (IP address, device and browser data).</span><span>No</span></div>
+</div>
+<p style="margin-top:12px">We do <b>not</b> collect location, phone contacts or advertising IDs, and we don't use analytics services.</p>
+    </section>
+
+    <section id="s3">
+      <h2><span class="n">3</span>Purposes and legal bases</h2>
+      <ul>
+<li><b>Providing the messenger</b> — sign-up, sign-in, delivering messages and notifications. Legal basis: performance of our agreement with you (Art. 6(1)(b) GDPR).</li>
+<li><b>Security and moderation</b> — protection against spam, bots, fraud and abuse, handling reports. Legal basis: our legitimate interest in a safe service (Art. 6(1)(f) GDPR).</li>
+<li><b>Push notifications</b> — only after you allow them on your device. Legal basis: your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time in settings.</li>
+<li><b>Service emails</b> — confirmation codes and password resets. Legal basis: performance of the agreement.</li>
+<li><b>Legal obligations</b> — where the law requires us to act (Art. 6(1)(c) GDPR).</li>
+</ul>
+<p>Your data is not used for advertising, profiling or automated decisions that affect your rights.</p>
+    </section>
+
+    <section id="s4">
+      <h2><span class="n">4</span>Who can see your data</h2>
+      <ul>
+<li><b>Other users</b> — your profile (according to your privacy settings) and your messages in shared chats and conversations with you.</li>
+<li><b>The administrator</b> — your email and technical account information. The administrator has technical access to the database, but conversations are not read without a reason: a message is looked at only if it was reported or a rule violation is suspected.</li>
+<li><b>The person who reports</b> someone stays anonymous to the reported user.</li>
+</ul>
+<p class="note">We don't sell your data or share it for advertising. We may disclose it to public authorities only where the law clearly requires it.</p>
+    </section>
+
+    <section id="s5">
+      <h2><span class="n">5</span>Service providers and international transfers</h2>
+      <p>Owl uses the following providers, which process data on our behalf (processors):</p>
+<div class="grid2">
+<div class="card"><b>Google Firebase</b><span>Sign-in, storage of profiles and messages, bot protection (reCAPTCHA). The database is located in the EU (Belgium and the Netherlands).</span></div>
+<div class="card"><b>Cloudflare</b><span>Domain, bot protection (Turnstile), the push-notification server and its storage (device addresses, quiet hours, language).</span></div>
+<div class="card"><b>Resend</b><span>Sending confirmation codes and password-reset emails (EU region).</span></div>
+<div class="card"><b>GitHub Pages</b><span>Hosting of the website files. Like any web server, it sees your IP address when you open the site.</span></div>
+<div class="card"><b>Apple, Google, Mozilla</b><span>Push delivery. The content is encrypted — only your device can read it.</span></div>
+</div>
+<p style="margin-top:12px">Some of these providers are based in the USA. Transfers rely on the EU–U.S. Data Privacy Framework and/or the European Commission's Standard Contractual Clauses. Owl is operated from Russia, a country without an EU adequacy decision: your data is stored in the EU, and the administrator may access it remotely for support and moderation.</p>
+    </section>
+
+    <section id="s6">
+      <h2><span class="n">6</span>How long we keep data</h2>
+      <ul>
+<li>Profile and messages — until you delete them or your account.</li>
+<li>A deleted message is removed from the database for all chat members at once.</li>
+<li>When you delete your account, your profile, nickname, email, private conversations and notifications are erased. Messages in group chats may remain without a link to your profile.</li>
+<li>Your device's push address is deleted when you turn notifications off or sign out.</li>
+<li>Email confirmation codes expire after 15 minutes; the “while you were sleeping” summary (names only, no message text) is deleted once it has been sent in the morning.</li>
+</ul>
+    </section>
+
+    <section id="s7">
+      <h2><span class="n">7</span>How we protect data</h2>
+      <ul>
+<li>the connection to Owl is always encrypted (HTTPS);</li>
+<li>access is restricted by database rules: everyone can only read their own chats, and your email is stored separately and closed to others;</li>
+<li>push notifications are encrypted with your device's key;</li>
+<li>sign-up is protected against bots, and nobody can send a notification in someone else's name.</li>
+</ul>
+    </section>
+
+    <section id="s8" class="rights">
+      <h2><span class="n">8</span>Your rights</h2>
+      <p>Under the GDPR you have the right to <b>access</b> your data, have it <b>corrected</b> or <b>erased</b>, <b>restrict</b> or <b>object to</b> processing, receive your data in a portable format (<b>portability</b>) and <b>withdraw consent</b> at any time. Many of these you can do yourself:</p>
+<div class="grid2">
+<div class="card"><b>Edit your data</b><span>Nickname, photo and bio — in settings.</span></div>
+<div class="card"><b>Control who sees what</b><span>Settings → Privacy, or the “Owl's Eye” button.</span></div>
+<div class="card"><b>Turn off notifications</b><span>In settings, at any time.</span></div>
+<div class="card"><b>Delete your account</b><span>Settings → “Delete account forever”.</span></div>
+</div>
+<p style="margin-top:12px">For anything else — for example a copy of your data — write to <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a>. We answer within one month.</p>
+<p class="note">You also have the right to lodge a complaint with a data protection supervisory authority, in particular in the EU country where you live (in Germany — the authority of your federal state; in Poland — UODO, the President of the Personal Data Protection Office).</p>
+    </section>
+
+    <section id="s9">
+      <h2><span class="n">9</span>Age</h2>
+      <p>In the EU, Owl may be used from the age of <b>16</b>. If you are younger, you may only use Owl with the consent of a parent or legal guardian.</p>
+    </section>
+
+    <section id="s10">
+      <h2><span class="n">10</span>Data on your device</h2>
+      <p>Owl stores your settings and a copy of loaded chats on your device so that the app opens faster and works offline. This is strictly necessary for the app to work. There are no advertising or tracking cookies.</p>
+    </section>
+
+    <section id="s11">
+      <h2><span class="n">11</span>Changes and contact</h2>
+      <p>If this policy changes, the new version will appear on this page with a new date, and we'll let you know about important changes in the app.</p>
+<p class="note">Questions about your data: <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a> — or the official Owl account (blue check mark) right in the app.</p>
+    </section>
+  </main>
+</div>
+
+<footer><div class="foot">
+  <a href="/terms-en.html">Terms of Use</a>
+  <span>© Owl Messenger, 2026</span>
+  <a class="cta" href="/">Open Owl</a>
+</div></footer>
+
+</body>
+</html>
