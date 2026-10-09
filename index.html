@@ -86,9 +86,63 @@
       }
       .sidebar-profile-header:hover { opacity: 0.95; }
       .sph-top { display: flex; justify-content: space-between; align-items: flex-start; }
-      /* Кнопки в шапке — плотным рядом (высота 44 — удобно попадать пальцем) */
-      .sph-actions { gap: 0; }
-      .sph-actions .icon-btn { min-width: 36px; width: 36px; border-radius: 12px; }
+      /* Кнопки в шапке: стеклянная капсула (взгляд · ночь · уведомления) и отдельно — выход */
+      .sph-actions { display: flex; align-items: center; gap: 8px; position: absolute; z-index: 10; right: 14px; top: calc(26px + env(safe-area-inset-top, 0px)); }
+      .sph-pill { display: flex; align-items: center; padding: 2px 4px; border-radius: 22px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.18); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+      .sph-pill .icon-btn { min-width: 40px; width: 40px; min-height: 40px; height: 40px; border-radius: 50%; }
+      .sph-pill .icon-btn:active, .sph-exit:active { background: rgba(255,255,255,.14); }
+      .sph-exit { min-width: 38px !important; width: 38px; min-height: 38px !important; height: 38px; border-radius: 50% !important; opacity: .65; }
+      .sph-exit:hover { opacity: 1; }
+      /* Колокольчик: качается, когда приходит уведомление, и слегка — пока есть непрочитанные */
+      #notif-btn svg { transform-origin: 50% 8%; }
+      #notif-btn.ring svg { animation: bellRing 1s ease-in-out; }
+      #notif-btn.has-unread:not(.ring) svg { animation: bellNudge 6s ease-in-out infinite; }
+      @keyframes bellRing { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(18deg); } 30% { transform: rotate(-16deg); } 45% { transform: rotate(11deg); } 60% { transform: rotate(-7deg); } 75% { transform: rotate(3deg); } }
+      @keyframes bellNudge { 0%, 88%, 100% { transform: rotate(0); } 91% { transform: rotate(12deg); } 94% { transform: rotate(-9deg); } 97% { transform: rotate(4deg); } }
+      #notif-badge { position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: linear-gradient(135deg, #ff5a4f, #ff2d55); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--header-bg); pointer-events: none; }
+      #notif-badge.pop { animation: badgePop .45s cubic-bezier(.3,1.6,.5,1); }
+      @keyframes badgePop { 0% { transform: scale(.4); } 100% { transform: scale(1); } }
+      /* Новая беседа — плавающая кнопка */
+      #sidebar { position: relative; }
+      .new-chat-fab { position: absolute; right: 18px; bottom: calc(44px + env(safe-area-inset-bottom, 0px)); z-index: 20; width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 85%, #fff), var(--accent)); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 45%, transparent), 0 2px 6px rgba(0,0,0,.25); transition: transform .2s cubic-bezier(.3,1.4,.5,1), box-shadow .2s; }
+      /* Меню уведомлений */
+      #notifs-screen .nf-box { max-width: 440px; width: calc(100% - 28px); max-height: min(680px, 86vh); display: flex; flex-direction: column; padding: 0; overflow: hidden; text-align: left; border: 1px solid var(--border-color); animation: nfIn .35s cubic-bezier(.2,1.2,.4,1); }
+      @keyframes nfIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+      .nf-head { display: flex; align-items: center; gap: 12px; padding: 16px 14px 14px 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); border-bottom: 1px solid var(--border-color); }
+      .nf-bell { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent)); box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 40%, transparent); flex-shrink: 0; }
+      .nf-bell svg { transform-origin: 50% 8%; animation: bellRing 1s ease-in-out .25s; }
+      .nf-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .nf-titles h2 { margin: 0; font-size: 19px; color: var(--text-main); }
+      #nf-sub { font-size: 13px; color: var(--text-muted); margin-top: 1px; }
+      .nf-close { flex-shrink: 0; }
+      #notifs-list { overflow-y: auto; flex: 1; padding: 6px 10px 14px; -webkit-overflow-scrolling: touch; }
+      .nf-day { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); padding: 14px 8px 6px; }
+      .nf-item { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 10px; border-radius: 16px; cursor: default; transition: background .2s; animation: nfItem .4s ease both; }
+      .nf-item.link { cursor: pointer; }
+      .nf-item.link:hover { background: color-mix(in srgb, var(--input-bg) 70%, transparent); }
+      .nf-item.fresh { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+      .nf-item.fresh::after { content: ""; position: absolute; right: 12px; top: 16px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+      @keyframes nfItem { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+      .nf-ava { position: relative; flex-shrink: 0; width: 44px; height: 44px; }
+      .nf-ava img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--bg-main); }
+      .nf-type { position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 0 0 2px var(--bg-panel); }
+      .nf-type svg { width: 11px; height: 11px; stroke-width: 2.6; }
+      .nf-type.ment { font-size: 12px; font-weight: 800; line-height: 1; }
+      .nf-type.follow { background: #34c759; } .nf-type.invite { background: #5e8bff; } .nf-type.ment { background: var(--accent); } .nf-type.deleted { background: #ff6b5e; } .nf-type.official { background: #3390ec; } .nf-type.other { background: #8e8e93; }
+      .nf-body { flex: 1; min-width: 0; padding-right: 14px; }
+      .nf-text { font-size: 14px; line-height: 1.4; color: var(--text-main); white-space: pre-wrap; word-break: break-word; }
+      .nf-text b { font-weight: 700; }
+      .nf-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+      .nf-meta .off { color: #3390ec; font-weight: 600; }
+      .nf-empty { text-align: center; padding: 40px 20px 30px; color: var(--text-muted); font-size: 14px; }
+      .nf-empty svg { color: var(--accent); margin-bottom: 10px; }
+      .nf-empty b { display: block; color: var(--text-main); font-size: 16px; margin-bottom: 4px; }
+      @media (max-width: 768px) { #notifs-screen .nf-box { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; border: none; } .nf-head { padding-top: calc(16px + env(safe-area-inset-top, 0px)); } #notifs-list { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); } }
+      @media (prefers-reduced-motion: reduce) { .nf-box, .nf-item, .nf-bell svg { animation: none !important; } }
+      .new-chat-fab:hover { transform: translateY(-2px) scale(1.04); }
+      .new-chat-fab:active { transform: scale(.92); }
+      .chat-list { padding-bottom: 84px !important; }
+      @media (prefers-reduced-motion: reduce) { #notif-btn svg { animation: none !important; } }
       .sph-top img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 5px rgba(0,0,0,0.2); background: var(--bg-main); }
       .sph-info { display: flex; flex-direction: column; }
       .sph-name { font-weight: 600; font-size: 16px; display: flex; align-items: center; justify-content: space-between;}
@@ -1115,14 +1169,13 @@
 
     <!-- ОКНО УВЕДОМЛЕНИЙ -->
     <div id="notifs-screen" class="modal-screen" style="display: none;">
-      <div class="modal-box" style="max-height: 80vh; display:flex; flex-direction:column; padding: 20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-           <h2 style="margin:0; color:var(--text-main);">Уведомления</h2>
-           <button class="icon-btn" onclick="document.getElementById('notifs-screen').style.display='none'">
-               <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-           </button>
+      <div class="modal-box nf-box">
+        <div class="nf-head">
+          <div class="nf-bell" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"></path><path d="M10.27 21a2 2 0 0 0 3.46 0"></path></svg></div>
+          <div class="nf-titles"><h2>Уведомления</h2><span id="nf-sub"></span></div>
+          <button class="icon-btn nf-close" id="notifs-close" title="Закрыть" aria-label="Закрыть"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
-        <div id="notifs-list" style="overflow-y:auto; flex-grow:1; display:flex; flex-direction:column; gap:8px;"></div>
+        <div id="notifs-list"></div>
       </div>
     </div>
 
@@ -1573,7 +1626,8 @@
         <div class="sidebar-profile-header" id="open-settings-btn" title="Мой профиль и настройки">
           <div class="sph-top">
             <img id="my-avatar" src="" alt="Me">
-            <div class="sph-actions" style="display:flex; z-index:10; position:absolute; right:10px; top:calc(20px + env(safe-area-inset-top, 0px));">
+            <div class="sph-actions">
+              <div class="sph-pill">
                 
                 <button id="dev-panel-btn" class="icon-btn" style="color: white; display: none;" title="Панель разработчика"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg></button>
 
@@ -1588,15 +1642,13 @@
                 </button>
 
                 <!-- ЕДИНЫЙ КОЛОКОЛЬЧИК УВЕДОМЛЕНИЙ -->
-                <button id="notif-btn" class="icon-btn" style="color: white; position: relative;" title="Уведомления">
+                <button id="notif-btn" class="icon-btn" style="color: white; position: relative;" title="Уведомления" aria-label="Уведомления">
                     <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"></path><path d="M10.27 21a2 2 0 0 0 3.46 0"></path></svg>
-                    <span id="notif-badge" style="display:none; position:absolute; top:-2px; right:-2px; background:#ff3b30; color:white; border-radius:10px; font-size:10px; padding:2px 5px; font-weight:bold;">0</span>
+                    <span id="notif-badge" style="display:none;">0</span>
                 </button>
 
-                <button id="open-create-group-btn" class="icon-btn" style="color: white;" title="Создать беседу">
-                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-                </button>
-                <button id="logout-btn-header" class="icon-btn" style="color: white;" title="Выйти">
+              </div>
+                <button id="logout-btn-header" class="icon-btn sph-exit" style="color: white;" title="Выйти" aria-label="Выйти">
                     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                 </button>
             </div>
@@ -1626,7 +1678,11 @@
         
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.72</div>
+        <!-- Новая беседа: плавающая кнопка над списком чатов -->
+        <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
+        </button>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.73</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3654,12 +3710,75 @@
           if (n.type === "chat_deleted") return `${who} удалил(а) вашу переписку`;
           return String(n.text || "");
       }
-      function notifSourceLabel(n) {
-          const official = n.type === "broadcast" || (n.fromUid && usersCache[n.fromUid]?.email === ADMIN_EMAIL);
-          if (official) return `<b style="color:#3390ec">Owl Messenger ✓</b> · `;
-          if (n.fromUid) { watchUser(n.fromUid); return `от ${escapeHTML(usersCache[n.fromUid]?.name || "пользователя")} · `; }
-          return "";
+      // ===== МЕНЮ УВЕДОМЛЕНИЙ =====
+      let lastNotifs = [], lastUnread = 0, nfFresh = new Set();
+      function ringBell() {
+          const btn = document.getElementById("notif-btn"), badge = document.getElementById("notif-badge");
+          btn.classList.remove("ring"); badge.classList.remove("pop"); void btn.offsetWidth; // перезапуск анимации
+          btn.classList.add("ring"); badge.classList.add("pop");
+          setTimeout(() => btn.classList.remove("ring"), 1100);
       }
+      // Вид уведомления: значок-бейдж на аватаре и куда ведёт нажатие
+      function notifKind(n) {
+          const official = n.type === "broadcast" || (n.fromUid && usersCache[n.fromUid]?.email === ADMIN_EMAIL);
+          if (official) return { cls: "official", ic: "megaphone" };
+          if (n.type === "follow") return { cls: "follow", ic: "users" };
+          if (n.type === "invite") return { cls: "invite", ic: "mail" };
+          if (n.type === "mention") return { cls: "ment", ic: "" };
+          if (n.type === "chat_deleted") return { cls: "deleted", ic: "trash" };
+          return { cls: "other", ic: "bell" };
+      }
+      function notifWhen(t) {
+          const d = new Date(t), diff = Date.now() - t;
+          if (diff < 60 * 1000) return "только что";
+          if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)} мин. назад`;
+          const hm = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          if (new Date().toDateString() === d.toDateString()) return hm;
+          return `${d.toLocaleDateString([], { day: "numeric", month: "short" })}, ${hm}`;
+      }
+      function notifDay(t) {
+          const d = new Date(t), today = new Date(), y = new Date(); y.setDate(today.getDate() - 1);
+          if (d.toDateString() === today.toDateString()) return "Сегодня";
+          if (d.toDateString() === y.toDateString()) return "Вчера";
+          return Date.now() - t < 7 * 864e5 ? "На этой неделе" : "Ранее";
+      }
+      function renderNotifs() {
+          const list = document.getElementById("notifs-list"); if (!list) return;
+          const unread = lastNotifs.filter(n => !n.read || nfFresh.has(n.id)).length;
+          document.getElementById("nf-sub").textContent = !lastNotifs.length ? "Пока пусто" : unread ? `Новых: ${unread}` : "Всё прочитано";
+          if (!lastNotifs.length) {
+              list.innerHTML = `<div class="nf-empty"><svg viewBox="0 0 64 28" width="74" height="32" aria-hidden="true"><circle cx="16" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="48" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="14" r="5" fill="currentColor"/><circle cx="48" cy="14" r="5" fill="currentColor"/></svg><b>Тишина в дупле</b>Здесь появятся новые подписчики, упоминания и приглашения в беседы</div>`;
+              return;
+          }
+          let html = "", day = "", k = 0;
+          lastNotifs.forEach(n => {
+              const t = getTime(n.timestamp), dl = notifDay(t);
+              if (dl !== day) { day = dl; html += `<div class="nf-day">${dl}</div>`; }
+              const kind = notifKind(n), official = kind.cls === "official";
+              if (n.fromUid && !official) watchUser(n.fromUid);
+              const who = official ? "Owl Messenger" : (n.fromUid && usersCache[n.fromUid]?.name) || "Пользователь";
+              const ava = official ? "icon-192.png" : getAvatar(n.fromUid, who);
+              const link = (n.type === "follow" && n.fromUid) || ((n.type === "mention" || n.type === "invite") && n.chatId) ? " link" : "";
+              const fresh = !n.read || nfFresh.has(n.id) ? " fresh" : "";
+              html += `<div class="nf-item${link}${fresh}" data-nid="${escapeHTML(n.id)}" style="animation-delay:${Math.min(k++, 12) * 35}ms">
+                  <div class="nf-ava"><img src="${escapeHTML(ava)}" alt=""><span class="nf-type ${kind.cls}">${kind.ic ? icon(kind.ic, 11) : "@"}</span></div>
+                  <div class="nf-body"><div class="nf-text">${escapeHTML(notifText(n))}</div>
+                  <div class="nf-meta">${official ? `<span class="off">Owl Messenger ✓</span> · ` : ""}${notifWhen(t)}</div></div></div>`;
+          });
+          list.innerHTML = html;
+      }
+      // Нажатие на уведомление: подписка → профиль, упоминание → чат, приглашение → карточка приглашения в списке чатов
+      document.getElementById("notifs-list").addEventListener("click", (e) => {
+          const it = e.target.closest(".nf-item.link"); if (!it) return;
+          const n = lastNotifs.find(x => x.id === it.getAttribute("data-nid")); if (!n) return;
+          document.getElementById("notifs-screen").style.display = "none";
+          if (n.type === "follow") window.openPublicProfile(n.fromUid);
+          else if (n.type === "mention") window.openChatById(n.chatId);
+          else if (n.type === "invite") { const inv = document.getElementById("group-invites"); if (groupsCache[n.chatId]) window.openChatById(n.chatId); else if (inv) inv.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      });
+      document.getElementById("notifs-close").addEventListener("click", () => { document.getElementById("notifs-screen").style.display = "none"; });
+      document.getElementById("notifs-screen").addEventListener("click", (e) => { if (e.target.id === "notifs-screen") e.target.style.display = "none"; });
+
       function startNotificationsListener() {
         if(notificationsListener) notificationsListener();
         // Только последние 30 уведомлений (раньше грузились все за всё время — с каждой рассылкой дороже).
@@ -3667,30 +3786,19 @@
         const qLatest = query(collection(db, "notifications"), where("toUid", "==", currentUser.uid), orderBy("timestamp", "desc"), limit(30));
         const qAll = query(collection(db, "notifications"), where("toUid", "==", currentUser.uid));
         const handleNotifs = (snapshot) => {
-          let unreadCount = 0; let listHtml = ""; let notifs = [];
+          let unreadCount = 0; let notifs = [];
           snapshot.forEach(docSnap => notifs.push({id: docSnap.id, ...docSnap.data()}));
           notifs.sort((a,b) => getTime(b.timestamp) - getTime(a.timestamp)); 
 
-          notifs.forEach(n => {
-              if (!n.read) unreadCount++;
-              listHtml += `<div style="padding:10px; border-radius:10px; background: ${n.read ? 'transparent' : 'var(--input-bg)'}; border:1px solid var(--border-color); text-align:left; opacity: ${n.read ? '0.7' : '1'}">
-                 <div style="font-size:14px; color:var(--text-main); font-weight: ${n.read ? 'normal' : 'bold'}; white-space: pre-wrap; word-break: break-word;">${escapeHTML(notifText(n))}</div>
-                 <div style="font-size:11px; color:var(--accent); margin-top:4px;">${notifSourceLabel(n)}${new Date(getTime(n.timestamp)).toLocaleString()}</div>
-              </div>`;
-          });
+          notifs.forEach(n => { if (!n.read) unreadCount++; });
+          lastNotifs = notifs; renderNotifs();
 
-          if(notifs.length === 0) listHtml = "<p style='color:var(--text-muted); font-size:14px;'>Нет новых уведомлений</p>";
-          
-          let nList = document.getElementById("notifs-list");
-          if (nList) nList.innerHTML = listHtml;
-
-          let badges = [document.getElementById("notif-badge")];
-          badges.forEach(b => {
-              if (b) {
-                  if(unreadCount > 0) { b.style.display = "block"; b.innerText = unreadCount > 99 ? '99+' : unreadCount; }
-                  else { b.style.display = "none"; }
-              }
-          });
+          const b = document.getElementById("notif-badge");
+          if (unreadCount > 0) { b.style.display = "block"; b.innerText = unreadCount > 99 ? '99+' : unreadCount; }
+          else b.style.display = "none";
+          document.getElementById("notif-btn").classList.toggle("has-unread", unreadCount > 0);
+          if (unreadCount > lastUnread) ringBell(); // пришло новое — колокольчик качнётся
+          lastUnread = unreadCount;
 
           // Новые непоказанные уведомления. Если их сразу много (например, при входе) — одно общее, а не стопка
           const fresh = snapshot.docChanges().filter(c => c.type === "added" && !c.doc.data().read && !c.doc.data().toasted);
@@ -3708,6 +3816,8 @@
 
       function openNotifsMenu() {
          let scr = document.getElementById("notifs-screen");
+         nfFresh = new Set(lastNotifs.filter(n => !n.read).map(n => n.id)); // подсветка новых сохраняется, пока меню открыто
+         renderNotifs();
          if (scr) scr.style.display = "flex";
          getDocs(query(collection(db, "notifications"), where("toUid", "==", currentUser.uid), where("read", "==", false))).then(snap => {
              if(snap.empty) return;
