@@ -1775,7 +1775,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.85</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.86</div>
       </div>
       
       <!-- ЧАТ -->
@@ -5671,7 +5671,8 @@
       // «Гнездо» — чат с самим собой (заметки и сохранённое): id = мойUid_мойUid
       const nestId = () => currentUser ? currentUser.uid + "_" + currentUser.uid : null;
       const isNest = (chatId) => !!currentUser && chatId === nestId();
-      const NEST_SVG = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><ellipse cx="12" cy="9.4" rx="3.7" ry="4.6" fill="currentColor"/><ellipse cx="10.8" cy="7.8" rx="1" ry="1.5" fill="rgba(255,255,255,.55)"/><path d="M2.6 11.6C6.5 13.9 17.5 13.9 21.4 11.6C21 17.6 17.2 20.6 12 20.6S3 17.6 2.6 11.6Z" fill="currentColor"/><path d="M4.6 14.6C8.4 16.3 15.6 16.3 19.4 14.6M6.6 17.6C9.6 18.8 14.4 18.8 17.4 17.6M7.5 12.9l2 3.2M12 13.6v3.4M16.5 12.9l-2 3.2" fill="none" stroke="rgba(60,30,90,.38)" stroke-width="1.1" stroke-linecap="round"/></svg>`;
+      // Совёнок сидит в гнезде: задний край — за ним, передний (с плетением) закрывает низ тела
+      const NEST_SVG = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="M3.4 12.6C7.4 10.4 16.6 10.4 20.6 12.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".85"/><path d="M12 5.9C14.9 5.9 17.2 8.1 17.2 11.1V16H6.8V11.1C6.8 8.1 9.1 5.9 12 5.9Z" fill="currentColor"/><path d="M7.5 8.2L7.8 4.8L10.1 6.7Z M16.5 8.2L16.2 4.8L13.9 6.7Z" fill="currentColor"/><circle cx="9.95" cy="10.3" r="2.05" fill="#6d3dff"/><circle cx="14.05" cy="10.3" r="2.05" fill="#6d3dff"/><circle cx="10.35" cy="9.9" r=".72" fill="#fff"/><circle cx="14.45" cy="9.9" r=".72" fill="#fff"/><path d="M11.3 12.1L12 13.3L12.7 12.1Z" fill="#f5b942"/><path d="M2.4 12.9C6 15.7 18 15.7 21.6 12.9C21.2 18.5 17.3 21.3 12 21.3S2.8 18.5 2.4 12.9Z" fill="currentColor"/><path d="M2.4 12.9C6 15.7 18 15.7 21.6 12.9" fill="none" stroke="rgba(85,45,140,.5)" stroke-width="1.1" stroke-linecap="round"/><g fill="none" stroke="rgba(85,45,140,.3)" stroke-width="1" stroke-linecap="round"><path d="M4.4 15.9q2 1.3 4.2 1.4"/><path d="M10 17.6q2 .3 4 0"/><path d="M15.4 17.3q2.2-.1 4.2-1.4"/><path d="M6.4 18.9q2.4 1 4.4 1"/><path d="M13.2 19.9q2.2-.1 4.4-1"/></g><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.1 12.1L3.7 13.5"/><path d="M22.9 12.1L20.3 13.5"/><path d="M1.6 14.6L3.3 14.5"/><path d="M22.4 14.6L20.7 14.5"/></g></svg>`;
       const dmPeer = (chatId) => (currentUser && chatId && chatId.includes("_")) ? chatId.split("_").find(id => id !== currentUser.uid) : null;
       async function toggleBlock(uid) {
           if (!currentUser || !uid || uid === currentUser.uid) return;
