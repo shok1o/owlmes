@@ -596,5 +596,6 @@ export default {
 "Не удалось отправить обращение. Попробуйте ещё раз чуть позже.": "Couldn't send the appeal. Please try again a bit later.",
 "сообщение|сообщения|сообщений": "message|messages",
 "Email": "Email",
-"{name} печатает": "{name} is typing"
+"{name} печатает": "{name} is typing",
+"Слишком много сообщений подряд — подождите минуту": "Too many messages in a row — please wait a minute"
 };

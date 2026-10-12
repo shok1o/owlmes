@@ -596,5 +596,6 @@ export default {
 "Не удалось отправить обращение. Попробуйте ещё раз чуть позже.": "Nie udało się wysłać odwołania. Spróbuj ponownie nieco później.",
 "сообщение|сообщения|сообщений": "wiadomość|wiadomości|wiadomości",
 "Email": "E-mail",
-"{name} печатает": "{name} pisze"
+"{name} печатает": "{name} pisze",
+"Слишком много сообщений подряд — подождите минуту": "Za dużo wiadomości pod rząd — odczekaj minutę"
 };
