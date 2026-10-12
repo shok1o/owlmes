@@ -940,6 +940,14 @@
       /* без transform: иначе закреплённые в углу экрана крестики на время анимации «прилипли» бы к карточке */
       @keyframes boxIn { from { opacity: 0; top: 18px; } to { opacity: 1; top: 0; } }
       /* Закрытие окон: фон гаснет, карточка уплывает вниз и тает (класс .closing ставит код, затем прячет окно) */
+      /* Резервная копия (админ) */
+      .bk-box { text-align: left; background: var(--input-bg); border-radius: 14px; padding: 14px; margin: -10px 0 25px; }
+      .bk-box b { display: block; margin-bottom: 4px; color: var(--text-main); }
+      .bk-box p { margin: 0 0 10px; font-size: 12px; line-height: 1.4; color: var(--text-muted); }
+      .bk-box input[type=password] { width: 100%; box-sizing: border-box; margin: 0 0 8px; }
+      .bk-btns { display: flex; gap: 8px; } .bk-btns .modal-btn { margin: 0; flex: 1; font-size: 14px; padding: 10px 8px; }
+      .bk-ghost { background: var(--bg-panel) !important; color: var(--text-main) !important; }
+      #bk-status { font-size: 12px; color: var(--text-muted); margin-top: 8px; white-space: pre-line; }
       .modal-screen.closing { animation: scrOut .2s ease-in forwards; pointer-events: none; }
       .modal-screen.closing > .modal-box { animation: boxOut .2s ease-in forwards; }
       @keyframes scrOut { to { background-color: rgba(0,0,0,0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); } }
@@ -1315,6 +1323,14 @@
         <div id="broadcast-count" style="text-align:right; font-size:11px; color:var(--text-muted); margin:4px 0 10px;">0/1000</div>
         <button id="broadcast-btn" class="modal-btn" style="margin-bottom: 25px;">Отправить всем</button>
         <button id="open-dev-panel-btn" class="modal-btn" style="margin-bottom: 25px; background: var(--input-bg); color: var(--text-main);">Панель разработчика</button>
+        <div class="bk-box" data-no-i18n>
+          <b>Резервная копия базы</b>
+          <p>Вся база одним зашифрованным файлом. Лучше делать с компьютера, раз в неделю. Каждый документ — одно чтение из суточного лимита.</p>
+          <input type="password" id="bk-key" placeholder="Пароль резервной копии" autocomplete="off">
+          <div class="bk-btns"><button id="bk-download" class="modal-btn">Скачать копию</button><button id="bk-open" class="modal-btn bk-ghost">Расшифровать копию</button></div>
+          <input type="file" id="bk-file" accept=".owlbak" style="display:none">
+          <div id="bk-status"></div>
+        </div>
         <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">Вы можете полностью очистить историю глобального чата.</p>
         <button id="clear-global-btn" class="modal-btn" style="background: #ff3b30;">Очистить историю чата</button>
       </div>
@@ -1753,7 +1769,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.82</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.83</div>
       </div>
       
       <!-- ЧАТ -->
@@ -6411,6 +6427,84 @@
       // отметку ratelimits/{я}.g = время сервера, правила базы сверяют её с прошлой (защита от флуда скриптами)
       let lastGlobalSend = 0;
       const globalTooFast = () => currentChatId === "global" && !isAdmin && Date.now() - lastGlobalSend < 1100;
+      // ===== РЕЗЕРВНАЯ КОПИЯ БАЗЫ (только админ) =====
+      // Сервер owl-push читает базу служебным ключом и отдаёт по страницам (нужен пароль копии — секрет BACKUP_KEY в Cloudflare).
+      // Здесь собираем всё в один JSON, сжимаем (gzip) и шифруем паролем: PBKDF2 (250 000 итераций) → AES-256-GCM.
+      // Формат файла .owlbak: "OWLBAK1" (7 байт) + флаг сжатия (1) + соль (16) + iv (12) + шифротекст
+      const BK_MAGIC = "OWLBAK1";
+      async function bkKey(pass, salt, usage) {
+          const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+          return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, [usage]);
+      }
+      const gzipOk = typeof CompressionStream === "function" && typeof DecompressionStream === "function";
+      const streamBytes = async (bytes, ts) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(ts)).arrayBuffer());
+      async function bkEncrypt(text, pass) {
+          let data = new TextEncoder().encode(text); const gz = gzipOk ? 1 : 0;
+          if (gz) data = await streamBytes(data, new CompressionStream("gzip"));
+          const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+          const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await bkKey(pass, salt, "encrypt"), data);
+          return new Blob([new TextEncoder().encode(BK_MAGIC), new Uint8Array([gz]), salt, iv, new Uint8Array(ct)], { type: "application/octet-stream" });
+      }
+      async function bkDecrypt(buf, pass) {
+          const b = new Uint8Array(buf);
+          if (new TextDecoder().decode(b.slice(0, 7)) !== BK_MAGIC) throw new Error("Это не файл резервной копии Owl");
+          const gz = b[7], salt = b.slice(8, 24), iv = b.slice(24, 36);
+          let data;
+          try { data = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await bkKey(pass, salt, "decrypt"), b.slice(36))); }
+          catch (_) { throw new Error("Неверный пароль или файл повреждён"); }
+          if (gz) data = await streamBytes(data, new DecompressionStream("gzip"));
+          return new TextDecoder().decode(data);
+      }
+      const saveBlob = (blob, name) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); };
+      const bkStatus = (t) => { document.getElementById("bk-status").textContent = t; };
+      document.getElementById("bk-download").addEventListener("click", async (e) => {
+          const pass = document.getElementById("bk-key").value, btn = e.currentTarget;
+          if (!isAdmin) return;
+          if (pass.length < 8) return bkStatus("Введите пароль копии (не короче 8 символов)");
+          btn.disabled = true;
+          try {
+              const call = async (data) => {
+                  const r = await pushPost("/backup", { key: pass, ...data });
+                  const j = await r.json().catch(() => ({}));
+                  if (!r.ok) throw new Error(j.error === "bad key" ? `Неверный пароль копии (осталось попыток: ${j.left})` : j.error === "too many" ? `Слишком часто — попробуйте через ${Math.ceil((j.retryAfter || 60) / 60)} мин` : j.error === "backup not configured" ? "На сервере не задан пароль копии (секрет BACKUP_KEY)" : "Ошибка сервера: " + (j.error && j.error.message || j.error || r.status));
+                  return j;
+              };
+              bkStatus("Получаем список коллекций…");
+              const cols = (await call({})).collectionIds || [];
+              const out = { app: "Owl Messenger", project: "mymessenger-12ec5", format: "firestore-rest-v1", createdAt: new Date().toISOString(), collections: {} };
+              let total = 0;
+              for (const c of cols) {
+                  const docs = []; let token = "";
+                  do {
+                      const j = await call({ collection: c, pageSize: c === "messages" ? 40 : 200, pageToken: token });
+                      (j.documents || []).forEach(d => docs.push(d));
+                      token = j.nextPageToken || "";
+                      bkStatus(`Скачиваем: ${c} — ${docs.length}\nВсего документов: ${total + docs.length}`);
+                  } while (token);
+                  out.collections[c] = docs; total += docs.length;
+              }
+              bkStatus(`Шифруем ${total} документов…`);
+              const blob = await bkEncrypt(JSON.stringify(out), pass);
+              saveBlob(blob, `owl-backup-${new Date().toISOString().slice(0, 10)}.owlbak`);
+              bkStatus(`Готово ✓ Коллекций: ${cols.length}, документов: ${total}, файл: ${(blob.size / 1048576).toFixed(1)} МБ.\nЭто ≈ ${total} чтений из 50 000 суточного лимита. Храните файл и пароль отдельно друг от друга.`);
+          } catch (err) { console.error(err); bkStatus("❌ " + (err.message || err)); }
+          finally { btn.disabled = false; }
+      });
+      document.getElementById("bk-open").addEventListener("click", () => {
+          if (document.getElementById("bk-key").value.length < 8) return bkStatus("Сначала введите пароль копии");
+          document.getElementById("bk-file").click();
+      });
+      document.getElementById("bk-file").addEventListener("change", async (e) => {
+          const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+          try {
+              bkStatus("Расшифровываем…");
+              const text = await bkDecrypt(await f.arrayBuffer(), document.getElementById("bk-key").value);
+              const info = JSON.parse(text);
+              saveBlob(new Blob([text], { type: "application/json" }), f.name.replace(/\.owlbak$/, "") + ".json");
+              bkStatus(`Расшифровано ✓ Копия от ${new Date(info.createdAt).toLocaleString()}, коллекций: ${Object.keys(info.collections || {}).length}. Файл .json скачан — он НЕ зашифрован, не храните его долго.`);
+          } catch (err) { bkStatus("❌ " + (err.message || err)); }
+      });
+
       // Защита от флуда во всех чатах: не больше MSG_PER_MIN сообщений в минуту. Вместе с сообщением пишем счётчик
       // ratelimits/{я}: mw — начало минутного окна (время сервера), mc — сколько отправлено в нём. Правила базы сверяют
       // переход «то же окно, +1» или «новое окно с 1», так что скрипт в обход приложения упрётся в тот же лимит.
