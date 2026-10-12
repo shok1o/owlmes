@@ -490,6 +490,13 @@
         #main-chat { width: 100%; flex-shrink: 0; display: none; }
         #app-container.chat-active #sidebar { display: none; }
         #app-container.chat-active #main-chat { display: flex; }
+        /* Чат выезжает справа поверх списка, список чуть уходит вглубь; назад — наоборот */
+        #app-container.chat-opening #sidebar, #app-container.chat-closing #sidebar { display: flex; }
+        #app-container.chat-opening #main-chat, #app-container.chat-closing #main-chat { display: flex; position: absolute; inset: 0; z-index: 30; box-shadow: -10px 0 30px rgba(0,0,0,.35); }
+        #app-container.chat-opening #main-chat { animation: chatIn .32s cubic-bezier(.2,.85,.25,1) both; }
+        #app-container.chat-opening #sidebar { animation: sideAway .32s cubic-bezier(.2,.85,.25,1) both; }
+        #app-container.chat-closing #main-chat { animation: chatOut .26s cubic-bezier(.4,0,.7,1) both; }
+        #app-container.chat-closing #sidebar { animation: sideBack .26s cubic-bezier(.3,0,.3,1) both; }
         .mobile-back-btn { display: flex !important; margin-right: 2px; }
         .input-area { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
         /* Клавиатура открыта, или iOS не вернул высоту окна после неё (снизу полоска цвета панели) — запас под «домой» не нужен */
@@ -932,6 +939,31 @@
       @keyframes scrIn { from { background-color: rgba(0,0,0,0); } }
       /* без transform: иначе закреплённые в углу экрана крестики на время анимации «прилипли» бы к карточке */
       @keyframes boxIn { from { opacity: 0; top: 18px; } to { opacity: 1; top: 0; } }
+      /* Закрытие окон: фон гаснет, карточка уплывает вниз и тает (класс .closing ставит код, затем прячет окно) */
+      .modal-screen.closing { animation: scrOut .2s ease-in forwards; pointer-events: none; }
+      .modal-screen.closing > .modal-box { animation: boxOut .2s ease-in forwards; }
+      @keyframes scrOut { to { background-color: rgba(0,0,0,0); -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); } }
+      @keyframes boxOut { from { opacity: 1; top: 0; } to { opacity: 0; top: 14px; } }
+
+      /* Новое сообщение «выплывает»: своё — от правого края, чужое — от левого */
+      .message-row.msg-in .message-content { animation: msgIn .34s cubic-bezier(.2,.9,.3,1.15); transform-origin: 0 100%; }
+      .message-row.msg-in-me .message-content { animation: msgIn .34s cubic-bezier(.2,.9,.3,1.15); transform-origin: 100% 100%; }
+      @keyframes chatIn { from { transform: translateX(100%); } to { transform: none; } }
+      @keyframes chatOut { from { transform: none; } to { transform: translateX(100%); } }
+      @keyframes sideAway { from { transform: none; filter: none; } to { transform: translateX(-22%); filter: brightness(.7); } }
+      @keyframes sideBack { from { transform: translateX(-22%); filter: brightness(.7); } to { transform: none; filter: none; } }
+      @media (prefers-reduced-motion: reduce) { #app-container.chat-opening #main-chat, #app-container.chat-opening #sidebar, #app-container.chat-closing #main-chat, #app-container.chat-closing #sidebar { animation: none !important; } }
+      @keyframes msgIn { from { opacity: 0; transform: translateY(14px) scale(.9); } to { opacity: 1; transform: none; } }
+
+      /* Отклик на нажатие: кнопки чуть «вдавливаются», строки списков — едва заметно (:where — не перебивает свои правила элементов) */
+      :where(button, .chat-item, .tab, .fl-row, .nf-item.link, .eye-entry, .st-bg, .gi-card button) { transition: scale .14s ease; }
+      :where(button:not(:disabled):not(#voice-btn), .tab, .st-bg):active { scale: .94; }
+      :where(.chat-item, .fl-row, .nf-item.link, .eye-entry):active { scale: .985; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .modal-screen.closing, .modal-screen.closing > .modal-box, .message-row.msg-in .message-content, .message-row.msg-in-me .message-content { animation: none !important; }
+        :where(button, .tab, .st-bg, .chat-item, .fl-row, .nf-item.link, .eye-entry):active { scale: none; }
+      }
       @media (prefers-reduced-motion: reduce) { .fl-row, .fl-mutual, .my-new.on, .fl-eyes .fl-pupils, .pop, .modal-screen[style*="flex"], .modal-screen[style*="flex"] > .modal-box { animation: none !important; } #follow-tabs::before, .my-stat, .my-new { transition: none; } }
 
       #group-invites { flex-shrink: 0; }
@@ -1698,7 +1730,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.79</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.80</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1857,6 +1889,30 @@
               if (!screens.some(el => base.get(el) <= 1000 && shown(el))) seq = 0;
           });
           screens.forEach(el => mo.observe(el, { attributes: true, attributeFilter: ["style"], attributeOldValue: true }));
+          // Плавное закрытие: код по всему приложению пишет style.display = "none" — перехватываем это у каждого окна,
+          // проигрываем анимацию (.closing) и только потом действительно прячем. Чтение style.display сразу отдаёт "none",
+          // поэтому остальной код считает окно закрытым. Если окно снова открыли во время анимации — закрытие отменяется.
+          screens.forEach(el => {
+              const st = el.style; let logical = st.display, timer = null;
+              try {
+                  Object.defineProperty(st, "display", {
+                      configurable: true,
+                      get() { return logical; },
+                      set(v) {
+                          el.__dispHooked = true;
+                          logical = v; clearTimeout(timer);
+                          const visible = st.getPropertyValue("display") && st.getPropertyValue("display") !== "none";
+                          if (v === "none" && visible && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+                              el.classList.add("closing");
+                              timer = setTimeout(() => { el.classList.remove("closing"); st.setProperty("display", "none"); }, 200);
+                          } else { el.classList.remove("closing"); if (v) st.setProperty("display", v); else st.removeProperty("display"); }
+                      }
+                  });
+                  // проверка, что браузер действительно отдаёт запись в наш перехватчик; иначе — как раньше, без анимации закрытия
+                  st.display = logical;
+                  if (!el.__dispHooked) delete st.display;
+              } catch (_) { try { delete st.display; } catch (__) {} }
+          });
           // Поднять уже открытое окно наверх (повторное открытие не меняет display — наблюдатель его не заметит)
           window.raiseModal = (el) => { if (el && base.get(el) <= 1000) el.style.zIndex = String(1000 + (++seq)); };
       })();
@@ -4819,9 +4875,25 @@
         }
       });
 
+      // Телефон: чат выезжает справа и уезжает обратно (при свайпе от края он уже сдвинут пальцем — тогда без анимации)
+      const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let chatPaneTimer = null;
+      function openChatPane() {
+          const app = document.getElementById("app-container");
+          if (app.classList.contains("chat-active") && !app.classList.contains("chat-closing")) return;
+          clearTimeout(chatPaneTimer); app.classList.remove("chat-closing");
+          app.classList.add("chat-active");
+          if (reduceMotion()) return;
+          app.classList.add("chat-opening");
+          chatPaneTimer = setTimeout(() => app.classList.remove("chat-opening"), 340);
+      }
       document.getElementById("mobile-back-btn").addEventListener("click", () => {
-          document.getElementById("app-container").classList.remove("chat-active");
+          const app = document.getElementById("app-container"), main = document.getElementById("main-chat");
           document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+          clearTimeout(chatPaneTimer); app.classList.remove("chat-opening");
+          if (reduceMotion() || main.style.transform || window.innerWidth > 768) { app.classList.remove("chat-active", "chat-closing"); return; }
+          app.classList.add("chat-closing");
+          chatPaneTimer = setTimeout(() => app.classList.remove("chat-active", "chat-closing"), 270);
       });
 
       // «Печатает...» — пишем не на каждую букву, а не чаще раза в 3 секунды (раньше каждая буква = запись в базу)
@@ -5845,7 +5917,7 @@
             }
 
             document.getElementById("current-chat-title").innerHTML = titleHtml; currentHeaderStatus = statusHtml; refreshHeaderStatus();
-            if(window.innerWidth <= 768) document.getElementById("app-container").classList.add("chat-active");
+            if(window.innerWidth <= 768) openChatPane();
 
             renderChatList(document.getElementById("search-input").value); 
 
@@ -5938,6 +6010,7 @@
                     let messageRow = document.createElement("div");
                     messageRow.id = `msg-${msg.id}`;
                     messageRow.className = isMe ? "message-row my-msg" : "message-row other-msg";
+                    if (!firstLoad && Date.now() - getTime(msg.timestamp) < 60000) messageRow.classList.add(isMe ? "msg-in-me" : "msg-in"); // только что пришло — «выплывает»
                     messageRow.setAttribute("data-msg-id", msg.id);
                     messageRow.setAttribute("data-uid", msg.uid || "");
                     messageRow.setAttribute("data-ts", String(getTime(msg.timestamp) || 0));
