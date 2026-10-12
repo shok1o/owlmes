@@ -597,5 +597,12 @@ export default {
 "сообщение|сообщения|сообщений": "wiadomość|wiadomości|wiadomości",
 "Email": "E-mail",
 "{name} печатает": "{name} pisze",
-"Слишком много сообщений подряд — подождите минуту": "Za dużo wiadomości pod rząd — odczekaj minutę"
+"Слишком много сообщений подряд — подождите минуту": "Za dużo wiadomości pod rząd — odczekaj minutę",
+"Гнездо": "Gniazdo",
+"Ваши заметки и сохранённое": "Twoje notatki i zapisane",
+"Сохранить в Гнездо": "Zapisz w Gnieździe",
+"Сохранено в Гнездо 🪺": "Zapisano w Gnieździe 🪺",
+"Очистить Гнездо? Все заметки и сохранённое удалятся навсегда.": "Wyczyścić Gniazdo? Wszystkie notatki i zapisane wiadomości zostaną usunięte na zawsze.",
+"Гнездо очищено": "Gniazdo wyczyszczone",
+"Очистить Гнездо": "Wyczyść Gniazdo"
 };

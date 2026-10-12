@@ -597,5 +597,12 @@ export default {
 "сообщение|сообщения|сообщений": "Nachricht|Nachrichten",
 "Email": "E-Mail",
 "{name} печатает": "{name} schreibt",
-"Слишком много сообщений подряд — подождите минуту": "Zu viele Nachrichten hintereinander – warte bitte eine Minute"
+"Слишком много сообщений подряд — подождите минуту": "Zu viele Nachrichten hintereinander – warte bitte eine Minute",
+"Гнездо": "Nest",
+"Ваши заметки и сохранённое": "Deine Notizen und Gespeichertes",
+"Сохранить в Гнездо": "Im Nest speichern",
+"Сохранено в Гнездо 🪺": "Im Nest gespeichert 🪺",
+"Очистить Гнездо? Все заметки и сохранённое удалятся навсегда.": "Nest leeren? Alle Notizen und Gespeicherten werden endgültig gelöscht.",
+"Гнездо очищено": "Nest geleert",
+"Очистить Гнездо": "Nest leeren"
 };

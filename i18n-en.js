@@ -597,5 +597,12 @@ export default {
 "сообщение|сообщения|сообщений": "message|messages",
 "Email": "Email",
 "{name} печатает": "{name} is typing",
-"Слишком много сообщений подряд — подождите минуту": "Too many messages in a row — please wait a minute"
+"Слишком много сообщений подряд — подождите минуту": "Too many messages in a row — please wait a minute",
+"Гнездо": "Nest",
+"Ваши заметки и сохранённое": "Your notes and saved messages",
+"Сохранить в Гнездо": "Save to Nest",
+"Сохранено в Гнездо 🪺": "Saved to Nest 🪺",
+"Очистить Гнездо? Все заметки и сохранённое удалятся навсегда.": "Clear your Nest? All notes and saved messages will be deleted forever.",
+"Гнездо очищено": "Nest cleared",
+"Очистить Гнездо": "Clear Nest"
 };

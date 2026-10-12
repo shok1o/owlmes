@@ -354,6 +354,10 @@
       .fw-item:hover { background: var(--input-bg); }
       .fw-item img, .fw-item .fw-av { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
       .fw-item .fw-av { background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; }
+      /* «Гнездо»: значок — тёплый градиент сова-фиолетовый → золотой */
+      .nest-av { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; color: #fff; background: linear-gradient(135deg, var(--accent), #f5b942); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent); }
+      .fw-item .fw-av.nest { background: linear-gradient(135deg, var(--accent), #f5b942); }
+      .nest-title { display: inline-flex; align-items: center; gap: 6px; }
       .fw-item span { font-size: 15px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .msg-action-btn { background: none; border: none; font-size: 14px; cursor: pointer; opacity: 0.7; transition: 0.2s; padding: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-main);}
       .msg-action-btn:hover { opacity: 1; transform: scale(1.1); }
@@ -1771,7 +1775,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.84</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.85</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2963,6 +2967,7 @@
       // Открыть чат по id (из уведомления)
       window.openChatById = (chatId) => {
           if (!chatId || !currentUser) return;
+          if (isNest(chatId)) return window.loadChat(chatId, t("Гнездо"), null, false);
           if (groupsCache[chatId]) return window.loadChat(chatId, groupsCache[chatId].name, null, true); // экранирует сам loadChat
           const other = chatId.split("_").find(id => id !== currentUser.uid);
           if (other && usersCache[other]) window.loadChat(chatId, usersCache[other].name, other, false);
@@ -4487,7 +4492,7 @@
         let item = e.target.closest(".chat-item");
         if (item) {
           let chatId = item.getAttribute("data-chat-id"); let chatName = item.getAttribute("data-chat-name"); let targetUid = item.getAttribute("data-target-uid"); let isGroup = item.getAttribute("data-is-group") === "true";
-          if (targetUid === "global") targetUid = null;
+          if (targetUid === "global" || targetUid === "nest") targetUid = null;
           window.loadChat(chatId, chatName, targetUid, isGroup);
         }
       });
@@ -4510,7 +4515,8 @@
           const chatId = currentChatId;
           const otherUid = chatId.split("_").find(id => id !== currentUser.uid);
           const otherName = usersCache[otherUid]?.name || t("собеседника");
-          if (!confirm(t("Удалить всю переписку с {name}?", { name: otherName }) + "\n\n" + t("Сообщения исчезнут у вас обоих. Это действие нельзя отменить."))) return;
+          const nest = isNest(chatId);
+          if (nest ? !confirm(t("Очистить Гнездо? Все заметки и сохранённое удалятся навсегда.")) : !confirm(t("Удалить всю переписку с {name}?", { name: otherName }) + "\n\n" + t("Сообщения исчезнут у вас обоих. Это действие нельзя отменить."))) return;
           const btn = document.getElementById("clear-chat-btn"); btn.disabled = true;
           try {
               const snap = await getDocs(query(collection(db, "messages"), where("chatId", "==", chatId)));
@@ -4524,10 +4530,10 @@
               await deleteDoc(doc(db, "chats_metadata", chatId)).catch(() =>
                   setDoc(doc(db, "chats_metadata", chatId), { members: chatId.split("_"), lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
               delete chatsMetaCache[chatId];
-              addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, type: "chat_deleted", chatId, timestamp: new Date(), read: false }).catch(() => {});
+              if (!nest) addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, type: "chat_deleted", chatId, timestamp: new Date(), read: false }).catch(() => {});
               loadedMsgs = {}; document.getElementById("chat-box").innerHTML = "";
               renderChatList(document.getElementById("search-input").value);
-              showToast(t("Переписка удалена"), "trash");
+              showToast(nest ? t("Гнездо очищено") : t("Переписка удалена"), "trash");
           } catch (e) {
               console.error(e);
               if (e.code === "permission-denied") showToast(t("Нет прав удалить сообщения собеседника — нужно обновить правила Firestore"), "error");
@@ -4542,7 +4548,8 @@
          // Удалить переписку можно только в личном чате (у обоих участников)
          let clearBtn = document.getElementById("clear-chat-btn");
          if (clearBtn) clearBtn.style.display = (currentChatId.includes("_") && currentChatId.split("_").includes(currentUser.uid)) ? "flex" : "none";
-         btn.style.display = "flex";
+         btn.style.display = isNest(currentChatId) ? "none" : "flex"; // Гнездо и так всегда первое
+         if (clearBtn && isNest(currentChatId)) clearBtn.title = t("Очистить Гнездо");
          let myPinned = usersCache[currentUser.uid]?.pinnedChats || [];
          if (myPinned.includes(currentChatId)) { btn.innerHTML = pinFilledSVG; btn.style.opacity = "1"; btn.style.color = "var(--accent)"; } 
          else { btn.innerHTML = pinOutlineSVG; btn.style.opacity = "0.7"; btn.style.color = "var(--text-main)"; }
@@ -4580,6 +4587,17 @@
                     id: 'global', targetUid: 'global', isGroup: false, name: t('Глобальный чат'), subtext: globalPreview,
                     avatarHtml: `<div style="background: var(--accent); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; color: white;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>`,
                     time: globalTime, unread: 0, isOfficial: false, isPinned: myPinned.includes('global')
+                });
+            }
+
+            // «Гнездо» — всегда первым во вкладке «Все» (в поиске — если ищут по его названию)
+            if (currentFilter === 'all' && (!isSearching || t("Гнездо").toLowerCase().includes(val) || "гнездо".includes(val))) {
+                const nm = chatsMetaCache[nestId()];
+                chatItemsArray.push({
+                    id: nestId(), targetUid: 'nest', isGroup: false, isNest: true, name: t("Гнездо"),
+                    subtext: nm && nm.lastMessageText ? iconizePreview(escapeHTML(nm.lastMessageText)) : t("Ваши заметки и сохранённое"),
+                    avatarHtml: `<div class="nest-av">${NEST_SVG(26)}</div>`,
+                    time: nm && nm.timestamp ? getTime(nm.timestamp) : 0, unread: 0, isOfficial: false, isPinned: false
                 });
             }
 
@@ -4635,6 +4653,7 @@
                 if (d) it.subtext = `<span class="draft-label">${t("Черновик:")}</span> ${escapeHTML(d.replace(/\s+/g, " ").slice(0, 80))}`;
             });
             chatItemsArray.sort((a, b) => {
+                if (a.isNest !== b.isNest) return a.isNest ? -1 : 1;
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
                 return b.time - a.time;
@@ -4969,7 +4988,7 @@
       // «Печатает...» — пишем не на каждую букву, а не чаще раза в 3 секунды (раньше каждая буква = запись в базу)
       let typingTimer; let typingListener = null; let lastTypingWrite = 0;
       document.getElementById("message-input").addEventListener("input", () => {
-          if(!currentUser || !currentChatId || currentChatId === 'global') return;
+          if(!currentUser || !currentChatId || currentChatId === 'global' || isNest(currentChatId)) return;
           if (!myPrivacy("typing")) return;
           let docId = currentChatId + "_" + currentUser.uid;
           if (Date.now() - lastTypingWrite > 3000) {
@@ -5649,6 +5668,10 @@
           await batch.commit();
           return true;
       }
+      // «Гнездо» — чат с самим собой (заметки и сохранённое): id = мойUid_мойUid
+      const nestId = () => currentUser ? currentUser.uid + "_" + currentUser.uid : null;
+      const isNest = (chatId) => !!currentUser && chatId === nestId();
+      const NEST_SVG = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><ellipse cx="12" cy="9.4" rx="3.7" ry="4.6" fill="currentColor"/><ellipse cx="10.8" cy="7.8" rx="1" ry="1.5" fill="rgba(255,255,255,.55)"/><path d="M2.6 11.6C6.5 13.9 17.5 13.9 21.4 11.6C21 17.6 17.2 20.6 12 20.6S3 17.6 2.6 11.6Z" fill="currentColor"/><path d="M4.6 14.6C8.4 16.3 15.6 16.3 19.4 14.6M6.6 17.6C9.6 18.8 14.4 18.8 17.4 17.6M7.5 12.9l2 3.2M12 13.6v3.4M16.5 12.9l-2 3.2" fill="none" stroke="rgba(60,30,90,.38)" stroke-width="1.1" stroke-linecap="round"/></svg>`;
       const dmPeer = (chatId) => (currentUser && chatId && chatId.includes("_")) ? chatId.split("_").find(id => id !== currentUser.uid) : null;
       async function toggleBlock(uid) {
           if (!currentUser || !uid || uid === currentUser.uid) return;
@@ -5808,6 +5831,7 @@
           if (!hidden && m.text) acts.push(["copy", icon("copy", 20), t("Копировать текст")]);
           if (!hidden && m.imageUrl) acts.push(["photo", icon("image", 20), t("Открыть фото")]);
           if (!hidden && !m.poll) acts.push(["forward", icon("forward", 20), t("Переслать")]);
+          if (!hidden && !m.poll && !isNest(m.chatId)) acts.push(["nest", NEST_SVG(20), t("Сохранить в Гнездо")]);
           if (isMe && m.text) acts.push(["edit", icon("pencil", 20), t("Изменить")]);
           if (isMe || isAdmin) acts.push(["delete", icon("trash", 20), t("Удалить"), "danger"]);
           if (!isMe && !isAdmin) acts.push(["report", icon("flag", 20), t("Пожаловаться"), "danger"]);
@@ -5841,6 +5865,7 @@
                   break;
               case "photo": { const img = document.querySelector(`#msg-${CSS.escape(id)} .message-content > img`); if (img) img.click(); break; }
               case "forward": openForward(m); break;
+              case "nest": forwardMessageTo(m, { chatId: nestId(), title: t("Гнездо"), targetUid: null }, t("Сохранено в Гнездо 🪺")); break;
               case "edit": startEdit(id); break;
               case "delete": deleteMessage(id); break;
               case "report": openReport({ targetUid: m.uid, message: m }); break;
@@ -5873,6 +5898,7 @@
               add({ chatId: id, title: u.name, targetUid: p, isGroup: false, av: `<img src="${getAvatar(p, u.name)}">`, t: ts(id) });
           });
           items.sort((a, b) => b.t - a.t);
+          items.unshift({ chatId: nestId(), title: t("Гнездо"), targetUid: null, isGroup: false, av: `<div class="fw-av nest">${NEST_SVG(22)}</div>`, t: Infinity });
           items.push({ chatId: "global", title: t("Глобальный чат"), targetUid: null, isGroup: false, av: `<div class="fw-av">${icon("users", 20)}</div>`, t: 0 });
           return items;
       }
@@ -5895,14 +5921,18 @@
           const item = e.target.closest("[data-chat]"); if (!item || !fwMsg) return;
           const target = forwardTargets().find(i => i.chatId === item.getAttribute("data-chat")); if (!target) return;
           const m = fwMsg; closeForward();
+          forwardMessageTo(m, target);
+      });
+      // Переслать сообщение в чат (и «Сохранить в Гнездо» — это пересылка себе)
+      async function forwardMessageTo(m, target, savedToast) {
           if (target.targetUid && (blockedMe(target.targetUid) || !canWriteTo(target.targetUid))) return showToast(t("Пользователь ограничил, кто может ему писать"), "block");
           const orig = m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
           if (m.text) data.text = m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
           const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
-          try { await postMessage(target.chatId, data, preview); showToast(t("Переслано в «{chat}»", { chat: target.title }), "forward"); }
+          try { await postMessage(target.chatId, data, preview); showToast(savedToast || t("Переслано в «{chat}»", { chat: target.title }), savedToast ? "check" : "forward"); }
           catch (err) { showToast(sendErrorText(err), "error"); }
-      });
+      }
 
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
       let replyingTo = null;
@@ -5974,6 +6004,9 @@
             if (chatId === 'global') {
                 if (isAdmin) { titleHtml = `<span style="display:flex; align-items:center; gap:5px;">${t("Глобальный чат")} <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>`; statusHtml = "Настройки (Админ)"; headerTrigger.setAttribute("data-profile-target", "admin-settings"); headerTrigger.style.cursor = "pointer"; } 
                 else { titleHtml = t("Глобальный чат"); statusHtml = t("Чат для всех пользователей приложения"); headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default"; }
+            } else if (isNest(chatId)) {
+                titleHtml = `<span class="nest-title">${NEST_SVG(18)}${escapeHTML(t("Гнездо"))}</span>`; statusHtml = t("Ваши заметки и сохранённое");
+                headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default";
             } else if (isGroup) { let g = groupsCache[chatId]; titleHtml = `<span style="display:flex; align-items:center;">${groupIconSVG} ${escapeHTML(title)}</span>`; statusHtml = g && g.members ? tp(g.members.length, "участник|участника|участников") : t("Группа"); headerTrigger.setAttribute("data-profile-target", chatId); headerTrigger.style.cursor = "pointer";
             } else { 
                 if (targetUid) {
@@ -6552,11 +6585,11 @@
             lastMessageSenderUid: currentUser.uid,
             lastMessageId: msgRef.id,
             timestamp: msgData.timestamp,
-            unreadCount: (chatId === 'global' ? 0 : increment(1))
+            unreadCount: (chatId === 'global' || isNest(chatId) ? 0 : increment(1))
         }, { merge: true }).catch(e => console.log("Превью чата:", e));
         try { await saving; }
         catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
-        if (chatId !== "global") notifyPushServer(msgRef.id);
+        if (chatId !== "global" && !isNest(chatId)) notifyPushServer(msgRef.id);
         setDoc(doc(db, "stats", dayKey()), { messages: increment(1) }, { merge: true }).catch(() => {}); // счётчик сообщений за день
         return msgRef;
       }
