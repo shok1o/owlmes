@@ -948,6 +948,29 @@
       /* Новое сообщение «выплывает»: своё — от правого края, чужое — от левого */
       .message-row.msg-in .message-content { animation: msgIn .34s cubic-bezier(.2,.9,.3,1.15); transform-origin: 0 100%; }
       .message-row.msg-in-me .message-content { animation: msgIn .34s cubic-bezier(.2,.9,.3,1.15); transform-origin: 100% 100%; }
+      /* ===== Пакет анимаций 2 ===== */
+      /* Реакции: новая «выпрыгивает», у изменившейся подпрыгивает счётчик */
+      .reaction-badge.rx-new { animation: rxPop .42s cubic-bezier(.2,1.6,.4,1); }
+      .reaction-badge.rx-bump { animation: rxBump .36s ease; }
+      @keyframes rxPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); } }
+      @keyframes rxBump { 40% { transform: scale(1.15); } }
+      /* «печатает» — три прыгающие точки */
+      .typing-dots { display: inline-flex; gap: 3px; margin-left: 5px; vertical-align: middle; }
+      .typing-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: tyDot 1.1s ease-in-out infinite; }
+      .typing-dots i:nth-child(2) { animation-delay: .15s; } .typing-dots i:nth-child(3) { animation-delay: .3s; }
+      @keyframes tyDot { 0%, 60%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-4px); opacity: 1; } }
+      /* Счётчик непрочитанных подпрыгивает, когда растёт */
+      .ci-badge.bump { animation: ciBump .45s cubic-bezier(.2,1.6,.4,1); }
+      @keyframes ciBump { 0% { transform: scale(.6); } 55% { transform: scale(1.25); } 100% { transform: scale(1); } }
+      /* Плашки над полем ввода выезжают снизу */
+      .reply-bar.on, #night-bar.on, #block-bar.on { animation: barUp .22s cubic-bezier(.2,.8,.2,1); }
+      @keyframes barUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      /* Смена темы — мягкое перетекание (View Transitions, где поддерживается) */
+      ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .35s; }
+      @media (prefers-reduced-motion: reduce) {
+        .reaction-badge.rx-new, .reaction-badge.rx-bump, .typing-dots i, .ci-badge.bump, .reply-bar.on, #night-bar.on, #block-bar.on { animation: none !important; }
+        ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+      }
       @keyframes chatIn { from { transform: translateX(100%); } to { transform: none; } }
       @keyframes chatOut { from { transform: none; } to { transform: translateX(100%); } }
       @keyframes sideAway { from { transform: none; filter: none; } to { transform: translateX(-22%); filter: brightness(.7); } }
@@ -1730,7 +1753,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.80</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.81</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1817,6 +1840,9 @@
       import { getFirestore, enableIndexedDbPersistence, serverTimestamp, collection, addDoc, onSnapshot as fsOnSnapshot, query, where, getDocs as fsGetDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc as fsGetDoc, runTransaction, documentId } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
       import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
       import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+      // Пользователь просит меньше движения (настройка «Уменьшение движения» в iPhone) — анимации из кода не запускаем
+      const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       // ===== ЯЗЫКИ ИНТЕРФЕЙСА =====
       // Ключ перевода — сам русский текст: t("Войти") → «Sign in». Чего нет в словаре — показывается по-русски (ничего не ломается).
@@ -2520,10 +2546,21 @@
       });
 
       // ===== ПРОСМОТР ФОТО =====
-      function openPhoto(src, caption) {
-          document.getElementById("pv-img").src = src;
+      // from — картинка в сообщении: фото «вырастает» из неё на весь экран
+      function openPhoto(src, caption, from) {
+          const img = document.getElementById("pv-img");
+          img.src = src;
           document.getElementById("pv-caption").textContent = caption || "";
           document.getElementById("photo-viewer").classList.add("on");
+          if (!from || reduceMotion() || !img.animate) return;
+          const a = from.getBoundingClientRect();
+          const t0 = Date.now();
+          (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).then(() => {
+              if (Date.now() - t0 > 150) return; // фото грузилось долго и уже на экране — без «прыжка» назад
+              const b = img.getBoundingClientRect(); if (!b.width || !a.width) return;
+              const sx = a.width / b.width, sy = a.height / b.height, dx = (a.left + a.width / 2) - (b.left + b.width / 2), dy = (a.top + a.height / 2) - (b.top + b.height / 2);
+              img.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, borderRadius: "14px" }, { transform: "none", borderRadius: "8px" }], { duration: 300, easing: "cubic-bezier(.2,.85,.25,1)" });
+          });
       }
       const closePhoto = () => { document.getElementById("photo-viewer").classList.remove("on"); document.getElementById("pv-img").removeAttribute("src"); };
       document.getElementById("pv-close").addEventListener("click", (e) => { e.stopPropagation(); closePhoto(); });
@@ -3204,7 +3241,7 @@
       let currentHeaderStatus = ""; let currentChatTargetUid = null; let currentTypers = [];
       function refreshHeaderStatus() {
           let el = document.getElementById("current-chat-status"); if (!el) return;
-          if (currentTypers.length > 0) { el.innerText = t("{name} печатает...", { name: currentTypers[0] }); el.style.color = "var(--accent)"; return; }
+          if (currentTypers.length > 0) { el.innerHTML = escapeHTML(t("{name} печатает", { name: currentTypers[0] })) + '<span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>'; el.style.color = "var(--accent)"; return; }
           let text = currentHeaderStatus; let color = "var(--text-muted)";
           if (currentChatTargetUid) { let u = usersCache[currentChatTargetUid]; text = formatLastSeen(u); if (isUserOnline(u)) color = "var(--accent)"; if (bansCache[currentChatTargetUid]) color = "#ff3b30"; else if (peerNight(currentChatTargetUid)) text += " · 🌙 " + t("ночь"); }
           el.innerText = text; el.style.color = color;
@@ -4077,7 +4114,8 @@
       document.getElementById('bg-select').value = savedBg === 'custom' ? 'default' : savedBg;
 
       document.getElementById('theme-select').addEventListener('change', (e) => { 
-          document.body.setAttribute('data-theme', e.target.value); localStorage.setItem('owl_theme', e.target.value); 
+          const apply = () => { document.body.setAttribute('data-theme', e.target.value); localStorage.setItem('owl_theme', e.target.value); };
+          if (document.startViewTransition && !reduceMotion()) document.startViewTransition(apply); else apply(); // мягкое перетекание цветов 
       });
       
       document.getElementById('bg-select').addEventListener('change', (e) => { 
@@ -4582,7 +4620,7 @@
             });
             
             chatItemsArray.forEach(item => {
-                let badgeHtml = item.unread > 0 && currentChatId !== item.id ? `<span style="background:var(--accent); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:auto; font-weight:bold;">${item.unread > 99 ? '99+' : item.unread}</span>` : "";
+                let badgeHtml = item.unread > 0 && currentChatId !== item.id ? `<span class="ci-badge" data-n="${item.unread}" style="background:var(--accent); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:auto; font-weight:bold;">${item.unread > 99 ? '99+' : item.unread}</span>` : "";
                 let officialHtml = item.isOfficial ? `<span style="display:inline-flex; align-items:center; margin-left:4px;" title="${t("Официальный аккаунт")}"><svg viewBox="0 0 24 24" width="14" height="14" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>` : "";
                 let pinHtml = item.isPinned ? `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-left:5px; opacity:0.6;"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.5l-3.2-3.2V5a1.8 1.8 0 0 0-1.8-1.8H10A1.8 1.8 0 0 0 8.2 5v7.3L5 15.5V17z"></path></svg>` : "";
 
@@ -4606,7 +4644,19 @@
             else if (!isSearching && !isAdmin && !realChats) html += currentFilter === 'friends'
                 ? `<div class="empty-hint"><b>${t("Вы пока ни на кого не подписаны")}</b>${t("Найдите друга по нику в поиске сверху и подпишитесь — он появится здесь.")}${inviteBtn}</div>`
                 : `<div class="empty-hint"><b>${t("Здесь появятся ваши чаты")}</b>${t("Найдите друга по нику в поиске сверху или пригласите его в Owl.")}${inviteBtn}</div>`;
+            // Плавные перестановки (FLIP): запоминаем, где были чаты, и после перерисовки «доезжаем» до новых мест.
+            // Новый чат проявляется, счётчик непрочитанных подпрыгивает, когда растёт. Во время поиска — без анимации
+            const animList = !isSearching && !reduceMotion() && list.offsetParent !== null;
+            const prevTop = {}, prevUnread = {};
+            if (animList) list.querySelectorAll(".chat-item[data-chat-id]").forEach(el => { prevTop[el.dataset.chatId] = el.getBoundingClientRect().top; const b = el.querySelector(".ci-badge"); prevUnread[el.dataset.chatId] = b ? +b.dataset.n : 0; });
+            const hadItems = Object.keys(prevTop).length > 0;
             list.innerHTML = html;
+            if (animList && hadItems) list.querySelectorAll(".chat-item[data-chat-id]").forEach(el => {
+                const id = el.dataset.chatId, top = el.getBoundingClientRect().top;
+                if (id in prevTop) { const dy = prevTop[id] - top; if (Math.abs(dy) > 2) el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" }); }
+                else el.animate([{ opacity: 0, transform: "translateY(-8px)" }, { opacity: 1, transform: "none" }], { duration: 280, easing: "ease-out" });
+                const b = el.querySelector(".ci-badge"); if (b && +b.dataset.n > (prevUnread[id] || 0)) b.classList.add("bump");
+            });
         } catch (error) { console.error("Ошибка рендера: ", error); }
       }
 
@@ -4876,7 +4926,6 @@
       });
 
       // Телефон: чат выезжает справа и уезжает обратно (при свайпе от края он уже сдвинут пальцем — тогда без анимации)
-      const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
       let chatPaneTimer = null;
       function openChatPane() {
           const app = document.getElementById("app-container");
@@ -4920,7 +4969,7 @@
               let counts = {}; for(let u in msg.reactions) { let r = msg.reactions[u]; if (REACTION_SET.has(r)) counts[r] = (counts[r] || 0) + 1; }
               if (!Object.keys(counts).length) return "";
               html += `<div class="reactions-list">`;
-              for(let r in counts) { html += `<span class="reaction-badge" onclick="addReaction('${msg.id}', '${r}')">${rxShow(r)} ${counts[r]}</span>`; }
+              for(let r in counts) { html += `<span class="reaction-badge" data-r="${r}" data-n="${counts[r]}" onclick="addReaction('${msg.id}', '${r}')">${rxShow(r)} ${counts[r]}</span>`; }
               html += `</div>`;
           }
           return html;
@@ -5989,7 +6038,12 @@
                     let reactionsContainer = existingRow.querySelector('.reactions-list-container');
                     if (reactionsContainer) {
                         let newReactions = buildReactionsHtml(msg);
-                        if (reactionsContainer.innerHTML !== newReactions) reactionsContainer.innerHTML = newReactions;
+                        if (reactionsContainer.innerHTML !== newReactions) {
+                            const before = {}; reactionsContainer.querySelectorAll("[data-r]").forEach(b => { before[b.dataset.r] = b.dataset.n; });
+                            reactionsContainer.innerHTML = newReactions;
+                            // новая реакция «выпрыгивает», у изменившейся подпрыгивает счётчик
+                            reactionsContainer.querySelectorAll("[data-r]").forEach(b => { if (!(b.dataset.r in before)) b.classList.add("rx-new"); else if (before[b.dataset.r] !== b.dataset.n) b.classList.add("rx-bump"); });
+                        }
                     }
 
                     let pollEl = existingRow.querySelector('.poll');
@@ -6137,7 +6191,7 @@
         if (photo) {
            const row = photo.closest(".message-row"), m = row && loadedMsgs[row.getAttribute("data-msg-id")];
            const who = m ? (usersCache[m.uid]?.name || m.sender || "") : "";
-           openPhoto(photo.src, who + (m && m.timestamp ? " · " + dayLabel(getTime(m.timestamp)) + ", " + new Date(getTime(m.timestamp)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""));
+           openPhoto(photo.src, who + (m && m.timestamp ? " · " + dayLabel(getTime(m.timestamp)) + ", " + new Date(getTime(m.timestamp)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""), photo);
            return;
         }
         let replyBtn = e.target.closest(".reply-btn");

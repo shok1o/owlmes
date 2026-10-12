@@ -595,5 +595,6 @@ export default {
 "Чат откреплен": "Chat gelöst",
 "Не удалось отправить обращение. Попробуйте ещё раз чуть позже.": "Einspruch konnte nicht gesendet werden. Bitte versuch es etwas später noch einmal.",
 "сообщение|сообщения|сообщений": "Nachricht|Nachrichten",
-"Email": "E-Mail"
+"Email": "E-Mail",
+"{name} печатает": "{name} schreibt"
 };

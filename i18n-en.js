@@ -595,5 +595,6 @@ export default {
 "Чат откреплен": "Chat unpinned",
 "Не удалось отправить обращение. Попробуйте ещё раз чуть позже.": "Couldn't send the appeal. Please try again a bit later.",
 "сообщение|сообщения|сообщений": "message|messages",
-"Email": "Email"
+"Email": "Email",
+"{name} печатает": "{name} is typing"
 };
