@@ -604,5 +604,13 @@ export default {
 "Сохранено в Гнездо 🪺": "Zapisano w Gnieździe 🪺",
 "Очистить Гнездо? Все заметки и сохранённое удалятся навсегда.": "Wyczyścić Gniazdo? Wszystkie notatki i zapisane wiadomości zostaną usunięte na zawsze.",
 "Гнездо очищено": "Gniazdo wyczyszczone",
-"Очистить Гнездо": "Wyczyść Gniazdo"
+"Очистить Гнездо": "Wyczyść Gniazdo",
+"Новости Owl": "Wiadomości Owl",
+"Официальный канал Owl": "Oficjalny kanał Owl",
+"Здесь пишет только команда Owl. Ставьте реакции 💜": "Tu piszą tylko twórcy Owl. Dodawaj reakcje 💜",
+"🔔 Включить уведомления": "🔔 Włącz powiadomienia",
+"🔕 Без уведомлений": "🔕 Wycisz",
+"Отправить push всем": "Wyślij push do wszystkich",
+"Уведомления канала выключены": "Powiadomienia kanału wyciszone",
+"Уведомления канала включены": "Powiadomienia kanału włączone"
 };

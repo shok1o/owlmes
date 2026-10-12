@@ -358,6 +358,14 @@
       .nest-av { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; color: #fff; background: linear-gradient(135deg, var(--accent), #f5b942); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent); }
       .fw-item .fw-av.nest { background: linear-gradient(135deg, var(--accent), #f5b942); }
       .nest-title { display: inline-flex; align-items: center; gap: 6px; }
+      /* Канал «Новости Owl» */
+      .news-av { width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; object-fit: cover; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+      .ci-badge.dot { width: 10px; height: 10px; padding: 0 !important; border-radius: 50% !important; font-size: 0 !important; }
+      #channel-bar { display: none; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-panel); border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 13px; text-align: center; flex-shrink: 0; }
+      #channel-bar.on { display: flex; animation: barUp .22s cubic-bezier(.2,.8,.2,1); }
+      #channel-bar.admin { padding: 6px 16px; justify-content: flex-start; border-bottom: none; }
+      #channel-bar button { border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 14px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+      #channel-bar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
       .fw-item span { font-size: 15px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .msg-action-btn { background: none; border: none; font-size: 14px; cursor: pointer; opacity: 0.7; transition: 0.2s; padding: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-main);}
       .msg-action-btn:hover { opacity: 1; transform: scale(1.1); }
@@ -1775,7 +1783,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.86</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.87</div>
       </div>
       
       <!-- ЧАТ -->
@@ -1852,6 +1860,7 @@
               <svg id="send-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="transform: translateX(-1px);"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
+        <div id="channel-bar"><span id="channel-bar-text"></span><button id="channel-mute-btn" type="button"></button><label id="channel-push-label" style="display:none"><input type="checkbox" id="channel-push" checked> <span id="channel-push-text"></span></label></div>
         <div id="block-bar"><span id="block-bar-text"></span><button id="block-bar-btn" style="display:none;">Разблокировать</button></div>
       </div>
     </div>
@@ -2680,7 +2689,7 @@
       let usersListener = null;
       let groupsListener = null;
       let metaListener = null;
-      let globalMetaListener = null, groupMetaListeners = {};
+      let globalMetaListener = null, newsMetaListener = null, groupMetaListeners = {};
       let userWatchers = {}, privateListener = null; const privateEmails = {}, privateDocs = {}; // users_private всех — только у админа
       const emailOf = (u) => (u && (privateEmails[u.uid] || u.email)) || "";
       // ЛИЧНОЕ И ПОДПИСКИ (этап 2 защиты). Личные настройки — в закрытой users_private/{я}, подписки — отдельными
@@ -2968,6 +2977,7 @@
       window.openChatById = (chatId) => {
           if (!chatId || !currentUser) return;
           if (isNest(chatId)) return window.loadChat(chatId, t("Гнездо"), null, false);
+          if (chatId === NEWS_ID) return window.loadChat(NEWS_ID, t("Новости Owl"), null, false);
           if (groupsCache[chatId]) return window.loadChat(chatId, groupsCache[chatId].name, null, true); // экранирует сам loadChat
           const other = chatId.split("_").find(id => id !== currentUser.uid);
           if (other && usersCache[other]) window.loadChat(chatId, usersCache[other].name, other, false);
@@ -3766,6 +3776,7 @@
           if (groupsListener) groupsListener();
           if (metaListener) metaListener();
           if (globalMetaListener) globalMetaListener();
+          if (newsMetaListener) newsMetaListener();
           Object.values(groupMetaListeners).forEach(u => u()); groupMetaListeners = {};
           chatsMetaCache = {};
 
@@ -3866,6 +3877,10 @@
           globalMetaListener = onSnapshot(doc(db, "chats_metadata", "global"), (d) => {
             applyMeta("global", d.exists() ? d.data() : null, globalFirst); globalFirst = false; metaChanged();
           }, (e) => console.log("chats_metadata (global):", e.code));
+          let newsFirst = true;
+          newsMetaListener = onSnapshot(doc(db, "chats_metadata", NEWS_ID), (d) => {
+            applyMeta(NEWS_ID, d.exists() ? d.data() : null, newsFirst); newsFirst = false; metaChanged();
+          }, (e) => console.log("chats_metadata (news):", e.code));
           function syncGroupMetaListeners() {
             for (const gid of Object.keys(groupMetaListeners)) if (!groupsCache[gid]) { groupMetaListeners[gid](); delete groupMetaListeners[gid]; delete chatsMetaCache[gid]; }
             for (const gid of Object.keys(groupsCache)) {
@@ -4492,7 +4507,7 @@
         let item = e.target.closest(".chat-item");
         if (item) {
           let chatId = item.getAttribute("data-chat-id"); let chatName = item.getAttribute("data-chat-name"); let targetUid = item.getAttribute("data-target-uid"); let isGroup = item.getAttribute("data-is-group") === "true";
-          if (targetUid === "global" || targetUid === "nest") targetUid = null;
+          if (targetUid === "global" || targetUid === "nest" || targetUid === "news") targetUid = null;
           window.loadChat(chatId, chatName, targetUid, isGroup);
         }
       });
@@ -4601,6 +4616,18 @@
                 });
             }
 
+            // Канал «Новости Owl» — вторым, сразу после «Гнезда»; точка — если вышел пост, который вы ещё не видели
+            if (currentFilter === 'all' && (!isSearching || t("Новости Owl").toLowerCase().includes(val) || "новости owl".includes(val))) {
+                if (currentChatId === NEWS_ID) markNewsSeen(); // пост вышел, пока канал открыт, — он уже увиден
+                const nm = chatsMetaCache[NEWS_ID], nt = nm && nm.timestamp ? getTime(nm.timestamp) : 0;
+                chatItemsArray.push({
+                    id: NEWS_ID, targetUid: 'news', isGroup: false, isNews: true, name: t("Новости Owl"), isOfficial: true,
+                    subtext: nm && nm.lastMessageText ? iconizePreview(escapeHTML(nm.lastMessageText)) : t("Официальный канал Owl"),
+                    avatarHtml: `<img class="news-av" src="icon-192.png" alt="">`,
+                    time: nt, unread: nt > newsSeen() && currentChatId !== NEWS_ID ? 1 : 0, dot: true, isPinned: false
+                });
+            }
+
             Object.values(groupsCache).forEach(g => {
                if (g && g.members && g.members.includes(currentUser.uid)) {
                   if (isSearching && !String(g.name).toLowerCase().includes(val)) return;
@@ -4654,13 +4681,14 @@
             });
             chatItemsArray.sort((a, b) => {
                 if (a.isNest !== b.isNest) return a.isNest ? -1 : 1;
+                if (!!a.isNews !== !!b.isNews) return a.isNews ? -1 : 1;
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
                 return b.time - a.time;
             });
             
             chatItemsArray.forEach(item => {
-                let badgeHtml = item.unread > 0 && currentChatId !== item.id ? `<span class="ci-badge" data-n="${item.unread}" style="background:var(--accent); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:auto; font-weight:bold;">${item.unread > 99 ? '99+' : item.unread}</span>` : "";
+                let badgeHtml = item.unread > 0 && currentChatId !== item.id ? `<span class="ci-badge${item.dot ? " dot" : ""}" data-n="${item.unread}" style="background:var(--accent); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:auto; font-weight:bold;">${item.unread > 99 ? '99+' : item.unread}</span>` : "";
                 let officialHtml = item.isOfficial ? `<span style="display:inline-flex; align-items:center; margin-left:4px;" title="${t("Официальный аккаунт")}"><svg viewBox="0 0 24 24" width="14" height="14" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>` : "";
                 let pinHtml = item.isPinned ? `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-left:5px; opacity:0.6;"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.5l-3.2-3.2V5a1.8 1.8 0 0 0-1.8-1.8H10A1.8 1.8 0 0 0 8.2 5v7.3L5 15.5V17z"></path></svg>` : "";
 
@@ -4988,7 +5016,7 @@
       // «Печатает...» — пишем не на каждую букву, а не чаще раза в 3 секунды (раньше каждая буква = запись в базу)
       let typingTimer; let typingListener = null; let lastTypingWrite = 0;
       document.getElementById("message-input").addEventListener("input", () => {
-          if(!currentUser || !currentChatId || currentChatId === 'global' || isNest(currentChatId)) return;
+          if(!currentUser || !currentChatId || currentChatId === 'global' || currentChatId === NEWS_ID || isNest(currentChatId)) return;
           if (!myPrivacy("typing")) return;
           let docId = currentChatId + "_" + currentUser.uid;
           if (Date.now() - lastTypingWrite > 3000) {
@@ -5668,6 +5696,14 @@
           await batch.commit();
           return true;
       }
+      // Канал «Новости Owl»: читают все, пишет только админ (это проверяют правила базы). Своего счётчика непрочитанных
+      // у канала нет — помним на устройстве время последнего просмотра и показываем точку, если вышел новый пост
+      const NEWS_ID = "news";
+      const OFFICIAL_SVG = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="#3390ec" aria-hidden="true"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>`;
+      const newsSeen = () => { try { return +localStorage.getItem("owl-news-seen") || 0; } catch (_) { return 0; } };
+      const markNewsSeen = () => { const m = chatsMetaCache[NEWS_ID]; try { localStorage.setItem("owl-news-seen", String(Math.max(Date.now(), m && m.timestamp ? getTime(m.timestamp) : 0))); } catch (_) {} };
+      const newsMuted = () => { try { return localStorage.getItem("owl-news-mute") === "1"; } catch (_) { return false; } };
+
       // «Гнездо» — чат с самим собой (заметки и сохранённое): id = мойUid_мойUid
       const nestId = () => currentUser ? currentUser.uid + "_" + currentUser.uid : null;
       const isNest = (chatId) => !!currentUser && chatId === nestId();
@@ -5702,11 +5738,28 @@
           document.getElementById("block-bar-text").innerText = text;
           document.getElementById("block-bar-btn").style.display = canUnblock ? "inline" : "none";
           if (text) cancelReply();
+          // Канал: читателям — плашка «пишет только команда Owl» и кнопка заглушить; админу — поле ввода и галочка «push»
+          const ch = document.getElementById("channel-bar"), inNews = currentChatId === NEWS_ID;
+          ch.classList.toggle("on", inNews); ch.classList.toggle("admin", inNews && isAdmin);
+          if (inNews) {
+              document.getElementById("channel-bar-text").textContent = isAdmin ? "" : t("Здесь пишет только команда Owl. Ставьте реакции 💜");
+              const mb = document.getElementById("channel-mute-btn"); mb.style.display = isAdmin ? "none" : ""; mb.textContent = newsMuted() ? t("🔔 Включить уведомления") : t("🔕 Без уведомлений");
+              document.getElementById("channel-push-label").style.display = isAdmin ? "" : "none";
+              document.getElementById("channel-push-text").textContent = t("Отправить push всем");
+              if (!isAdmin && input) { input.style.display = "none"; cancelReply(); }
+          }
           refreshNightBar();
           const inDM = !!dmPeer(currentChatId);
           document.querySelectorAll("#chat-box .message-row.other-msg[data-uid]").forEach(r => r.classList.toggle("from-blocked", !inDM && iBlocked(r.getAttribute("data-uid"))));
       }
       document.getElementById("block-bar-btn").addEventListener("click", () => toggleBlock(currentChatTargetUid));
+      document.getElementById("channel-mute-btn").addEventListener("click", async () => {
+          const mute = !newsMuted();
+          try { localStorage.setItem("owl-news-mute", mute ? "1" : "0"); } catch (_) {}
+          applyBlockState();
+          showToast(mute ? t("Уведомления канала выключены") : t("Уведомления канала включены"), mute ? "moon" : "bell");
+          pushPost("/mute", { news: mute }).catch(() => {});
+      });
       document.getElementById("public-block-btn").addEventListener("click", (e) => toggleBlock(e.currentTarget.getAttribute("data-action-uid")));
 
       // ===== ЖАЛОБЫ =====
@@ -5828,7 +5881,7 @@
           document.getElementById("mm-reacts").style.display = hidden ? "none" : "";
           document.getElementById("mm-reacts").innerHTML = MENU_REACTIONS.map(r => `<button data-react="${r}" class="${myR === r ? "on" : ""}">${r === "❤" ? "❤️" : r}</button>`).join("");
           const acts = [];
-          if (!hidden) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), t("Ответить")]);
+          if (!hidden && !(m.chatId === NEWS_ID && !isAdmin)) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), t("Ответить")]);
           if (!hidden && m.text) acts.push(["copy", icon("copy", 20), t("Копировать текст")]);
           if (!hidden && m.imageUrl) acts.push(["photo", icon("image", 20), t("Открыть фото")]);
           if (!hidden && !m.poll) acts.push(["forward", icon("forward", 20), t("Переслать")]);
@@ -6005,6 +6058,10 @@
             if (chatId === 'global') {
                 if (isAdmin) { titleHtml = `<span style="display:flex; align-items:center; gap:5px;">${t("Глобальный чат")} <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>`; statusHtml = "Настройки (Админ)"; headerTrigger.setAttribute("data-profile-target", "admin-settings"); headerTrigger.style.cursor = "pointer"; } 
                 else { titleHtml = t("Глобальный чат"); statusHtml = t("Чат для всех пользователей приложения"); headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default"; }
+            } else if (chatId === NEWS_ID) {
+                titleHtml = `<span class="nest-title">${escapeHTML(t("Новости Owl"))}${OFFICIAL_SVG(16)}</span>`; statusHtml = t("Официальный канал Owl");
+                headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default";
+                markNewsSeen();
             } else if (isNest(chatId)) {
                 titleHtml = `<span class="nest-title">${NEST_SVG(18)}${escapeHTML(t("Гнездо"))}</span>`; statusHtml = t("Ваши заметки и сохранённое");
                 headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default";
@@ -6586,13 +6643,26 @@
             lastMessageSenderUid: currentUser.uid,
             lastMessageId: msgRef.id,
             timestamp: msgData.timestamp,
-            unreadCount: (chatId === 'global' || isNest(chatId) ? 0 : increment(1))
+            unreadCount: (chatId === 'global' || chatId === NEWS_ID || isNest(chatId) ? 0 : increment(1))
         }, { merge: true }).catch(e => console.log("Превью чата:", e));
         try { await saving; }
         catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
-        if (chatId !== "global" && !isNest(chatId)) notifyPushServer(msgRef.id);
+        if (chatId !== "global" && chatId !== NEWS_ID && !isNest(chatId)) notifyPushServer(msgRef.id);
+        if (chatId === NEWS_ID && isAdmin && document.getElementById("channel-push").checked) newsPush(previewText);
         setDoc(doc(db, "stats", dayKey()), { messages: increment(1) }, { merge: true }).catch(() => {}); // счётчик сообщений за день
         return msgRef;
+      }
+      // Пост в канале — push всем подписанным устройствам (сервер шлёт порциями, учитывает «Сову не будит» и заглушивших)
+      async function newsPush(text) {
+          let cursor = null, guard = 0, sent = 0;
+          try {
+              do {
+                  const r = await (await pushPost("/broadcast", { text: trPreview(String(text || "")), chatId: NEWS_ID, cursor })).json();
+                  if (!r.ok) throw new Error(r.error || "push");
+                  sent += r.sent || 0; cursor = r.cursor;
+              } while (cursor && ++guard < 200);
+              showToast("Push о посте отправлен: " + sent, "megaphone");
+          } catch (e) { console.log("Push канала:", e); showToast("Push о посте не отправился", "alert"); }
       }
       // Самое новое из загруженных сообщений открытого чата
       function latestLoadedMsg(exceptId) {
