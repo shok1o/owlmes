@@ -947,6 +947,7 @@
       .bk-box input[type=password] { width: 100%; box-sizing: border-box; margin: 0 0 8px; }
       .bk-btns { display: flex; gap: 8px; } .bk-btns .modal-btn { margin: 0; flex: 1; font-size: 14px; padding: 10px 8px; }
       .bk-ghost { background: var(--bg-panel) !important; color: var(--text-main) !important; }
+      #dev-list .bk-box { margin: 4px 0 0; }
       #bk-status { font-size: 12px; color: var(--text-muted); margin-top: 8px; white-space: pre-line; }
       .modal-screen.closing { animation: scrOut .2s ease-in forwards; pointer-events: none; }
       .modal-screen.closing > .modal-box { animation: boxOut .2s ease-in forwards; }
@@ -1299,6 +1300,7 @@
             <div class="tab" data-f="banned">Баны <span class="appeal-count" id="dev-appeal-count" style="display:none;"></span></div>
             <div class="tab" data-f="reports">Жалобы <span class="appeal-count" id="dev-report-count" style="display:none;"></span></div>
             <div class="tab" data-f="stats">Статистика</div>
+            <div class="tab" data-f="backup">Копия</div>
           </div>
           <div class="dev-search"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg><input type="text" id="dev-search" placeholder="Ник или email..."></div>
         </div>
@@ -1323,14 +1325,14 @@
         <div id="broadcast-count" style="text-align:right; font-size:11px; color:var(--text-muted); margin:4px 0 10px;">0/1000</div>
         <button id="broadcast-btn" class="modal-btn" style="margin-bottom: 25px;">Отправить всем</button>
         <button id="open-dev-panel-btn" class="modal-btn" style="margin-bottom: 25px; background: var(--input-bg); color: var(--text-main);">Панель разработчика</button>
-        <div class="bk-box" data-no-i18n>
+        <div id="bk-home"><div class="bk-box" id="bk-box" data-no-i18n>
           <b>Резервная копия базы</b>
           <p>Вся база одним зашифрованным файлом. Лучше делать с компьютера, раз в неделю. Каждый документ — одно чтение из суточного лимита.</p>
           <input type="password" id="bk-key" placeholder="Пароль резервной копии" autocomplete="off">
           <div class="bk-btns"><button id="bk-download" class="modal-btn">Скачать копию</button><button id="bk-open" class="modal-btn bk-ghost">Расшифровать копию</button></div>
           <input type="file" id="bk-file" accept=".owlbak" style="display:none">
           <div id="bk-status"></div>
-        </div>
+        </div></div>
         <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">Вы можете полностью очистить историю глобального чата.</p>
         <button id="clear-global-btn" class="modal-btn" style="background: #ff3b30;">Очистить историю чата</button>
       </div>
@@ -1769,7 +1771,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.83</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.84</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3586,6 +3588,8 @@
       }
       const BAN_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>';
       function renderDevPanel() {
+          // блок резервной копии живёт в «Настройках (Админ)»; на вкладке «Копия» переносим его в панель и возвращаем обратно
+          { const bk = document.getElementById("bk-box"), home = document.getElementById("bk-home"); if (bk && home && devFilter !== "backup" && bk.parentElement !== home) home.appendChild(bk); }
           const screen = document.getElementById("dev-panel-screen");
           const ac = document.getElementById("dev-appeal-count"), nAppeals = Object.keys(appeals).filter(uid => bansCache[uid]).length;
           if (ac) { ac.style.display = nAppeals ? "inline" : "none"; ac.innerText = nAppeals; }
@@ -3602,6 +3606,7 @@
 
           if (devFilter === "reports") return renderReports();
           if (devFilter === "stats") return renderStats();
+          if (devFilter === "backup") { const bk = document.getElementById("bk-box"), box = document.getElementById("dev-list"); if (bk.parentElement !== box) { box.innerHTML = ""; box.appendChild(bk); } return; }
           let list;
           if (devFilter === "online") list = all.filter(isUserOnline).sort((a, b) => createdAtOf(b) - createdAtOf(a)); // свежие регистрации — сверху
           else if (devFilter === "new") list = all.filter(u => isNew(u, 7 * DAY_MS)).sort((a, b) => createdAtOf(b) - createdAtOf(a));
@@ -3680,7 +3685,7 @@
       document.getElementById("dev-tabs").addEventListener("click", (e) => {
           const t = e.target.closest("[data-f]"); if (!t) return;
           devFilter = t.getAttribute("data-f");
-          document.querySelector("#dev-panel-screen .dev-search").style.display = devFilter === "stats" ? "none" : "";
+          document.querySelector("#dev-panel-screen .dev-search").style.display = devFilter === "stats" || devFilter === "backup" ? "none" : "";
           if (devFilter === "stats") statsDocs = null; // при каждом открытии — свежие цифры
           document.querySelectorAll("#dev-tabs .tab").forEach(el => el.classList.toggle("active", el === t));
           renderDevPanel();
