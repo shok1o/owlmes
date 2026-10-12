@@ -360,6 +360,8 @@
       .nest-title { display: inline-flex; align-items: center; gap: 6px; }
       /* Канал «Новости Owl» */
       .news-av { width: 50px; height: 50px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; object-fit: cover; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent); }
+      .tr-note { display: block; margin: 4px 0 0; padding: 0; border: none; background: none; color: var(--text-muted); font: inherit; font-size: 11px; cursor: pointer; text-align: left; opacity: .85; }
+      .tr-note:hover { text-decoration: underline; }
       .ci-badge.dot { width: 10px; height: 10px; padding: 0 !important; border-radius: 50% !important; font-size: 0 !important; }
       #channel-bar { display: none; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-panel); border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 13px; text-align: center; flex-shrink: 0; }
       #channel-bar.on { display: flex; animation: barUp .22s cubic-bezier(.2,.8,.2,1); }
@@ -1783,7 +1785,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.87</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.88</div>
       </div>
       
       <!-- ЧАТ -->
@@ -4622,7 +4624,7 @@
                 const nm = chatsMetaCache[NEWS_ID], nt = nm && nm.timestamp ? getTime(nm.timestamp) : 0;
                 chatItemsArray.push({
                     id: NEWS_ID, targetUid: 'news', isGroup: false, isNews: true, name: t("Новости Owl"), isOfficial: true,
-                    subtext: nm && nm.lastMessageText ? iconizePreview(escapeHTML(nm.lastMessageText)) : t("Официальный канал Owl"),
+                    subtext: nm && nm.lastMessageText ? iconizePreview(escapeHTML((LANG !== "ru" && nm.lastMessageI18n && nm.lastMessageI18n[LANG]) || nm.lastMessageText)) : t("Официальный канал Owl"),
                     avatarHtml: `<img class="news-av" src="icon-192.png" alt="">`,
                     time: nt, unread: nt > newsSeen() && currentChatId !== NEWS_ID ? 1 : 0, dot: true, isPinned: false
                 });
@@ -5702,6 +5704,9 @@
       const OFFICIAL_SVG = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="#3390ec" aria-hidden="true"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg>`;
       const newsSeen = () => { try { return +localStorage.getItem("owl-news-seen") || 0; } catch (_) { return 0; } };
       const markNewsSeen = () => { const m = chatsMetaCache[NEWS_ID]; try { localStorage.setItem("owl-news-seen", String(Math.max(Date.now(), m && m.timestamp ? getTime(m.timestamp) : 0))); } catch (_) {} };
+      // Пост канала на языке читателя (если есть перевод и читатель не попросил оригинал)
+      const newsOrig = new Set();
+      const newsText = (m) => (LANG !== "ru" && m.i18n && m.i18n[LANG] && !newsOrig.has(m.id)) ? m.i18n[LANG] : (m.text || "");
       const newsMuted = () => { try { return localStorage.getItem("owl-news-mute") === "1"; } catch (_) { return false; } };
 
       // «Гнездо» — чат с самим собой (заметки и сохранённое): id = мойUid_мойUid
@@ -5753,6 +5758,15 @@
           document.querySelectorAll("#chat-box .message-row.other-msg[data-uid]").forEach(r => r.classList.toggle("from-blocked", !inDM && iBlocked(r.getAttribute("data-uid"))));
       }
       document.getElementById("block-bar-btn").addEventListener("click", () => toggleBlock(currentChatTargetUid));
+      document.getElementById("chat-box").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-tr]"); if (!b) return;
+          e.stopPropagation();
+          const id = b.getAttribute("data-tr"), m = loadedMsgs[id]; if (!m) return;
+          newsOrig.has(id) ? newsOrig.delete(id) : newsOrig.add(id);
+          const row = document.getElementById("msg-" + id), el = row && row.querySelector(".msg-text-content");
+          if (el) { const shown = newsText(m); el.innerHTML = highlightMentions(linkify(shown), m); el.dataset.raw = shown; }
+          b.textContent = "🌐 " + t(newsOrig.has(id) ? "Показать перевод" : "Переведено автоматически · оригинал");
+      });
       document.getElementById("channel-mute-btn").addEventListener("click", async () => {
           const mute = !newsMuted();
           try { localStorage.setItem("owl-news-mute", mute ? "1" : "0"); } catch (_) {}
@@ -5980,9 +5994,9 @@
       // Переслать сообщение в чат (и «Сохранить в Гнездо» — это пересылка себе)
       async function forwardMessageTo(m, target, savedToast) {
           if (target.targetUid && (blockedMe(target.targetUid) || !canWriteTo(target.targetUid))) return showToast(t("Пользователь ограничил, кто может ему писать"), "block");
-          const orig = m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
+          const orig = m.chatId === NEWS_ID ? { uid: "", name: "Owl Messenger" } : m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
-          if (m.text) data.text = m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
+          if (m.text) data.text = m.chatId === NEWS_ID ? newsText(m) : m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
           const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
           try { await postMessage(target.chatId, data, preview); showToast(savedToast || t("Переслано в «{chat}»", { chat: target.title }), savedToast ? "check" : "forward"); }
           catch (err) { showToast(sendErrorText(err), "error"); }
@@ -6143,6 +6157,9 @@
                 let existingRow = document.getElementById(`msg-${msg.id}`);
                 
                 let isMe = (msg.uid === currentUser.uid);
+                // Пост канала: всегда слева, от имени Owl Messenger (ник админа не показываем); правит и удаляет — админ
+                const chPost = chatId === NEWS_ID, authorIsMe = isMe;
+                if (chPost) isMe = false;
                 let timeString = ""; if (msg.timestamp) { let dateObj = typeof msg.timestamp.toDate === 'function' ? msg.timestamp.toDate() : new Date(msg.timestamp); if (!isNaN(dateObj)) timeString = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); }
 
                 if (existingRow) {
@@ -6165,14 +6182,15 @@
 
                     let textEl = existingRow.querySelector('.msg-text-content');
                     if(textEl && msg.edited) {
-                         if (textEl.dataset.raw !== msg.text) { textEl.innerHTML = highlightMentions(linkify(msg.text), msg); textEl.dataset.raw = msg.text; }
+                         const shown = chPost ? newsText(msg) : msg.text;
+                         if (textEl.dataset.raw !== shown) { textEl.innerHTML = highlightMentions(linkify(shown), msg); textEl.dataset.raw = shown; }
                          let editedMarker = existingRow.querySelector('.edited-marker');
                          if(editedMarker && editedMarker.style.display === 'none') editedMarker.style.display = 'inline';
                     }
 
                 } else {
                     // ЕСЛИ СООБЩЕНИЯ ЕЩЕ НЕТ - СОЗДАЕМ ЕГО
-                    let avatarUrl = getAvatar(msg.uid, msg.sender);
+                    let avatarUrl = chPost ? "icon-192.png" : getAvatar(msg.uid, msg.sender);
                     let messageRow = document.createElement("div");
                     messageRow.id = `msg-${msg.id}`;
                     messageRow.className = isMe ? "message-row my-msg" : "message-row other-msg";
@@ -6180,19 +6198,21 @@
                     messageRow.setAttribute("data-msg-id", msg.id);
                     messageRow.setAttribute("data-uid", msg.uid || "");
                     messageRow.setAttribute("data-ts", String(getTime(msg.timestamp) || 0));
-                    watchUser(msg.uid);
-                    if (!isMe && !isPrivateChat && iBlocked(msg.uid)) messageRow.classList.add("from-blocked");
+                    if (!chPost) watchUser(msg.uid);
+                    if (!isMe && !isPrivateChat && !chPost && iBlocked(msg.uid)) messageRow.classList.add("from-blocked");
 
-                    let avatarHtml = `<img src="${avatarUrl}" class="avatar chat-msg-avatar" data-profile-target="${escapeHTML(msg.uid)}" title="${t("Смотреть профиль")}">`;
+                    let avatarHtml = chPost ? `<img src="${avatarUrl}" class="avatar chat-msg-avatar" alt="">` : `<img src="${avatarUrl}" class="avatar chat-msg-avatar" data-profile-target="${escapeHTML(msg.uid)}" title="${t("Смотреть профиль")}">`;
                     let contentHtml = `<div class="message-content">`;
 
                     let actionsHtml = `<div class="msg-actions"><button class="msg-action-btn reply-btn" data-id="${msg.id}" title="${t("Ответить")}">${replyIconSVG}</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '👍')">👍</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '❤')">❤️</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '😂')">😂</button>`;
-                    if (isMe) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" data-text="${escapeHTML(msg.text || '')}" title="${t("Редактировать")}">${editIconSVG}</button>`;
+                    if (isMe || (chPost && authorIsMe)) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" data-text="${escapeHTML(msg.text || '')}" title="${t("Редактировать")}">${editIconSVG}</button>`;
                     if (isMe || isAdmin) actionsHtml += `<button class="msg-action-btn delete-btn" data-id="${msg.id}" title="${t("Удалить")}">${deleteIconSVG}</button>`;
                     if (!isMe && !isAdmin) actionsHtml += `<button class="msg-action-btn report-btn" data-id="${msg.id}" title="${t("Пожаловаться")}">${icon("flag", 16)}</button>`;
                     actionsHtml += `</div>`; contentHtml += actionsHtml;
 
-                    if (!isMe) {
+                    if (chPost) {
+                        contentHtml += `<span class="sender-name chat-msg-name" style="display:flex; align-items:center;">Owl Messenger<span style="display:inline-flex; margin-left:4px; transform:translateY(1px);">${OFFICIAL_SVG(13)}</span></span>`;
+                    } else if (!isMe) {
                         let isMsgOfficial = false;
                         if (usersCache[msg.uid] && usersCache[msg.uid].email === ADMIN_EMAIL) { isMsgOfficial = true; } else if (msg.uid === currentUser.uid && isAdmin) { isMsgOfficial = true; }
                         let officialBadge = isMsgOfficial ? `<span style="display:inline-flex; align-items:center; margin-left:4px; transform:translateY(1px);" title="${t("Официальный аккаунт")}"><svg viewBox="0 0 24 24" width="13" height="13" fill="#3390ec"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7L6 12.6l1.5-1.5 2.6 2.6 6.4-6.4 1.5 1.5-7.9 7.9z"/></svg></span>` : "";
@@ -6203,7 +6223,8 @@
 
                     if (msg.forwardedFrom && msg.forwardedFrom.name) contentHtml += `<div class="fwd-label">${icon("forward", 13)}<span>${t("Переслано от {name}", { name: `<b>${escapeHTML(usersCache[msg.forwardedFrom.uid]?.name || msg.forwardedFrom.name)}</b>` })}</span></div>`;
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
-                    if (msg.text) contentHtml += `<span class="msg-text-content">${highlightMentions(linkify(msg.text), msg)}</span>`;
+                    if (msg.text) { const shown = chPost ? newsText(msg) : msg.text; contentHtml += `<span class="msg-text-content" data-raw="${escapeHTML(shown)}">${highlightMentions(linkify(shown), msg)}</span>`; }
+                    if (chPost && LANG !== "ru" && msg.i18n && msg.i18n[LANG]) contentHtml += `<button type="button" class="tr-note" data-tr="${escapeHTML(msg.id)}">🌐 ${t(newsOrig.has(msg.id) ? "Показать перевод" : "Переведено автоматически · оригинал")}</button>`;
                     if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
                     if (msg.sticker && STICKER_IDS.has(msg.sticker)) {
@@ -6487,7 +6508,9 @@
         if (editingMsgId && text) {
             const editedId = editingMsgId;
             editingMsgId = null; document.getElementById("send-button").innerHTML = sendIconSVG;
-            const edit = updateDoc(doc(db, "messages", editedId), { text: text, edited: true });
+            const upd = { text: text, edited: true };
+            if (chatId === NEWS_ID && isAdmin) { const tr = await translateNews(text); upd.i18n = tr || deleteField(); } // пост канала — переводы заново
+            const edit = updateDoc(doc(db, "messages", editedId), upd);
             // Превью меняем, только если отредактировали последнее сообщение чата
             const latest = latestLoadedMsg();
             if (latest && latest.id === editedId) setDoc(doc(db, "chats_metadata", chatId), { lastMessageText: "✏️ " + text }, { merge: true }).catch(e => console.log(e));
@@ -6502,6 +6525,11 @@
         if (replyingTo) { msgData.replyTo = replyingTo; cancelReply(); }
         if (nightUrgent && dmPeer(chatId) === currentChatTargetUid && peerNight(currentChatTargetUid)?.u) msgData.urgent = true; // разбудить собеседника
         if (nightUrgent) { nightUrgent = false; refreshNightBar(); }
+        // Пост в канале — от имени Owl Messenger и сразу с переводами на en/de/pl
+        if (chatId === NEWS_ID && isAdmin) {
+            msgData.sender = "Owl Messenger";
+            if (text) { showToast(t("Переводим пост…"), "clock"); const tr = await translateNews(text); if (tr) msgData.i18n = tr; }
+        }
 
         let previewText = "";
         if (text) previewText = text; else if (imageUrl) previewText = "📷 Фотография"; else if (audioUrl) previewText = "🎤 Голосовое сообщение"; else if (sticker) previewText = "🦉 Стикер";
@@ -6639,7 +6667,8 @@
         setDoc(doc(db, "chats_metadata", chatId), {
             ...(chatId.includes("_") ? { members: chatId.split("_") } : {}),
             lastMessageText: previewText,
-            lastMessageSender: currentUser.displayName,
+            lastMessageSender: chatId === NEWS_ID ? "Owl Messenger" : currentUser.displayName,
+            ...(chatId === NEWS_ID && msgData.i18n ? { lastMessageI18n: msgData.i18n } : {}),
             lastMessageSenderUid: currentUser.uid,
             lastMessageId: msgRef.id,
             timestamp: msgData.timestamp,
@@ -6648,16 +6677,26 @@
         try { await saving; }
         catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
         if (chatId !== "global" && chatId !== NEWS_ID && !isNest(chatId)) notifyPushServer(msgRef.id);
-        if (chatId === NEWS_ID && isAdmin && document.getElementById("channel-push").checked) newsPush(previewText);
+        if (chatId === NEWS_ID && isAdmin && document.getElementById("channel-push").checked) newsPush(previewText, msgData.i18n);
         setDoc(doc(db, "stats", dayKey()), { messages: increment(1) }, { merge: true }).catch(() => {}); // счётчик сообщений за день
         return msgRef;
       }
       // Пост в канале — push всем подписанным устройствам (сервер шлёт порциями, учитывает «Сову не будит» и заглушивших)
-      async function newsPush(text) {
+      // Перевод поста канала на en/de/pl (сервер, Cloudflare Workers AI). Не вышло за 15 с — пост уйдёт без перевода
+      async function translateNews(text) {
+          try {
+              const r = await Promise.race([pushPost("/translate", { text }), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 15000))]);
+              const j = await r.json().catch(() => ({}));
+              if (!r.ok || !j.i18n) throw new Error(j.error || r.status);
+              const out = {}; for (const c of ["en", "de", "pl"]) if (typeof j.i18n[c] === "string" && j.i18n[c].trim()) out[c] = j.i18n[c];
+              return Object.keys(out).length ? out : null;
+          } catch (e) { console.log("Перевод поста:", e); showToast("Перевод не получился — пост уйдёт только по-русски", "alert"); return null; }
+      }
+      async function newsPush(text, i18n) {
           let cursor = null, guard = 0, sent = 0;
           try {
               do {
-                  const r = await (await pushPost("/broadcast", { text: trPreview(String(text || "")), chatId: NEWS_ID, cursor })).json();
+                  const r = await (await pushPost("/broadcast", { text: trPreview(String(text || "")), chatId: NEWS_ID, i18n: i18n || null, cursor })).json();
                   if (!r.ok) throw new Error(r.error || "push");
                   sent += r.sent || 0; cursor = r.cursor;
               } while (cursor && ++guard < 200);

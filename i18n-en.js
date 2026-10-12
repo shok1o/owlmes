@@ -612,5 +612,8 @@ export default {
 "🔕 Без уведомлений": "🔕 Mute",
 "Отправить push всем": "Send push to everyone",
 "Уведомления канала выключены": "Channel notifications muted",
-"Уведомления канала включены": "Channel notifications on"
+"Уведомления канала включены": "Channel notifications on",
+"Переводим пост…": "Translating post…",
+"Переведено автоматически · оригинал": "Translated automatically · show original",
+"Показать перевод": "Show translation"
 };

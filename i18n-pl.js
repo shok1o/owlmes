@@ -612,5 +612,8 @@ export default {
 "🔕 Без уведомлений": "🔕 Wycisz",
 "Отправить push всем": "Wyślij push do wszystkich",
 "Уведомления канала выключены": "Powiadomienia kanału wyciszone",
-"Уведомления канала включены": "Powiadomienia kanału włączone"
+"Уведомления канала включены": "Powiadomienia kanału włączone",
+"Переводим пост…": "Tłumaczymy post…",
+"Переведено автоматически · оригинал": "Przetłumaczono automatycznie · pokaż oryginał",
+"Показать перевод": "Pokaż tłumaczenie"
 };
