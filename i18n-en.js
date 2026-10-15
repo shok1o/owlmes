@@ -643,5 +643,6 @@ export default {
 "Удалить можно только свои сообщения": "You can only delete your own messages",
 "Удалить выбранные сообщения ({n})?": "Delete the selected messages ({n})?",
 "Удалено: {n}": "Deleted: {n}",
-"Переслано {n} из {total}: {error}": "Forwarded {n} of {total}: {error}"
+"Переслано {n} из {total}: {error}": "Forwarded {n} of {total}: {error}",
+"Слишком длинно: в сообщении можно до {n} символов": "Too long: a message can have up to {n} characters"
 };
