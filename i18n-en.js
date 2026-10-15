@@ -615,5 +615,10 @@ export default {
 "Уведомления канала включены": "Channel notifications on",
 "Переводим пост…": "Translating post…",
 "Переведено автоматически · оригинал": "Translated automatically · show original",
-"Показать перевод": "Show translation"
+"Показать перевод": "Show translation",
+"Введите 6 цифр": "Enter 6 digits",
+"Неверный код — попробуйте ещё раз": "Wrong code — please try again",
+"Время на ввод кода вышло — войдите заново": "Time to enter the code ran out — please sign in again",
+"Код из приложения-аутентификатора": "Code from your authenticator app",
+"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Open your code app (for example, Passwords) and enter the 6 digits for Owl Messenger."
 };
