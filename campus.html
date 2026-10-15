@@ -13,7 +13,7 @@
   :root {
     --bg-main: #060c1b; --bg-panel: #0c1630; --bg-chat: #08112a; --bg-elev: #13214a;
     --input-bg: #15244c; --border: #1a2b57; --text: #eef3ff; --muted: #8b9cc6;
-    --accent: #2f6fe4; --accent-2: #1c48b0; --gold: #d4af37; --gold-soft: rgba(212,175,55,.14);
+    --accent: #2f6fe4; --accent-2: #1c48b0; --light: #8fb4ff; --light-soft: rgba(143,180,255,.14); --teacher: #6a7cff;
     --ok: #34c77b; --danger: #ff5b5b;
     --me-bubble: linear-gradient(135deg, #2f6fe4, #1d43a6); --other-bubble: #14224a;
     --radius: 18px;
@@ -23,7 +23,6 @@
   body { background: var(--bg-main); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
   button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
   input, select, textarea { font: inherit; color: var(--text); }
-  .gold { color: var(--gold); }
 
   /* ===== Каркас ===== */
   #app { display: flex; height: 100dvh; max-width: 1280px; margin: 0 auto; background: var(--bg-panel); }
@@ -42,12 +41,12 @@
   .brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
   .brand b { font-size: 18px; letter-spacing: .2px; }
   .brand small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
-  .demo-badge { font-size: 10px; font-weight: 700; letter-spacing: .8px; color: var(--gold); background: var(--gold-soft); border: 1px solid rgba(212,175,55,.35); padding: 3px 7px; border-radius: 999px; }
+  .demo-badge { font-size: 10px; font-weight: 700; letter-spacing: .8px; color: var(--light); background: var(--light-soft); border: 1px solid rgba(143,180,255,.35); padding: 3px 7px; border-radius: 999px; }
   .me-card { margin: 4px 12px 10px; padding: 12px; border-radius: 16px; background: var(--bg-elev); display: flex; align-items: center; gap: 12px; }
   .me-card .who { flex: 1; min-width: 0; }
   .me-card .who b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .me-card .who span { font-size: 12px; color: var(--muted); }
-  .role-switch { margin: 0 12px 10px; display: grid; grid-template-columns: 1fr 1fr; background: var(--input-bg); border-radius: 12px; padding: 3px; }
+  .role-switch { margin: 0 12px 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--input-bg); border-radius: 12px; padding: 3px; }
   .role-switch button { padding: 8px 6px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
   .role-switch button.on { background: var(--accent); color: #fff; }
   .role-hint { margin: -4px 14px 10px; font-size: 11px; color: var(--muted); text-align: center; }
@@ -65,19 +64,24 @@
   .chat-item .ci-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
   .chat-item .ci-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 11px; color: var(--muted); }
   .unread { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .lock-card { margin: 8px 4px 4px; padding: 14px; border-radius: 16px; background: linear-gradient(135deg, #13244f, #0e1a3c); border: 1px dashed rgba(143,180,255,.35); }
+  .lock-card b { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+  .lock-card p { margin: 6px 0 10px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .role-pick .wide { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 12px; padding: 14px 10px; }
+  .role-pick .wide span { display: flex; flex-direction: column; align-items: flex-start; }
   .side-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
   .side-foot button { color: var(--muted); text-decoration: underline; font-size: 11px; }
 
   /* ===== Аватары и значки ===== */
   .av { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; }
   .av.sm { width: 34px; height: 34px; font-size: 13px; }
-  .av.ai { background: radial-gradient(circle at 30% 25%, #2a4fae, #0f1f4d); border: 1.5px solid rgba(212,175,55,.6); }
+  .av.ai { background: radial-gradient(circle at 30% 25%, #2a4fae, #0f1f4d); border: 1.5px solid rgba(143,180,255,.6); }
   .av.ch { background: linear-gradient(135deg, #1d3f9a, #0f2560); }
-  .av.dean { background: linear-gradient(135deg, #b8912a, #7a5e14); }
+  .av.dean { background: linear-gradient(135deg, #3b4f96, #1d2b63); }
   .av.grp { background: linear-gradient(135deg, #2b6a8f, #173d5e); }
   .tick { display: inline-flex; flex-shrink: 0; }
   .role-tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; letter-spacing: .3px; }
-  .role-tag.t { color: var(--gold); background: var(--gold-soft); }
+  .role-tag.t { color: #b7c0ff; background: rgba(106,124,255,.18); }
   .role-tag.s { color: #7fb0ff; background: rgba(47,111,228,.16); }
 
   /* ===== Чат ===== */
@@ -104,32 +108,32 @@
   .bubble .time { font-size: 11px; color: rgba(238,243,255,.55); float: right; margin: 6px 0 0 10px; }
   .bubble p { margin: 0 0 6px; } .bubble p:last-of-type { margin-bottom: 0; }
   .bubble ul, .bubble ol { margin: 4px 0 6px; padding-left: 20px; } .bubble li { margin: 2px 0; }
-  .bubble.ai { background: linear-gradient(180deg, #13244f, #101d40); border: 1px solid rgba(212,175,55,.22); max-width: min(620px, 86%); }
-  .bubble.ai .from { color: var(--gold); }
-  .bubble.private { border: 1px dashed rgba(212,175,55,.5); }
+  .bubble.ai { background: linear-gradient(180deg, #13244f, #101d40); border: 1px solid rgba(143,180,255,.22); max-width: min(620px, 86%); }
+  .bubble.ai .from { color: var(--light); }
+  .bubble.private { border: 1px dashed rgba(143,180,255,.5); }
   .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .src { font-size: 12px; padding: 4px 9px; border-radius: 8px; background: rgba(212,175,55,.12); color: #f0d77a; border: 1px solid rgba(212,175,55,.25); }
+  .src { font-size: 12px; padding: 4px 9px; border-radius: 8px; background: rgba(143,180,255,.12); color: #cfe0ff; border: 1px solid rgba(143,180,255,.25); }
   .disclaimer { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
   .seen { font-size: 11.5px; color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
-  .announce { border-left: 3px solid var(--gold); }
+  .announce { border-left: 3px solid var(--light); }
   .task { margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(6,12,27,.45); border: 1px solid var(--border); }
   .task .t-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
-  .task .due { margin-left: auto; font-size: 12px; font-weight: 600; color: #ffb36b; background: rgba(255,150,60,.12); padding: 3px 8px; border-radius: 8px; white-space: nowrap; }
+  .task .due { margin-left: auto; font-size: 12px; font-weight: 600; color: #ff9d9d; background: rgba(255,91,91,.13); padding: 3px 8px; border-radius: 8px; white-space: nowrap; }
   .task .t-body { font-size: 14px; color: #cdd8f5; margin: 8px 0 10px; }
   .task .t-acts { display: flex; flex-wrap: wrap; gap: 8px; }
   .btn { padding: 9px 14px; border-radius: 11px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 7px; }
   .btn.primary { background: var(--accent); color: #fff; } .btn.primary:hover { background: #3a7cf2; }
   .btn.ghost { background: var(--input-bg); } .btn.ghost:hover { background: var(--bg-elev); }
-  .btn.goldb { background: var(--gold-soft); color: var(--gold); border: 1px solid rgba(212,175,55,.35); }
+  .btn.soft { background: var(--light-soft); color: var(--light); border: 1px solid rgba(143,180,255,.35); }
   .btn.done { background: rgba(52,199,123,.14); color: var(--ok); cursor: default; }
   .progress { height: 6px; border-radius: 3px; background: var(--input-bg); overflow: hidden; margin: 2px 0 10px; }
   .progress i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #5f95ff); border-radius: 3px; transition: width .4s; }
   .chips { display: flex; gap: 8px; overflow-x: auto; padding: 8px 14px 2px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
   .chip { flex-shrink: 0; padding: 8px 12px; border-radius: 999px; background: var(--input-bg); border: 1px solid var(--border); font-size: 13px; font-weight: 500; white-space: nowrap; }
-  .chip:hover { border-color: rgba(212,175,55,.5); }
+  .chip:hover { border-color: rgba(143,180,255,.5); }
   .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
-  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); opacity: .4; animation: blink 1.2s infinite; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--light); opacity: .4; animation: blink 1.2s infinite; }
   .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
   @keyframes blink { 50% { opacity: 1; } }
 
@@ -189,10 +193,11 @@
     </div>
     <div class="me-card" id="me-card"></div>
     <div class="role-switch" role="tablist" aria-label="Смотреть как">
+      <button data-role="guest" role="tab">Без статуса</button>
       <button data-role="student" role="tab">Студент</button>
-      <button data-role="teacher" role="tab">Преподаватель</button>
+      <button data-role="teacher" role="tab">Препод.</button>
     </div>
-    <div class="role-hint">Переключатель для показа: одно приложение глазами разных людей</div>
+    <div class="role-hint">Для показа: одно приложение глазами разных людей</div>
     <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg><input id="search" placeholder="Поиск по чатам и курсам" autocomplete="off"></div>
     <div class="list" id="list"></div>
     <div class="side-foot"><span>Демо на основе Owl Messenger</span><button id="restart">Начать заново</button></div>
@@ -218,9 +223,9 @@
 
   // ===== Иконки =====
   const OWL = (s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="og${s}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#0f2560"/></linearGradient></defs>
-    <path d="M14 10 Q19 17 24 19 Q32 15 40 19 Q45 17 50 10 Q57 22 57 36 Q57 52 43 58 Q32 62 21 58 Q7 52 7 36 Q7 22 14 10Z" fill="url(#og${s})" stroke="#d4af37" stroke-width="1.6"/>
-    <circle cx="23" cy="33" r="9" fill="#060c1b"/><circle cx="41" cy="33" r="9" fill="#060c1b"/><circle cx="23" cy="33" r="4.2" fill="#d4af37"/><circle cx="41" cy="33" r="4.2" fill="#d4af37"/>
-    <path d="M32 39 l-3.5 4 h7z" fill="#d4af37"/></svg>`;
+    <path d="M14 10 Q19 17 24 19 Q32 15 40 19 Q45 17 50 10 Q57 22 57 36 Q57 52 43 58 Q32 62 21 58 Q7 52 7 36 Q7 22 14 10Z" fill="url(#og${s})" stroke="#8fb4ff" stroke-width="1.6"/>
+    <circle cx="23" cy="33" r="9" fill="#060c1b"/><circle cx="41" cy="33" r="9" fill="#060c1b"/><circle cx="23" cy="33" r="4.2" fill="#8fb4ff"/><circle cx="41" cy="33" r="4.2" fill="#8fb4ff"/>
+    <path d="M32 39 l-3.5 4 h7z" fill="#8fb4ff"/></svg>`;
   const SCALES = (s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="3" x2="12" y2="21"/><line x1="7" y1="21" x2="17" y2="21"/><line x1="4" y1="7" x2="20" y2="7"/><path d="M4 7 L1.5 13 a3 3 0 0 0 5 0 Z"/><path d="M20 7 L17.5 13 a3 3 0 0 0 5 0 Z"/></svg>`;
   const TICK = (c = "#2f6fe4", s = 15) => `<span class="tick" title="Подтверждён вузом"><svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M12 1.5l2.6 2.2 3.4-.4 1 3.3 3 1.7-1 3.3 1 3.3-3 1.7-1 3.3-3.4-.4L12 22.5l-2.6-2.2-3.4.4-1-3.3-3-1.7 1-3.3-1-3.3 3-1.7 1-3.3 3.4.4z" fill="${c}"/><path d="M8 12.3l2.6 2.6L16.2 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
   const I = {
@@ -232,21 +237,26 @@
     file: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
     book: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/><path d="M6.5 17A2.5 2.5 0 0 0 4 19.5 2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>`,
     student: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7fb0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>`,
-    teacher: SCALES(30).replace('stroke="currentColor"', 'stroke="#d4af37"'),
+    teacher: SCALES(30).replace('stroke="currentColor"', 'stroke="#8fb4ff"'),
   };
   $("#logo-sm").innerHTML = OWL(36);
   $("#logo-big").innerHTML = OWL(72);
+  const EMPTY = $("#main").innerHTML;
 
   // ===== Люди и роли =====
   const PEOPLE = {
+    guest: { name: "Анна Смирнова", initials: "АС", color: "#3b4a6b", sub: "Обычный аккаунт · статус не подтверждён" },
     student: { name: "Анна Смирнова", initials: "АС", color: "#2f6fe4", sub: "Студентка · группа ЮР-201", tag: "s" },
-    teacher: { name: "Елена Викторовна Иванова", short: "Иванова Е.В.", initials: "ЕИ", color: "#9a7a1c", sub: "Доцент · кафедра гражданского права", tag: "t" },
-    petrov: { name: "Петров Алексей Сергеевич", short: "Петров А.С.", initials: "ПА", color: "#7a5e14", tag: "t" },
+    teacher: { name: "Елена Викторовна Иванова", short: "Иванова Е.В.", initials: "ЕИ", color: "#4654b8", sub: "Доцент · кафедра гражданского права", tag: "t" },
+    petrov: { name: "Петров Алексей Сергеевич", short: "Петров А.С.", initials: "ПА", color: "#5a46a8", tag: "t" },
     max: { name: "Максим Орлов", initials: "МО", color: "#2b6a8f", tag: "s" },
     dasha: { name: "Дарья Ким", initials: "ДК", color: "#6a4bb5", tag: "s" },
     ilya: { name: "Илья Соколов", initials: "ИС", color: "#2f8f6a", tag: "s" },
+    friend: { name: "Сергей Белов", initials: "СБ", color: "#2f7a8f" },
+    citizen: { name: "Ольга Н.", short: "Ольга Н. · гражданка", initials: "ОН", color: "#7a4b8f" },
   };
-  let role = "student";
+  let role = "student"; // guest — обычный аккаунт без подтверждённого статуса: доступен мессенджер и открытые разделы
+  const verified = () => role !== "guest";
   const other = () => role === "student" ? "teacher" : "student";
   const avatar = (key, cls = "") => { const p = PEOPLE[key]; return `<div class="av ${cls}" style="background:${p.color}">${p.initials}</div>`; };
 
@@ -254,12 +264,16 @@
   const TOTAL = 27; // студентов в группе
   const state = { submitted: false, submittedCount: 12, readCount: 21 };
   const chats = [
-    { id: "ai", type: "ai", sec: "Помощник", title: "Сова-юрист", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${OWL(30)}</div>` },
-    { id: "civ", type: "channel", owner: "teacher", sec: "Курсы", title: "Гражданское право", sub: () => role === "teacher" ? "Ваш канал курса · 27 студентов" : "Канал курса · Иванова Е.В.", av: () => `<div class="av ch">${SCALES(22)}</div>`, unread: 2 },
-    { id: "crim", type: "channel", owner: "petrov", sec: "Курсы", title: "Уголовное право", sub: () => "Канал курса · Петров А.С.", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#3a2f7a,#1b1550)">${I.book.replace('width="16" height="16"', 'width="22" height="22"')}</div>` },
-    { id: "grp", type: "group", sec: "Группа", title: "ЮР-201", sub: () => "Беседа группы · 27 участников", av: () => `<div class="av grp">201</div>`, unread: 5 },
-    { id: "dm", type: "dm", sec: "Личные", title: () => role === "student" ? PEOPLE.teacher.short : PEOPLE.student.name, sub: () => role === "student" ? "Преподаватель · гражданское право" : "Студентка · ЮР-201", av: () => avatar(other()) },
-    { id: "dean", type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Официальные объявления факультета", av: () => `<div class="av dean">${SCALES(22)}</div>` },
+    // uni: true — университетский контур, только после подтверждения статуса студента или сотрудника
+    { id: "ai", uni: true, type: "ai", sec: "Помощник", title: "Сова-юрист", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${OWL(30)}</div>` },
+    { id: "civ", uni: true, type: "channel", owner: "teacher", sec: "Курсы", title: "Гражданское право", sub: () => role === "teacher" ? "Ваш канал курса · 27 студентов" : "Канал курса · Иванова Е.В.", av: () => `<div class="av ch">${SCALES(22)}</div>`, unread: 2 },
+    { id: "crim", uni: true, type: "channel", owner: "petrov", sec: "Курсы", title: "Уголовное право", sub: () => "Канал курса · Петров А.С.", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#3a2f7a,#1b1550)">${I.book.replace('width="16" height="16"', 'width="22" height="22"')}</div>` },
+    { id: "grp", uni: true, type: "group", sec: "Группа", title: "ЮР-201", sub: () => "Беседа группы · 27 участников", av: () => `<div class="av grp">201</div>`, unread: 5 },
+    { id: "dm", uni: true, type: "dm", sec: "Личные", title: () => role === "student" ? PEOPLE.teacher.short : PEOPLE.student.name, sub: () => role === "student" ? "Преподаватель · гражданское право" : "Студентка · ЮР-201", av: () => avatar(other()) },
+    { id: "friend", type: "chat", sec: "Личные", title: "Сергей Белов", sub: () => "Обычная переписка", av: () => avatar("friend") },
+    { id: "dean", uni: true, type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Объявления для студентов и сотрудников", av: () => `<div class="av dean">${SCALES(22)}</div>` },
+    { id: "news", type: "channel", owner: "dean", sec: "Открыто для всех", title: "Юрфак · новости", sub: () => "Публичный канал факультета", av: () => `<div class="av dean" style="background:linear-gradient(135deg,#2b6a8f,#173d5e)">${OWL(28)}</div>` },
+    { id: "clinic", type: "clinic", sec: "Открыто для всех", title: "Юридическая клиника", sub: () => role === "guest" ? "Бесплатная консультация от студентов-юристов" : "Вопросы граждан · ответы под контролем преподавателя", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#5a46a8)">${SCALES(22)}</div>`, unread: 1 },
   ];
   const titleOf = (c) => typeof c.title === "function" ? c.title() : c.title;
 
@@ -291,6 +305,23 @@
     dean: [
       { day: "Понедельник" },
       { from: "dean", time: "12:00", cls: "announce", html: "<p><b>Деканат юридического факультета</b></p><p>Запись на юридическую клинику открыта до 25 октября. Студенты 2–4 курсов могут консультировать граждан под руководством преподавателей.</p>" },
+    ],
+    friend: [
+      { day: "Вчера" },
+      { from: "friend", time: "21:03", html: "<p>Привет! В субботу в силе? 🎳</p>" },
+      { from: "me", time: "21:10", html: "<p>Да, конечно! В 18:00 у входа</p>" },
+    ],
+    news: [
+      { day: "Понедельник" },
+      { from: "dean", time: "10:00", cls: "announce", html: "<p><b>День открытых дверей</b></p><p>26 октября в 12:00 — встреча с абитуриентами и родителями, ауд. 101. Вход свободный.</p>" },
+      { from: "dean", time: "15:30", html: "<p>Юридическая клиника факультета бесплатно консультирует граждан — задайте вопрос в чате «Юридическая клиника».</p>" },
+    ],
+    // Клиника: гражданин видит только свой диалог, студенты и преподаватели — очередь вопросов (only: guest / uni)
+    clinic: [
+      { day: "Сегодня" },
+      { from: "clinic", time: "09:00", only: "guest", html: "<p><b>Юридическая клиника юрфака</b></p><p>Задайте вопрос — ответ подготовят студенты старших курсов под руководством преподавателя. Бесплатно, срок — до 3 рабочих дней.</p><p>Не указывайте паспортные данные и другие лишние сведения.</p>" },
+      { from: "citizen", time: "08:41", only: "uni", html: "<p>Здравствуйте! Купила куртку, через 5 дней разошёлся шов. Магазин отказывается вернуть деньги. Что мне делать?</p>" },
+      { from: "clinic", time: "08:42", only: "uni", html: "<p>Вопрос № К-0139 · ваш ответ увидит гражданин только после проверки преподавателем.</p>" },
     ],
     ai: [],
   };
@@ -328,7 +359,7 @@
       src: ["ГК РФ, ст. 1064", "ГК РФ, ст. 1068", "ГК РФ, ст. 1079"], teacherOnly: true },
   ];
   const AI_FALLBACK = { html: `<p>В демо-версии я отвечаю на примеры из подсказок выше.</p><p>В полной версии здесь работает искусственный интеллект (например, Нейроюрист или YandexGPT): он отвечает по официальным текстам законов и всегда указывает статью-источник, чтобы ответ можно было проверить.</p>`, src: [] };
-  const SUMMARY = `<p><b>🦉 Конспект беседы за сегодня</b></p><ul>
+  const SUMMARY = `<p><b>Конспект беседы за сегодня</b></p><ul>
       <li><b>Семинар в среду</b> — в ауд. 412 (не 305).</li>
       <li><b>Казус №3</b> — сдать до 22 октября, в канале курса «Гражданское право».</li>
       <li>Обсуждали <b>презумпцию вины</b> (ст. 1064 ГК РФ): причинитель вреда сам доказывает, что не виноват.</li></ul>`;
@@ -337,7 +368,7 @@
   let currentId = null;
   function renderMe() {
     const p = PEOPLE[role];
-    $("#me-card").innerHTML = `${avatar(role)}<div class="who"><b>${esc(p.name)}</b><span>${esc(p.sub)}</span></div>${TICK(role === "teacher" ? "#d4af37" : "#2f6fe4", 20)}`;
+    $("#me-card").innerHTML = `${avatar(role)}<div class="who"><b>${esc(p.name)}</b><span>${esc(p.sub)}</span></div>${verified() ? TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 20) : ""}`;
     document.querySelectorAll(".role-switch button").forEach(b => b.classList.toggle("on", b.dataset.role === role));
   }
   function lastText(c) {
@@ -348,12 +379,13 @@
   const strip = (h) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   function renderList() {
     const q = $("#search").value.trim().toLowerCase();
-    let html = "", sec = "";
+    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Каналы курсов, беседа группы, преподаватели и ИИ-помощник «Сова-юрист» — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "", sec = "";
     chats.forEach(c => {
+      if (c.uni && !verified()) return;
       const t = titleOf(c);
       if (q && !(t + " " + c.sub()).toLowerCase().includes(q)) return;
       if (c.sec !== sec) { sec = c.sec; html += `<div class="sec">${esc(sec)}</div>`; }
-      const tag = c.type === "dm" ? `<span class="role-tag ${PEOPLE[other()].tag}">${role === "student" ? "ПРЕПОД." : "СТУДЕНТ"}</span>` : c.id === "dean" ? TICK("#d4af37", 14) : "";
+      const tag = c.type === "dm" ? `<span class="role-tag ${PEOPLE[other()].tag}">${role === "student" ? "ПРЕПОД." : "СТУДЕНТ"}</span>` : c.id === "dean" ? TICK("#6a7cff", 14) : "";
       html += `<div class="chat-item${c.id === currentId ? " active" : ""}" data-id="${c.id}" role="button" tabindex="0">${c.av()}
         <div class="ci-body"><div class="ci-name"><span>${esc(t)}</span>${tag}</div><div class="ci-sub">${esc(c.id === "ai" ? c.sub() : lastText(c))}</div></div>
         <div class="ci-meta">${c.unread ? `<span class="unread">${c.unread}</span>` : ""}</div></div>`;
@@ -368,8 +400,9 @@
     const mine = isMine(m);
     let from = "";
     if (m.from === "ai") from = `<div class="from">Сова-юрист ${SCALES(13)}</div>`;
-    else if (!mine && (c.type === "group" || c.type === "channel")) {
-      if (m.from === "dean") from = `<div class="from" style="color:var(--gold)">Деканат ${TICK("#d4af37", 13)}</div>`;
+    else if (!mine && (c.type === "group" || c.type === "channel" || c.type === "clinic")) {
+      if (m.from === "clinic") from = `<div class="from">Юридическая клиника ${TICK("#6a7cff", 13)}</div>`;
+      else if (m.from === "dean") from = `<div class="from" style="color:var(--light)">Деканат ${TICK("#6a7cff", 13)}</div>`;
       else { const p = PEOPLE[m.from]; from = `<div class="from">${esc(p.short || p.name)} ${p.tag === "t" ? `<span class="role-tag t">ПРЕПОД.</span>` : ""}</div>`; }
     }
     let extra = "";
@@ -378,13 +411,13 @@
     if (m.seen && role === "teacher" && c.owner === "teacher") extra += `<div class="seen">${I.eye} Прочитали ${state.readCount} из ${TOTAL}</div>`;
     if (m.private) extra += `<div class="disclaimer">Видно только вам</div>`;
     const cls = ["bubble", m.cls || "", m.from === "ai" ? "ai" : "", m.private ? "private" : ""].join(" ");
-    const av = !mine && c.type !== "dm" && c.type !== "ai" && m.from !== "ai" && m.from !== "dean" && PEOPLE[m.from] ? avatar(m.from, "sm") : "";
+    const av = !mine && c.type !== "dm" && c.type !== "ai" && m.from !== "ai" && m.from !== "dean" && c.type !== "chat" && PEOPLE[m.from] ? avatar(m.from, "sm") : "";
     return `<div class="row${mine ? " me" : ""}">${av}<div class="${cls}">${from}${m.html}${extra}<span class="time">${esc(m.time || "")}</span></div></div>`;
   }
   function taskHtml() {
     const pct = Math.round(state.submittedCount / TOTAL * 100);
     const acts = role === "student"
-      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `<button class="btn goldb" data-act="explain">${SCALES(15)} Разобрать с Совой</button>`
+      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `<button class="btn soft" data-act="explain">${SCALES(15)} Разобрать с Совой</button>`
       : `<button class="btn ghost" data-act="list">Кто сдал (${state.submittedCount})</button><button class="btn ghost" data-act="remind">Напомнить несдавшим</button>`;
     return `<div class="task"><div class="t-head">${I.file} Казус №3: договор ссуды <span class="due">до 22 октября</span></div>
       <div class="t-body">Петров бесплатно дал соседу велосипед на неделю, сосед вернул его со сломанной рамой. Квалифицируйте отношения и определите, что может требовать Петров.</div>
@@ -392,17 +425,18 @@
       <div class="t-acts">${acts}</div></div>`;
   }
   function openChat(id, opts = {}) {
-    const c = chats.find(x => x.id === id); if (!c) return;
+    const c = chats.find(x => x.id === id); if (!c || (c.uni && !verified())) return;
     currentId = id; c.unread = 0;
     document.getElementById("app").classList.add("chat-open");
     let headExtra = "";
     if (c.type === "group") headExtra = `<button class="head-btn" data-act="summary">${SCALES(15)} Конспект</button>`;
     const t = titleOf(c);
-    const tick = c.type === "dm" ? TICK(role === "student" ? "#d4af37" : "#2f6fe4", 15) : c.id === "dean" ? TICK("#d4af37", 15) : "";
-    const status = c.type === "ai" ? "ИИ-помощник · отвечает со ссылками на нормы права" : c.type === "channel" ? (c.owner === role ? `Вы ведёте этот канал · ${TOTAL} студентов` : "Пишет только преподаватель") : c.sub();
+    const tick = c.type === "dm" ? TICK(role === "student" ? "#6a7cff" : "#2f6fe4", 15) : c.id === "dean" ? TICK("#6a7cff", 15) : "";
+    const status = c.type === "ai" ? "ИИ-помощник · отвечает со ссылками на нормы права" : c.type === "channel" ? (c.owner === role ? `Вы ведёте этот канал · ${TOTAL} студентов` : c.owner === "dean" ? c.sub() : "Пишет только преподаватель") : c.sub();
     let foot;
-    const canWrite = c.type === "ai" || c.type === "group" || c.type === "dm" || (c.type === "channel" && c.owner === role);
-    if (canWrite) foot = `<div class="composer"><textarea id="input" rows="1" placeholder="${c.type === "ai" ? "Спросите о любой норме или казусе…" : c.type === "channel" ? "Объявление для курса…" : "Сообщение…"}"></textarea><button class="send" id="send" aria-label="Отправить">${I.send}</button></div>`;
+    const canWrite = c.type === "ai" || c.type === "group" || c.type === "dm" || c.type === "chat" || c.type === "clinic" || (c.type === "channel" && c.owner === role);
+    const ph = c.type === "ai" ? "Спросите о любой норме или казусе…" : c.type === "channel" ? "Объявление для курса…" : c.type === "clinic" ? (verified() ? "Ответ гражданину — проверит преподаватель…" : "Опишите ситуацию — без паспортных данных…") : "Сообщение…";
+    if (canWrite) foot = `<div class="composer"><textarea id="input" rows="1" placeholder="${ph}"></textarea><button class="send" id="send" aria-label="Отправить">${I.send}</button></div>`;
     else foot = `<div class="readonly">${I.lock}<span>В канал пишет только ${c.owner === "dean" ? "деканат" : "преподаватель"}</span>${c.owner === "teacher" ? `<button class="btn ghost" data-act="ask">Задать вопрос лично</button>` : ""}</div>`;
     const chips = c.type === "ai" ? `<div class="chips">${AI.filter(a => !(a.studentOnly && role !== "student") && !(a.teacherOnly && role !== "teacher")).map(a => `<button class="chip" data-q="${esc(a.chip)}">${esc(a.chip)}</button>`).join("")}</div>` : "";
     $("#main").innerHTML = `<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"><b><span>${esc(t)}</span>${tick}</b><small>${esc(status)}</small></div>${headExtra}</div>
@@ -415,7 +449,7 @@
   }
   function renderMsgs() {
     const c = chats.find(x => x.id === currentId); const box = $("#msgs"); if (!box) return;
-    box.innerHTML = (MSGS[currentId] || []).map(m => bubbleHtml(c, m)).join("");
+    box.innerHTML = (MSGS[currentId] || []).filter(m => !m.only || m.only === (verified() ? "uni" : "guest")).map(m => bubbleHtml(c, m)).join("");
     box.scrollTop = box.scrollHeight;
   }
   const now = () => new Date().toTimeString().slice(0, 5);
@@ -444,9 +478,24 @@
     inp.value = ""; inp.style.height = "";
     const c = chats.find(x => x.id === currentId);
     if (c.type === "ai") return ask(text);
+    const later = (fn) => setTimeout(fn, reduce ? 50 : 1500);
+    if (c.type === "clinic") {
+      const only = verified() ? "uni" : "guest";
+      push("clinic", { from: role, only, time: now(), html: `<p>${esc(text).replace(/\n/g, "<br>")}</p>` });
+      later(() => push("clinic", { from: "clinic", only, time: now(), html: verified() ? "<p>Ответ отправлен на проверку преподавателю Ивановой Е.В. Гражданин увидит его после одобрения.</p>" : "<p>Вопрос принят, № К-0142. Ответ придёт в этот чат — его подготовит студент и проверит преподаватель.</p>" }));
+      return;
+    }
     push(c.id, { from: role, time: now(), html: `<p>${esc(text).replace(/\n/g, "<br>")}</p>`, seen: c.type === "channel" });
+    if (c.type === "chat") later(() => push(c.id, { from: "friend", time: now(), html: "<p>👍</p>" }));
     if (c.type === "dm") setTimeout(() => push("dm", { from: other(), time: now(), html: role === "student" ? "<p>Спасибо, посмотрю и отвечу сегодня вечером.</p>" : "<p>Спасибо, Елена Викторовна! 🙏</p>" }), reduce ? 50 : 1600);
     if (c.type === "channel") toast(`Отправлено ${TOTAL} студентам — придёт уведомление`);
+  }
+  // Сменить роль (переключатель или подтверждение статуса); закрытый для новой роли чат закрываем
+  function setRole(r) {
+    role = r; renderMe();
+    const c = chats.find(x => x.id === currentId);
+    if (c && c.uni && !verified()) { currentId = null; $("#main").innerHTML = EMPTY; document.getElementById("app").classList.remove("chat-open"); }
+    renderList(); if (currentId) openChat(currentId);
   }
   let toastTimer = null;
   function toast(text) { const el = $("#toast"); el.textContent = text; el.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), 2600); }
@@ -456,7 +505,7 @@
     if (e.target.closest("#back")) { document.getElementById("app").classList.remove("chat-open"); currentId = null; renderList(); return; }
     if (e.target.closest("#send")) return send();
     const chip = e.target.closest("[data-q]"); if (chip) return ask(chip.dataset.q);
-    const rs = e.target.closest(".role-switch button"); if (rs) { role = rs.dataset.role; renderMe(); renderList(); if (currentId) openChat(currentId); toast(role === "teacher" ? "Теперь вы видите приложение глазами преподавателя" : "Теперь вы видите приложение глазами студента"); return; }
+    const rs = e.target.closest(".role-switch button"); if (rs) { setRole(rs.dataset.role); toast(role === "teacher" ? "Теперь вы видите приложение глазами преподавателя" : role === "student" ? "Теперь вы видите приложение глазами студента" : "Обычный аккаунт: университетский раздел закрыт"); return; }
     const a = e.target.closest("[data-act]"); if (!a) return;
     switch (a.dataset.act) {
       case "submit": state.submitted = true; state.submittedCount++; renderMsgs(); toast("Решение отправлено преподавателю ✓"); break;
@@ -464,6 +513,7 @@
       case "list": toast(`Сдали ${state.submittedCount} из ${TOTAL}. В полной версии — список со ссылками на работы`); break;
       case "remind": toast(`Напоминание отправлено ${TOTAL - state.submittedCount} студентам`); break;
       case "ask": openChat("dm"); break;
+      case "verify": $("#onb").hidden = false; onbRole(true); break;
       case "summary":
         if (aiBusy) return;
         aiSay({ html: SUMMARY, src: [] }, 1100, "grp", { private: true }); break;
@@ -481,18 +531,18 @@
   // ===== Вход: выбор роли → данные → проверка по списку вуза =====
   const card = $("#onb-card");
   function onbWelcome() {
-    card.innerHTML = `${OWL(76)}<h1>Сова правосудия</h1><p class="lead">Мессенджер юридического факультета: студенты, преподаватели и ИИ-помощник в одном месте</p>
+    card.innerHTML = `${OWL(76)}<h1>Сова правосудия</h1><p class="lead">Мессенджер для всех — и университетский раздел для студентов и преподавателей юрфака</p>
       <div class="feat">
         <div><i>${SCALES(16)}</i><span><b>Каналы курсов</b> — объявления, задания и сдача работ без потерянных сообщений</span></div>
-        <div><i>🦉</i><span><b>Сова-юрист</b> — объясняет нормы и помогает с казусами, всегда со ссылкой на статью</span></div>
-        <div><i>${TICK("#d4af37", 16)}</i><span><b>Только свои</b> — вход по студенческому билету или документу сотрудника</span></div>
+        <div><i>${OWL(18)}</i><span><b>Сова-юрист</b> — объясняет нормы и помогает с казусами, всегда со ссылкой на статью</span></div>
+        <div><i>${TICK("#6a7cff", 16)}</i><span><b>Выбор за вами</b> — обычный мессенджер доступен всем, а университетский раздел открывается после подтверждения статуса</span></div>
       </div>
       <button class="big btn primary" data-onb="role" style="justify-content:center">Войти</button>
       <button class="linkish" data-onb="skip">Пропустить — сразу к демо</button>`;
   }
-  function onbRole() {
-    card.innerHTML = `${OWL(56)}<h1>Кто вы?</h1><p class="lead">От роли зависят возможности: преподаватель ведёт канал курса и видит, кто прочитал и сдал задание</p>
-      <div class="role-pick"><button data-onb="form" data-r="student">${I.student}Студент<small>по студбилету</small></button><button data-onb="form" data-r="teacher">${I.teacher}Преподаватель<small>по документу сотрудника</small></button></div>`;
+  function onbRole(verifyOnly = false) {
+    card.innerHTML = `${OWL(56)}<h1>${verifyOnly ? "Подтвердить статус" : "Как будете пользоваться?"}</h1><p class="lead">${verifyOnly ? "Откроются каналы курсов, беседа группы, преподаватели и «Сова-юрист»" : "Обычный мессенджер доступен всем. Статус студента или сотрудника открывает университетский раздел — его можно подтвердить и позже"}</p>
+      <div class="role-pick">${verifyOnly ? "" : `<button class="wide" data-onb="guest">${I.lock.replace('width="16" height="16"', 'width="26" height="26"')}<span>Просто общаться<small>регистрация по почте, без статуса</small></span></button>`}<button data-onb="form" data-r="student">${I.student}Студент<small>по студбилету</small></button><button data-onb="form" data-r="teacher">${I.teacher}Преподаватель<small>по документу сотрудника</small></button></div>`;
   }
   function onbForm(r) {
     role = r;
@@ -503,6 +553,13 @@
       <div class="field"><label>${st ? "Номер студенческого билета" : "Табельный номер"}</label><input value="${st ? "ЮР-2025-01843" : "Т-00417"}" inputmode="text"></div>
       <button class="big btn primary" data-onb="check" style="justify-content:center">Проверить и войти</button>
       <div class="note">${I.lock}<span>Мы <b>не храним</b> фото и сканы документов: номер только сверяется со списком вуза, после этого остаётся лишь отметка «подтверждён».</span></div>`;
+  }
+  function onbGuest() {
+    card.innerHTML = `${OWL(56)}<h1>Обычный аккаунт</h1><p class="lead">Переписка с друзьями, открытые каналы и бесплатная юридическая клиника</p>
+      <div class="field"><label>Имя</label><input value="Анна Смирнова"></div>
+      <div class="field"><label>Почта</label><input type="email" value="anna.com"></div>
+      <button class="big btn primary" data-onb="enterGuest" style="justify-content:center">Создать аккаунт</button>
+      <div class="note">${I.lock}<span>Статус студента или сотрудника можно подтвердить позже — в любой момент, прямо в приложении.</span></div>`;
   }
   function onbCheck() {
     const st = role === "student";
@@ -522,14 +579,14 @@
   }
   function onbDone() {
     const p = PEOPLE[role];
-    card.innerHTML = `${OWL(76)}<h1 style="display:flex;align-items:center;justify-content:center;gap:8px">Подтверждено ${TICK(role === "teacher" ? "#d4af37" : "#2f6fe4", 24)}</h1>
+    card.innerHTML = `${OWL(76)}<h1 style="display:flex;align-items:center;justify-content:center;gap:8px">Подтверждено ${TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 24)}</h1>
       <p class="lead">${esc(p.name)}<br>${esc(p.sub)}</p>
       <button class="big btn primary" data-onb="enter" style="justify-content:center">Открыть «Сову правосудия»</button>`;
   }
-  function enterApp() { $("#onb").hidden = true; renderMe(); renderList(); if (matchMedia("(min-width: 900px)").matches) openChat(role === "teacher" ? "civ" : "ai"); }
+  function enterApp() { $("#onb").hidden = true; setRole(role); if (matchMedia("(min-width: 900px)").matches) openChat(role === "teacher" ? "civ" : role === "student" ? "ai" : "clinic"); }
   card.addEventListener("click", (e) => {
     const b = e.target.closest("[data-onb]"); if (!b) return;
-    ({ role: onbRole, form: () => onbForm(b.dataset.r), check: onbCheck, enter: enterApp, skip: enterApp })[b.dataset.onb]();
+    ({ role: () => onbRole(), guest: onbGuest, enterGuest: () => { role = "guest"; enterApp(); }, form: () => onbForm(b.dataset.r), check: onbCheck, enter: enterApp, skip: enterApp })[b.dataset.onb]();
   });
   $("#restart").addEventListener("click", () => { $("#onb").hidden = false; onbWelcome(); });
 
