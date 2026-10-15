@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070d1c">
+<meta name="robots" content="noindex">
+<title>Сова правосудия — демо</title>
+<link rel="icon" href="icon-192.png">
+<style>
+  /* «Сова правосудия» — демо-версия мессенджера юридического факультета на основе Owl.
+     Всё локально: данные заготовлены, ничего не отправляется на сервер. */
+  :root {
+    --bg-main: #060c1b; --bg-panel: #0c1630; --bg-chat: #08112a; --bg-elev: #13214a;
+    --input-bg: #15244c; --border: #1a2b57; --text: #eef3ff; --muted: #8b9cc6;
+    --accent: #2f6fe4; --accent-2: #1c48b0; --gold: #d4af37; --gold-soft: rgba(212,175,55,.14);
+    --ok: #34c77b; --danger: #ff5b5b;
+    --me-bubble: linear-gradient(135deg, #2f6fe4, #1d43a6); --other-bubble: #14224a;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg-main); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+  input, select, textarea { font: inherit; color: var(--text); }
+  .gold { color: var(--gold); }
+
+  /* ===== Каркас ===== */
+  #app { display: flex; height: 100dvh; max-width: 1280px; margin: 0 auto; background: var(--bg-panel); }
+  @media (min-width: 900px) { #app { height: calc(100dvh - 40px); margin-top: 20px; border-radius: 22px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0,0,0,.5); } }
+  .side { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-panel); }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-chat); position: relative; }
+  @media (max-width: 899px) {
+    .side { width: 100%; border-right: none; }
+    .main { display: none; }
+    #app.chat-open .side { display: none; }
+    #app.chat-open .main { display: flex; }
+  }
+
+  /* ===== Боковая панель ===== */
+  .side-top { padding: calc(14px + env(safe-area-inset-top)) 16px 10px; display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .brand b { font-size: 18px; letter-spacing: .2px; }
+  .brand small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+  .demo-badge { font-size: 10px; font-weight: 700; letter-spacing: .8px; color: var(--gold); background: var(--gold-soft); border: 1px solid rgba(212,175,55,.35); padding: 3px 7px; border-radius: 999px; }
+  .me-card { margin: 4px 12px 10px; padding: 12px; border-radius: 16px; background: var(--bg-elev); display: flex; align-items: center; gap: 12px; }
+  .me-card .who { flex: 1; min-width: 0; }
+  .me-card .who b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .me-card .who span { font-size: 12px; color: var(--muted); }
+  .role-switch { margin: 0 12px 10px; display: grid; grid-template-columns: 1fr 1fr; background: var(--input-bg); border-radius: 12px; padding: 3px; }
+  .role-switch button { padding: 8px 6px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
+  .role-switch button.on { background: var(--accent); color: #fff; }
+  .role-hint { margin: -4px 14px 10px; font-size: 11px; color: var(--muted); text-align: center; }
+  .search { margin: 0 12px 8px; position: relative; }
+  .search input { width: 100%; padding: 10px 12px 10px 36px; border-radius: 12px; border: none; background: var(--input-bg); outline: none; }
+  .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+  .list { flex: 1; overflow-y: auto; padding: 0 8px 16px; }
+  .sec { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin: 14px 10px 6px; }
+  .chat-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; cursor: pointer; transition: background .15s; }
+  .chat-item:hover { background: rgba(255,255,255,.03); }
+  .chat-item.active { background: var(--bg-elev); }
+  .chat-item .ci-body { flex: 1; min-width: 0; }
+  .chat-item .ci-name { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 15px; }
+  .chat-item .ci-name span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-item .ci-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .chat-item .ci-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 11px; color: var(--muted); }
+  .unread { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .side-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .side-foot button { color: var(--muted); text-decoration: underline; font-size: 11px; }
+
+  /* ===== Аватары и значки ===== */
+  .av { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: #fff; }
+  .av.sm { width: 34px; height: 34px; font-size: 13px; }
+  .av.ai { background: radial-gradient(circle at 30% 25%, #2a4fae, #0f1f4d); border: 1.5px solid rgba(212,175,55,.6); }
+  .av.ch { background: linear-gradient(135deg, #1d3f9a, #0f2560); }
+  .av.dean { background: linear-gradient(135deg, #b8912a, #7a5e14); }
+  .av.grp { background: linear-gradient(135deg, #2b6a8f, #173d5e); }
+  .tick { display: inline-flex; flex-shrink: 0; }
+  .role-tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; letter-spacing: .3px; }
+  .role-tag.t { color: var(--gold); background: var(--gold-soft); }
+  .role-tag.s { color: #7fb0ff; background: rgba(47,111,228,.16); }
+
+  /* ===== Чат ===== */
+  .chat-head { padding: calc(10px + env(safe-area-inset-top)) 14px 10px; display: flex; align-items: center; gap: 10px; background: var(--bg-panel); border-bottom: 1px solid var(--border); min-height: 64px; }
+  .back { display: none; padding: 6px; border-radius: 10px; }
+  @media (max-width: 899px) { .back { display: inline-flex; } }
+  .chat-head .ch-title { flex: 1; min-width: 0; }
+  .chat-head .ch-title b { display: flex; align-items: center; gap: 6px; font-size: 16px; }
+  .chat-head .ch-title b span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-head .ch-title small { font-size: 12px; color: var(--muted); display: block; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .head-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px; background: var(--input-bg); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .head-btn:hover { background: var(--bg-elev); }
+  .msgs { flex: 1; overflow-y: auto; padding: 18px 16px 10px; display: flex; flex-direction: column; gap: 6px;
+          background-image: radial-gradient(rgba(140,170,255,.07) 1px, transparent 1px); background-size: 26px 26px; }
+  .day { align-self: center; font-size: 12px; color: var(--muted); background: rgba(12,22,48,.85); padding: 4px 10px; border-radius: 10px; margin: 8px 0; }
+  .row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; animation: in .25s ease both; }
+  .row.me { justify-content: flex-end; }
+  @keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .row, .typing i { animation: none !important; } }
+  .bubble { max-width: min(560px, 78%); padding: 9px 13px 7px; border-radius: var(--radius); background: var(--other-bubble); line-height: 1.42; font-size: 15px; word-wrap: break-word; position: relative; }
+  .row.me .bubble { background: var(--me-bubble); border-bottom-right-radius: 6px; }
+  .row:not(.me) .bubble { border-bottom-left-radius: 6px; }
+  .bubble .from { font-size: 12.5px; font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; color: #9cc0ff; }
+  .bubble .time { font-size: 11px; color: rgba(238,243,255,.55); float: right; margin: 6px 0 0 10px; }
+  .bubble p { margin: 0 0 6px; } .bubble p:last-of-type { margin-bottom: 0; }
+  .bubble ul, .bubble ol { margin: 4px 0 6px; padding-left: 20px; } .bubble li { margin: 2px 0; }
+  .bubble.ai { background: linear-gradient(180deg, #13244f, #101d40); border: 1px solid rgba(212,175,55,.22); max-width: min(620px, 86%); }
+  .bubble.ai .from { color: var(--gold); }
+  .bubble.private { border: 1px dashed rgba(212,175,55,.5); }
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .src { font-size: 12px; padding: 4px 9px; border-radius: 8px; background: rgba(212,175,55,.12); color: #f0d77a; border: 1px solid rgba(212,175,55,.25); }
+  .disclaimer { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+  .seen { font-size: 11.5px; color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+  .announce { border-left: 3px solid var(--gold); }
+  .task { margin-top: 8px; padding: 12px; border-radius: 14px; background: rgba(6,12,27,.45); border: 1px solid var(--border); }
+  .task .t-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .task .due { margin-left: auto; font-size: 12px; font-weight: 600; color: #ffb36b; background: rgba(255,150,60,.12); padding: 3px 8px; border-radius: 8px; white-space: nowrap; }
+  .task .t-body { font-size: 14px; color: #cdd8f5; margin: 8px 0 10px; }
+  .task .t-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn { padding: 9px 14px; border-radius: 11px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 7px; }
+  .btn.primary { background: var(--accent); color: #fff; } .btn.primary:hover { background: #3a7cf2; }
+  .btn.ghost { background: var(--input-bg); } .btn.ghost:hover { background: var(--bg-elev); }
+  .btn.goldb { background: var(--gold-soft); color: var(--gold); border: 1px solid rgba(212,175,55,.35); }
+  .btn.done { background: rgba(52,199,123,.14); color: var(--ok); cursor: default; }
+  .progress { height: 6px; border-radius: 3px; background: var(--input-bg); overflow: hidden; margin: 2px 0 10px; }
+  .progress i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #5f95ff); border-radius: 3px; transition: width .4s; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 8px 14px 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; padding: 8px 12px; border-radius: 999px; background: var(--input-bg); border: 1px solid var(--border); font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .chip:hover { border-color: rgba(212,175,55,.5); }
+  .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); opacity: .4; animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 50% { opacity: 1; } }
+
+  /* ===== Поле ввода ===== */
+  .composer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: flex; gap: 8px; align-items: flex-end; background: var(--bg-panel); border-top: 1px solid var(--border); }
+  .composer textarea { flex: 1; resize: none; border: none; outline: none; background: var(--input-bg); border-radius: 20px; padding: 11px 16px; max-height: 120px; line-height: 1.35; }
+  .send { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .readonly { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .readonly span { flex: 1; }
+  .empty { margin: auto; text-align: center; color: var(--muted); padding: 30px; }
+  .empty svg { opacity: .9; margin-bottom: 12px; }
+  .empty b { display: block; color: var(--text); font-size: 18px; margin-bottom: 6px; }
+
+  /* ===== Вход и проверка ===== */
+  #onb { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 20px;
+         background: radial-gradient(120% 80% at 50% 0%, #15306e 0%, #060c1b 60%); overflow-y: auto; }
+  #onb[hidden] { display: none; }
+  .onb-card { width: 100%; max-width: 420px; background: rgba(12,22,48,.92); border: 1px solid var(--border); border-radius: 24px; padding: 28px 24px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+  .onb-card h1 { font-size: 24px; margin: 10px 0 6px; }
+  .onb-card p.lead { color: var(--muted); margin: 0 0 20px; line-height: 1.45; font-size: 15px; }
+  .feat { text-align: left; display: grid; gap: 10px; margin: 0 0 22px; }
+  .feat div { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #cdd8f5; line-height: 1.35; }
+  .feat div i { font-style: normal; flex-shrink: 0; width: 28px; height: 28px; border-radius: 9px; background: var(--input-bg); display: inline-flex; align-items: center; justify-content: center; }
+  .big { width: 100%; padding: 14px; border-radius: 14px; font-weight: 700; font-size: 16px; margin-top: 8px; }
+  .role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 4px; }
+  .role-pick button { padding: 18px 10px; border-radius: 16px; background: var(--input-bg); border: 1.5px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 8px; font-weight: 600; }
+  .role-pick button small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .role-pick button:hover { border-color: var(--accent); }
+  .field { text-align: left; margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 5px 4px; }
+  .field input, .field select { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); outline: none; }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.4; margin-top: 12px; display: flex; gap: 8px; text-align: left; }
+  .steps { text-align: left; display: grid; gap: 12px; margin: 18px 0 6px; }
+  .step { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); transition: color .3s; }
+  .step .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .3s; }
+  .step.on { color: var(--text); } .step.on .dot { border-color: var(--accent); }
+  .step.ok { color: var(--text); } .step.ok .dot { background: var(--ok); border-color: var(--ok); }
+  .linkish { color: var(--muted); font-size: 13px; text-decoration: underline; margin-top: 14px; }
+
+  .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px); background: #1b2d5e; color: var(--text); padding: 11px 16px; border-radius: 14px; font-size: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.4); opacity: 0; transition: all .25s; z-index: 60; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ===== Вход: выбор роли и проверка по списку вуза ===== -->
+<div id="onb">
+  <div class="onb-card" id="onb-card"></div>
+</div>
+
+<div id="app">
+  <aside class="side">
+    <div class="side-top">
+      <div class="brand"><span id="logo-sm"></span><div><b>Сова правосудия</b><small>Юридический институт</small></div></div>
+      <span class="demo-badge">ДЕМО</span>
+    </div>
+    <div class="me-card" id="me-card"></div>
+    <div class="role-switch" role="tablist" aria-label="Смотреть как">
+      <button data-role="student" role="tab">Студент</button>
+      <button data-role="teacher" role="tab">Преподаватель</button>
+    </div>
+    <div class="role-hint">Переключатель для показа: одно приложение глазами разных людей</div>
+    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg><input id="search" placeholder="Поиск по чатам и курсам" autocomplete="off"></div>
+    <div class="list" id="list"></div>
+    <div class="side-foot"><span>Демо на основе Owl Messenger</span><button id="restart">Начать заново</button></div>
+  </aside>
+
+  <main class="main" id="main">
+    <div class="empty" id="empty">
+      <div id="logo-big"></div>
+      <b>Выберите чат</b>
+      Каналы курсов, группа, преподаватели и ИИ-помощник «Сова-юрист»
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ===== Иконки =====
+  const OWL = (s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="og${s}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#0f2560"/></linearGradient></defs>
+    <path d="M14 10 Q19 17 24 19 Q32 15 40 19 Q45 17 50 10 Q57 22 57 36 Q57 52 43 58 Q32 62 21 58 Q7 52 7 36 Q7 22 14 10Z" fill="url(#og${s})" stroke="#d4af37" stroke-width="1.6"/>
+    <circle cx="23" cy="33" r="9" fill="#060c1b"/><circle cx="41" cy="33" r="9" fill="#060c1b"/><circle cx="23" cy="33" r="4.2" fill="#d4af37"/><circle cx="41" cy="33" r="4.2" fill="#d4af37"/>
+    <path d="M32 39 l-3.5 4 h7z" fill="#d4af37"/></svg>`;
+  const SCALES = (s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="3" x2="12" y2="21"/><line x1="7" y1="21" x2="17" y2="21"/><line x1="4" y1="7" x2="20" y2="7"/><path d="M4 7 L1.5 13 a3 3 0 0 0 5 0 Z"/><path d="M20 7 L17.5 13 a3 3 0 0 0 5 0 Z"/></svg>`;
+  const TICK = (c = "#2f6fe4", s = 15) => `<span class="tick" title="Подтверждён вузом"><svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M12 1.5l2.6 2.2 3.4-.4 1 3.3 3 1.7-1 3.3 1 3.3-3 1.7-1 3.3-3.4-.4L12 22.5l-2.6-2.2-3.4.4-1-3.3-3-1.7 1-3.3-1-3.3 3-1.7 1-3.3 3.4.4z" fill="${c}"/><path d="M8 12.3l2.6 2.6L16.2 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  const I = {
+    back: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
+    send: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
+    eye: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    lock: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    check: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    file: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    book: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/><path d="M6.5 17A2.5 2.5 0 0 0 4 19.5 2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>`,
+    student: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7fb0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>`,
+    teacher: SCALES(30).replace('stroke="currentColor"', 'stroke="#d4af37"'),
+  };
+  $("#logo-sm").innerHTML = OWL(36);
+  $("#logo-big").innerHTML = OWL(72);
+
+  // ===== Люди и роли =====
+  const PEOPLE = {
+    student: { name: "Анна Смирнова", initials: "АС", color: "#2f6fe4", sub: "Студентка · группа ЮР-201", tag: "s" },
+    teacher: { name: "Елена Викторовна Иванова", short: "Иванова Е.В.", initials: "ЕИ", color: "#9a7a1c", sub: "Доцент · кафедра гражданского права", tag: "t" },
+    petrov: { name: "Петров Алексей Сергеевич", short: "Петров А.С.", initials: "ПА", color: "#7a5e14", tag: "t" },
+    max: { name: "Максим Орлов", initials: "МО", color: "#2b6a8f", tag: "s" },
+    dasha: { name: "Дарья Ким", initials: "ДК", color: "#6a4bb5", tag: "s" },
+    ilya: { name: "Илья Соколов", initials: "ИС", color: "#2f8f6a", tag: "s" },
+  };
+  let role = "student";
+  const other = () => role === "student" ? "teacher" : "student";
+  const avatar = (key, cls = "") => { const p = PEOPLE[key]; return `<div class="av ${cls}" style="background:${p.color}">${p.initials}</div>`; };
+
+  // ===== Данные чатов (всё заготовлено для показа) =====
+  const TOTAL = 27; // студентов в группе
+  const state = { submitted: false, submittedCount: 12, readCount: 21 };
+  const chats = [
+    { id: "ai", type: "ai", sec: "Помощник", title: "Сова-юрист", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${OWL(30)}</div>` },
+    { id: "civ", type: "channel", owner: "teacher", sec: "Курсы", title: "Гражданское право", sub: () => role === "teacher" ? "Ваш канал курса · 27 студентов" : "Канал курса · Иванова Е.В.", av: () => `<div class="av ch">${SCALES(22)}</div>`, unread: 2 },
+    { id: "crim", type: "channel", owner: "petrov", sec: "Курсы", title: "Уголовное право", sub: () => "Канал курса · Петров А.С.", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#3a2f7a,#1b1550)">${I.book.replace('width="16" height="16"', 'width="22" height="22"')}</div>` },
+    { id: "grp", type: "group", sec: "Группа", title: "ЮР-201", sub: () => "Беседа группы · 27 участников", av: () => `<div class="av grp">201</div>`, unread: 5 },
+    { id: "dm", type: "dm", sec: "Личные", title: () => role === "student" ? PEOPLE.teacher.short : PEOPLE.student.name, sub: () => role === "student" ? "Преподаватель · гражданское право" : "Студентка · ЮР-201", av: () => avatar(other()) },
+    { id: "dean", type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Официальные объявления факультета", av: () => `<div class="av dean">${SCALES(22)}</div>` },
+  ];
+  const titleOf = (c) => typeof c.title === "function" ? c.title() : c.title;
+
+  const MSGS = {
+    civ: [
+      { day: "Понедельник" },
+      { from: "teacher", time: "09:12", cls: "announce", html: "<p><b>📌 Объявление</b></p><p>Коллеги, семинар в среду переносится в ауд. 412 (вместо 305). Начало как обычно — 10:30.</p>", seen: true },
+      { from: "teacher", time: "18:40", html: "<p>Опубликовала задание к следующему семинару. Решения сдаём прямо здесь — кнопкой под заданием.</p>", task: true },
+      { day: "Сегодня" },
+      { from: "teacher", time: "11:05", html: "<p>Напоминаю: в пятницу короткая контрольная по деликтным обязательствам (глава 59 ГК РФ). Повторите ст. 1064–1083.</p>", seen: true },
+    ],
+    crim: [
+      { day: "Вчера" },
+      { from: "petrov", time: "16:20", html: "<p>К семинару: разберите разграничение кражи, грабежа и разбоя. Обязательно — Постановление Пленума ВС РФ от 27.12.2002 № 29.</p>" },
+    ],
+    grp: [
+      { day: "Сегодня" },
+      { from: "max", time: "10:02", html: "<p>Народ, кто понял, что значит «презумпция вины» в 1064? 😅</p>" },
+      { from: "dasha", time: "10:04", html: "<p>Это когда причинитель вреда сам должен доказать, что не виноват</p>" },
+      { from: "ilya", time: "10:07", html: "<p>Кстати, семинар в среду в 412, не в 305!</p>" },
+      { from: "max", time: "10:09", html: "<p>Спасибо! А казус №3 до какого числа?</p>" },
+      { from: "dasha", time: "10:10", html: "<p>До 22 октября, сдаём в канале курса</p>" },
+    ],
+    dm: [
+      { day: "Вчера" },
+      { from: "student", time: "20:14", html: "<p>Елена Викторовна, здравствуйте! Можно уточнить по казусу №3: если сосед вернул велосипед повреждённым, это всё ещё договор ссуды?</p>" },
+      { from: "teacher", time: "20:31", html: "<p>Здравствуйте, Анна! Да, квалифицируем как ссуду — подумайте, какие обязанности ссудополучателя нарушены и что можно потребовать. Жду решение 🙂</p>" },
+    ],
+    dean: [
+      { day: "Понедельник" },
+      { from: "dean", time: "12:00", cls: "announce", html: "<p><b>Деканат юридического факультета</b></p><p>Запись на юридическую клинику открыта до 25 октября. Студенты 2–4 курсов могут консультировать граждан под руководством преподавателей.</p>" },
+    ],
+    ai: [],
+  };
+
+  // ===== Ответы «Совы-юриста» (в демо — заготовленные; в полной версии — ИИ по официальным текстам законов) =====
+  const AI = [
+    { key: /1064|деликт|причинени[ея] вреда|презумпц/i, chip: "Объясни ст. 1064 ГК РФ простыми словами",
+      html: `<p><b>Статья 1064 ГК РФ — общие основания ответственности за причинение вреда.</b></p>
+        <ul><li><b>Кто платит.</b> Вред, причинённый личности или имуществу гражданина, а также имуществу организации, возмещает в полном объёме тот, кто его причинил.</li>
+        <li><b>Презумпция вины.</b> Доказывать свою невиновность должен причинитель вреда: он освобождается от ответственности, только если докажет, что вред причинён не по его вине.</li>
+        <li><b>Исключения.</b> Законом может быть предусмотрено возмещение и без вины — например, за вред от источника повышенной опасности (ст. 1079 ГК РФ).</li></ul>
+        <p>Для контрольной: условия деликтной ответственности — вред, противоправность, причинная связь и вина.</p>`,
+      src: ["ГК РФ, ст. 1064", "ГК РФ, ст. 1079", "ГК РФ, глава 59"] },
+    { key: /краж|грабе|разбо/i, chip: "Чем кража отличается от грабежа?",
+      html: `<p><b>Главное отличие — способ хищения.</b></p>
+        <ul><li><b>Кража (ст. 158 УК РФ)</b> — <i>тайное</i> хищение чужого имущества: собственник и окружающие не видят изъятия, либо виновный уверен, что действует незаметно.</li>
+        <li><b>Грабёж (ст. 161 УК РФ)</b> — <i>открытое</i> хищение: виновный понимает, что его действия видят и осознают их характер, но игнорирует это.</li>
+        <li><b>Разбой (ст. 162 УК РФ)</b> — уже нападение с насилием, опасным для жизни или здоровья, или с угрозой такого насилия.</li></ul>
+        <p>Если хищение началось тайно, но виновного обнаружили, а он продолжил удерживать имущество — содеянное квалифицируется как грабёж (п. 5 Постановления Пленума ВС РФ № 29).</p>`,
+      src: ["УК РФ, ст. 158", "УК РФ, ст. 161", "УК РФ, ст. 162", "Пленум ВС РФ от 27.12.2002 № 29"] },
+    { key: /казус|ссуд|велосипед/i, chip: "Помоги разобрать казус №3",
+      html: `<p><b>Казус №3:</b> Петров бесплатно дал соседу велосипед на неделю, сосед вернул его со сломанной рамой.</p>
+        <ol><li><b>Квалификация.</b> Безвозмездная передача вещи во временное пользование — договор ссуды (ст. 689 ГК РФ).</li>
+        <li><b>Обязанности ссудополучателя.</b> Поддерживать вещь в исправном состоянии (ст. 695) и вернуть её в том состоянии, в каком получил, с учётом нормального износа (п. 1 ст. 689).</li>
+        <li><b>Что может требовать Петров.</b> Возмещения убытков — стоимости ремонта (ст. 15, 393 ГК РФ).</li></ol>
+        <p>❓ Подумайте сами: как изменится решение, если сосед без согласия Петрова отдал велосипед третьему лицу? Подсказка — ст. 696 ГК РФ.</p>`,
+      src: ["ГК РФ, ст. 689", "ГК РФ, ст. 695", "ГК РФ, ст. 696", "ГК РФ, ст. 15, 393"], studentOnly: true },
+    { key: /вопрос|семинар|самопровер/i, chip: "Составь вопросы к семинару по деликтам",
+      html: `<p><b>Вопросы для семинара «Деликтные обязательства»:</b></p>
+        <ol><li>Назовите условия деликтной ответственности и приведите пример на каждое.</li>
+        <li>Что означает презумпция вины причинителя вреда (п. 2 ст. 1064 ГК РФ)? Кто и что доказывает в суде?</li>
+        <li>В каких случаях вред возмещается независимо от вины? Разберите ст. 1079 ГК РФ.</li>
+        <li>Чем ответственность за вред, причинённый работником (ст. 1068), отличается от личной ответственности?</li>
+        <li>Мини-казус: самокат сбил пешехода на тротуаре — кто и на каком основании отвечает?</li></ol>`,
+      src: ["ГК РФ, ст. 1064", "ГК РФ, ст. 1068", "ГК РФ, ст. 1079"], teacherOnly: true },
+  ];
+  const AI_FALLBACK = { html: `<p>В демо-версии я отвечаю на примеры из подсказок выше.</p><p>В полной версии здесь работает искусственный интеллект (например, Нейроюрист или YandexGPT): он отвечает по официальным текстам законов и всегда указывает статью-источник, чтобы ответ можно было проверить.</p>`, src: [] };
+  const SUMMARY = `<p><b>🦉 Конспект беседы за сегодня</b></p><ul>
+      <li><b>Семинар в среду</b> — в ауд. 412 (не 305).</li>
+      <li><b>Казус №3</b> — сдать до 22 октября, в канале курса «Гражданское право».</li>
+      <li>Обсуждали <b>презумпцию вины</b> (ст. 1064 ГК РФ): причинитель вреда сам доказывает, что не виноват.</li></ul>`;
+
+  // ===== Рендер списка =====
+  let currentId = null;
+  function renderMe() {
+    const p = PEOPLE[role];
+    $("#me-card").innerHTML = `${avatar(role)}<div class="who"><b>${esc(p.name)}</b><span>${esc(p.sub)}</span></div>${TICK(role === "teacher" ? "#d4af37" : "#2f6fe4", 20)}`;
+    document.querySelectorAll(".role-switch button").forEach(b => b.classList.toggle("on", b.dataset.role === role));
+  }
+  function lastText(c) {
+    if (c.id === "ai") return MSGS.ai.length ? strip(MSGS.ai[MSGS.ai.length - 1].html) : c.sub();
+    const arr = (MSGS[c.id] || []).filter(m => m.html);
+    return arr.length ? strip(arr[arr.length - 1].html) : c.sub();
+  }
+  const strip = (h) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  function renderList() {
+    const q = $("#search").value.trim().toLowerCase();
+    let html = "", sec = "";
+    chats.forEach(c => {
+      const t = titleOf(c);
+      if (q && !(t + " " + c.sub()).toLowerCase().includes(q)) return;
+      if (c.sec !== sec) { sec = c.sec; html += `<div class="sec">${esc(sec)}</div>`; }
+      const tag = c.type === "dm" ? `<span class="role-tag ${PEOPLE[other()].tag}">${role === "student" ? "ПРЕПОД." : "СТУДЕНТ"}</span>` : c.id === "dean" ? TICK("#d4af37", 14) : "";
+      html += `<div class="chat-item${c.id === currentId ? " active" : ""}" data-id="${c.id}" role="button" tabindex="0">${c.av()}
+        <div class="ci-body"><div class="ci-name"><span>${esc(t)}</span>${tag}</div><div class="ci-sub">${esc(c.id === "ai" ? c.sub() : lastText(c))}</div></div>
+        <div class="ci-meta">${c.unread ? `<span class="unread">${c.unread}</span>` : ""}</div></div>`;
+    });
+    $("#list").innerHTML = html || `<div class="empty" style="padding:20px">Ничего не найдено</div>`;
+  }
+
+  // ===== Рендер чата =====
+  function isMine(m) { return m.from === role || (m.from === "me"); }
+  function bubbleHtml(c, m) {
+    if (m.day) return `<div class="day">${esc(m.day)}</div>`;
+    const mine = isMine(m);
+    let from = "";
+    if (m.from === "ai") from = `<div class="from">Сова-юрист ${SCALES(13)}</div>`;
+    else if (!mine && (c.type === "group" || c.type === "channel")) {
+      if (m.from === "dean") from = `<div class="from" style="color:var(--gold)">Деканат ${TICK("#d4af37", 13)}</div>`;
+      else { const p = PEOPLE[m.from]; from = `<div class="from">${esc(p.short || p.name)} ${p.tag === "t" ? `<span class="role-tag t">ПРЕПОД.</span>` : ""}</div>`; }
+    }
+    let extra = "";
+    if (m.task) extra += taskHtml();
+    if (m.src && m.src.length) extra += `<div class="sources">${m.src.map(s => `<span class="src">§ ${esc(s)}</span>`).join("")}</div><div class="disclaimer">Проверяйте по официальному тексту закона. Демо: ответ заготовлен заранее.</div>`;
+    if (m.seen && role === "teacher" && c.owner === "teacher") extra += `<div class="seen">${I.eye} Прочитали ${state.readCount} из ${TOTAL}</div>`;
+    if (m.private) extra += `<div class="disclaimer">Видно только вам</div>`;
+    const cls = ["bubble", m.cls || "", m.from === "ai" ? "ai" : "", m.private ? "private" : ""].join(" ");
+    const av = !mine && c.type !== "dm" && c.type !== "ai" && m.from !== "ai" && m.from !== "dean" && PEOPLE[m.from] ? avatar(m.from, "sm") : "";
+    return `<div class="row${mine ? " me" : ""}">${av}<div class="${cls}">${from}${m.html}${extra}<span class="time">${esc(m.time || "")}</span></div></div>`;
+  }
+  function taskHtml() {
+    const pct = Math.round(state.submittedCount / TOTAL * 100);
+    const acts = role === "student"
+      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `<button class="btn goldb" data-act="explain">${SCALES(15)} Разобрать с Совой</button>`
+      : `<button class="btn ghost" data-act="list">Кто сдал (${state.submittedCount})</button><button class="btn ghost" data-act="remind">Напомнить несдавшим</button>`;
+    return `<div class="task"><div class="t-head">${I.file} Казус №3: договор ссуды <span class="due">до 22 октября</span></div>
+      <div class="t-body">Петров бесплатно дал соседу велосипед на неделю, сосед вернул его со сломанной рамой. Квалифицируйте отношения и определите, что может требовать Петров.</div>
+      ${role === "teacher" ? `<div style="font-size:12px;color:var(--muted);margin-bottom:5px">Сдали ${state.submittedCount} из ${TOTAL}</div><div class="progress"><i style="width:${pct}%"></i></div>` : ""}
+      <div class="t-acts">${acts}</div></div>`;
+  }
+  function openChat(id, opts = {}) {
+    const c = chats.find(x => x.id === id); if (!c) return;
+    currentId = id; c.unread = 0;
+    document.getElementById("app").classList.add("chat-open");
+    let headExtra = "";
+    if (c.type === "group") headExtra = `<button class="head-btn" data-act="summary">${SCALES(15)} Конспект</button>`;
+    const t = titleOf(c);
+    const tick = c.type === "dm" ? TICK(role === "student" ? "#d4af37" : "#2f6fe4", 15) : c.id === "dean" ? TICK("#d4af37", 15) : "";
+    const status = c.type === "ai" ? "ИИ-помощник · отвечает со ссылками на нормы права" : c.type === "channel" ? (c.owner === role ? `Вы ведёте этот канал · ${TOTAL} студентов` : "Пишет только преподаватель") : c.sub();
+    let foot;
+    const canWrite = c.type === "ai" || c.type === "group" || c.type === "dm" || (c.type === "channel" && c.owner === role);
+    if (canWrite) foot = `<div class="composer"><textarea id="input" rows="1" placeholder="${c.type === "ai" ? "Спросите о любой норме или казусе…" : c.type === "channel" ? "Объявление для курса…" : "Сообщение…"}"></textarea><button class="send" id="send" aria-label="Отправить">${I.send}</button></div>`;
+    else foot = `<div class="readonly">${I.lock}<span>В канал пишет только ${c.owner === "dean" ? "деканат" : "преподаватель"}</span>${c.owner === "teacher" ? `<button class="btn ghost" data-act="ask">Задать вопрос лично</button>` : ""}</div>`;
+    const chips = c.type === "ai" ? `<div class="chips">${AI.filter(a => !(a.studentOnly && role !== "student") && !(a.teacherOnly && role !== "teacher")).map(a => `<button class="chip" data-q="${esc(a.chip)}">${esc(a.chip)}</button>`).join("")}</div>` : "";
+    $("#main").innerHTML = `<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"><b><span>${esc(t)}</span>${tick}</b><small>${esc(status)}</small></div>${headExtra}</div>
+      <div class="msgs" id="msgs"></div>${chips}${foot}`;
+    renderMsgs();
+    renderList();
+    if (c.type === "ai" && !MSGS.ai.length) aiSay({ html: `<p>Здравствуйте! Я <b>Сова-юрист</b> — помощник по учёбе. Объясню норму простыми словами, помогу разобрать казус или подготовиться к семинару.</p><p>Каждый ответ — со ссылкой на статью закона. Выберите вопрос ниже или задайте свой.</p>` }, 300);
+    if (opts.ask) setTimeout(() => ask(opts.ask), 350);
+    const inp = $("#input"); if (inp && matchMedia("(pointer: fine)").matches) inp.focus();
+  }
+  function renderMsgs() {
+    const c = chats.find(x => x.id === currentId); const box = $("#msgs"); if (!box) return;
+    box.innerHTML = (MSGS[currentId] || []).map(m => bubbleHtml(c, m)).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+  const now = () => new Date().toTimeString().slice(0, 5);
+  function push(id, m) { (MSGS[id] = MSGS[id] || []).push(m); if (currentId === id) { const c = chats.find(x => x.id === id); $("#msgs").insertAdjacentHTML("beforeend", bubbleHtml(c, m)); $("#msgs").scrollTop = 1e9; } renderList(); }
+
+  // ===== «Сова-юрист» =====
+  let aiBusy = false;
+  function aiSay(ans, delay = 900, chatId = "ai", extra = {}) {
+    const box = $("#msgs");
+    const tmp = document.createElement("div"); tmp.className = "row"; tmp.innerHTML = `<div class="bubble ai"><div class="from">Сова-юрист ${SCALES(13)}</div><span class="typing"><i></i><i></i><i></i></span></div>`;
+    if (box && currentId === chatId) { box.appendChild(tmp); box.scrollTop = 1e9; }
+    aiBusy = true;
+    setTimeout(() => { tmp.remove(); aiBusy = false; push(chatId, { from: "ai", time: now(), html: ans.html, src: ans.src, ...extra }); }, reduce ? 50 : delay);
+  }
+  function ask(text) {
+    if (aiBusy) return;
+    push("ai", { from: role, time: now(), html: `<p>${esc(text)}</p>` });
+    const ans = AI.find(a => a.key.test(text)) || AI_FALLBACK;
+    aiSay(ans, 1300);
+  }
+
+  // ===== Действия =====
+  function send() {
+    const inp = $("#input"); if (!inp) return;
+    const text = inp.value.trim(); if (!text) return;
+    inp.value = ""; inp.style.height = "";
+    const c = chats.find(x => x.id === currentId);
+    if (c.type === "ai") return ask(text);
+    push(c.id, { from: role, time: now(), html: `<p>${esc(text).replace(/\n/g, "<br>")}</p>`, seen: c.type === "channel" });
+    if (c.type === "dm") setTimeout(() => push("dm", { from: other(), time: now(), html: role === "student" ? "<p>Спасибо, посмотрю и отвечу сегодня вечером.</p>" : "<p>Спасибо, Елена Викторовна! 🙏</p>" }), reduce ? 50 : 1600);
+    if (c.type === "channel") toast(`Отправлено ${TOTAL} студентам — придёт уведомление`);
+  }
+  let toastTimer = null;
+  function toast(text) { const el = $("#toast"); el.textContent = text; el.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), 2600); }
+
+  document.addEventListener("click", (e) => {
+    const item = e.target.closest(".chat-item"); if (item) return openChat(item.dataset.id);
+    if (e.target.closest("#back")) { document.getElementById("app").classList.remove("chat-open"); currentId = null; renderList(); return; }
+    if (e.target.closest("#send")) return send();
+    const chip = e.target.closest("[data-q]"); if (chip) return ask(chip.dataset.q);
+    const rs = e.target.closest(".role-switch button"); if (rs) { role = rs.dataset.role; renderMe(); renderList(); if (currentId) openChat(currentId); toast(role === "teacher" ? "Теперь вы видите приложение глазами преподавателя" : "Теперь вы видите приложение глазами студента"); return; }
+    const a = e.target.closest("[data-act]"); if (!a) return;
+    switch (a.dataset.act) {
+      case "submit": state.submitted = true; state.submittedCount++; renderMsgs(); toast("Решение отправлено преподавателю ✓"); break;
+      case "explain": openChat("ai", { ask: "Помоги разобрать казус №3" }); break;
+      case "list": toast(`Сдали ${state.submittedCount} из ${TOTAL}. В полной версии — список со ссылками на работы`); break;
+      case "remind": toast(`Напоминание отправлено ${TOTAL - state.submittedCount} студентам`); break;
+      case "ask": openChat("dm"); break;
+      case "summary":
+        if (aiBusy) return;
+        aiSay({ html: SUMMARY, src: [] }, 1100, "grp", { private: true }); break;
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.id === "input" && e.key === "Enter" && !e.shiftKey && matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(); }
+    if (e.key === "Enter" && e.target.classList.contains("chat-item")) openChat(e.target.dataset.id);
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id === "input") { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }
+    if (e.target.id === "search") renderList();
+  });
+
+  // ===== Вход: выбор роли → данные → проверка по списку вуза =====
+  const card = $("#onb-card");
+  function onbWelcome() {
+    card.innerHTML = `${OWL(76)}<h1>Сова правосудия</h1><p class="lead">Мессенджер юридического факультета: студенты, преподаватели и ИИ-помощник в одном месте</p>
+      <div class="feat">
+        <div><i>${SCALES(16)}</i><span><b>Каналы курсов</b> — объявления, задания и сдача работ без потерянных сообщений</span></div>
+        <div><i>🦉</i><span><b>Сова-юрист</b> — объясняет нормы и помогает с казусами, всегда со ссылкой на статью</span></div>
+        <div><i>${TICK("#d4af37", 16)}</i><span><b>Только свои</b> — вход по студенческому билету или документу сотрудника</span></div>
+      </div>
+      <button class="big btn primary" data-onb="role" style="justify-content:center">Войти</button>
+      <button class="linkish" data-onb="skip">Пропустить — сразу к демо</button>`;
+  }
+  function onbRole() {
+    card.innerHTML = `${OWL(56)}<h1>Кто вы?</h1><p class="lead">От роли зависят возможности: преподаватель ведёт канал курса и видит, кто прочитал и сдал задание</p>
+      <div class="role-pick"><button data-onb="form" data-r="student">${I.student}Студент<small>по студбилету</small></button><button data-onb="form" data-r="teacher">${I.teacher}Преподаватель<small>по документу сотрудника</small></button></div>`;
+  }
+  function onbForm(r) {
+    role = r;
+    const st = r === "student";
+    card.innerHTML = `${OWL(56)}<h1>${st ? "Студенческий билет" : "Документ сотрудника"}</h1><p class="lead">Сверим данные со списком ${st ? "деканата" : "отдела кадров"} — это займёт пару секунд</p>
+      <div class="field"><label>Вуз</label><select><option>Юридический институт (демо)</option></select></div>
+      <div class="field"><label>ФИО</label><input value="${esc(PEOPLE[r].name)}"></div>
+      <div class="field"><label>${st ? "Номер студенческого билета" : "Табельный номер"}</label><input value="${st ? "ЮР-2025-01843" : "Т-00417"}" inputmode="text"></div>
+      <button class="big btn primary" data-onb="check" style="justify-content:center">Проверить и войти</button>
+      <div class="note">${I.lock}<span>Мы <b>не храним</b> фото и сканы документов: номер только сверяется со списком вуза, после этого остаётся лишь отметка «подтверждён».</span></div>`;
+  }
+  function onbCheck() {
+    const st = role === "student";
+    card.innerHTML = `${OWL(56)}<h1>Проверяем…</h1>
+      <div class="steps">
+        <div class="step" id="s1"><span class="dot"></span>Ищем номер в списке ${st ? "деканата" : "сотрудников"}</div>
+        <div class="step" id="s2"><span class="dot"></span>${st ? "Группа ЮР-201, 2 курс" : "Кафедра гражданского права"}</div>
+        <div class="step" id="s3"><span class="dot"></span>Документы не сохраняются</div>
+      </div>`;
+    const ids = ["s1", "s2", "s3"]; let i = 0;
+    const tick = () => {
+      if (i > 0) { const p = $("#" + ids[i - 1]); p.classList.remove("on"); p.classList.add("ok"); p.querySelector(".dot").innerHTML = I.check; }
+      if (i < ids.length) { $("#" + ids[i]).classList.add("on"); i++; setTimeout(tick, reduce ? 80 : 750); }
+      else setTimeout(onbDone, reduce ? 80 : 500);
+    };
+    tick();
+  }
+  function onbDone() {
+    const p = PEOPLE[role];
+    card.innerHTML = `${OWL(76)}<h1 style="display:flex;align-items:center;justify-content:center;gap:8px">Подтверждено ${TICK(role === "teacher" ? "#d4af37" : "#2f6fe4", 24)}</h1>
+      <p class="lead">${esc(p.name)}<br>${esc(p.sub)}</p>
+      <button class="big btn primary" data-onb="enter" style="justify-content:center">Открыть «Сову правосудия»</button>`;
+  }
+  function enterApp() { $("#onb").hidden = true; renderMe(); renderList(); if (matchMedia("(min-width: 900px)").matches) openChat(role === "teacher" ? "civ" : "ai"); }
+  card.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-onb]"); if (!b) return;
+    ({ role: onbRole, form: () => onbForm(b.dataset.r), check: onbCheck, enter: enterApp, skip: enterApp })[b.dataset.onb]();
+  });
+  $("#restart").addEventListener("click", () => { $("#onb").hidden = false; onbWelcome(); });
+
+  onbWelcome();
+  renderMe(); renderList();
+})();
+</script>
+</body>
+</html>
