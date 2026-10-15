@@ -620,5 +620,20 @@ export default {
 "Неверный код — попробуйте ещё раз": "Wrong code — please try again",
 "Время на ввод кода вышло — войдите заново": "Time to enter the code ran out — please sign in again",
 "Код из приложения-аутентификатора": "Code from your authenticator app",
-"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Open your code app (for example, Passwords) and enter the 6 digits for Owl Messenger."
+"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Open your code app (for example, Passwords) and enter the 6 digits for Owl Messenger.",
+"Безопасность": "Security",
+"Вход с кодом": "Sign-in code",
+"Включить": "Turn on",
+"Включён: после пароля Owl спрашивает 6-значный код из приложения-аутентификатора.": "On: after your password, Owl asks for a 6-digit code from your authenticator app.",
+"У админ-аккаунта выключить нельзя.": "It can't be turned off for the admin account.",
+"После пароля Owl будет спрашивать код из приложения-аутентификатора (на iPhone — «Пароли»). Так аккаунт не украдут, даже узнав пароль.": "After your password, Owl will ask for a code from your authenticator app (on iPhone — Passwords). That way nobody can steal your account even if they learn your password.",
+"Для этого введите пароль от аккаунта ещё раз:": "To do this, enter your account password again:",
+"Открыть в приложении кодов": "Open in code app",
+"Ключ вручную: {key}": "Manual key: {key}",
+"1. Нажмите «Открыть в приложении кодов» и сохраните код (или отсканируйте QR с другого устройства). 2. Вернитесь в Owl и введите 6 цифр, которые показывает приложение.": "1. Tap “Open in code app” and save the code (or scan the QR from another device). 2. Come back to Owl and enter the 6 digits the app shows.",
+"1. Наведите камеру телефона на QR-код и добавьте код в приложение-аутентификатор (на iPhone — «Пароли»). 2. Введите 6 цифр, которые оно показывает.": "1. Point your phone camera at the QR code and add it to your authenticator app (on iPhone — Passwords). 2. Enter the 6 digits it shows.",
+"Вход с кодом включён": "Sign-in code turned on",
+"Выключить вход с кодом? Аккаунт снова будет защищён только паролем.": "Turn off the sign-in code? Your account will be protected by your password only.",
+"Вход с кодом выключен": "Sign-in code turned off",
+"Сначала подтвердите почту": "Please confirm your email first"
 };

@@ -620,5 +620,20 @@ export default {
 "Неверный код — попробуйте ещё раз": "Nieprawidłowy kod — spróbuj jeszcze raz",
 "Время на ввод кода вышло — войдите заново": "Czas na wpisanie kodu minął — zaloguj się ponownie",
 "Код из приложения-аутентификатора": "Kod z aplikacji uwierzytelniającej",
-"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Otwórz aplikację z kodami (na przykład „Hasła”) i wpisz 6 cyfr dla Owl Messenger."
+"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Otwórz aplikację z kodami (na przykład „Hasła”) i wpisz 6 cyfr dla Owl Messenger.",
+"Безопасность": "Bezpieczeństwo",
+"Вход с кодом": "Logowanie z kodem",
+"Включить": "Włącz",
+"Включён: после пароля Owl спрашивает 6-значный код из приложения-аутентификатора.": "Włączone: po haśle Owl prosi o 6-cyfrowy kod z aplikacji uwierzytelniającej.",
+"У админ-аккаунта выключить нельзя.": "Na koncie administratora nie można tego wyłączyć.",
+"После пароля Owl будет спрашивать код из приложения-аутентификатора (на iPhone — «Пароли»). Так аккаунт не украдут, даже узнав пароль.": "Po haśle Owl będzie prosić o kod z aplikacji uwierzytelniającej (na iPhonie „Hasła”). Dzięki temu nikt nie ukradnie konta, nawet znając hasło.",
+"Для этого введите пароль от аккаунта ещё раз:": "Aby to zrobić, wpisz ponownie hasło do konta:",
+"Открыть в приложении кодов": "Otwórz w aplikacji z kodami",
+"Ключ вручную: {key}": "Klucz ręcznie: {key}",
+"1. Нажмите «Открыть в приложении кодов» и сохраните код (или отсканируйте QR с другого устройства). 2. Вернитесь в Owl и введите 6 цифр, которые показывает приложение.": "1. Stuknij „Otwórz w aplikacji z kodami” i zapisz kod (albo zeskanuj QR innym urządzeniem). 2. Wróć do Owl i wpisz 6 cyfr, które pokazuje aplikacja.",
+"1. Наведите камеру телефона на QR-код и добавьте код в приложение-аутентификатор (на iPhone — «Пароли»). 2. Введите 6 цифр, которые оно показывает.": "1. Skieruj aparat telefonu na kod QR i dodaj kod do aplikacji uwierzytelniającej (na iPhonie „Hasła”). 2. Wpisz 6 cyfr, które pokazuje.",
+"Вход с кодом включён": "Logowanie z kodem włączone",
+"Выключить вход с кодом? Аккаунт снова будет защищён только паролем.": "Wyłączyć logowanie z kodem? Konto będzie chronione tylko hasłem.",
+"Вход с кодом выключен": "Logowanie z kodem wyłączone",
+"Сначала подтвердите почту": "Najpierw potwierdź e-mail"
 };

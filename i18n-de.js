@@ -620,5 +620,20 @@ export default {
 "Неверный код — попробуйте ещё раз": "Falscher Code — versuch es noch einmal",
 "Время на ввод кода вышло — войдите заново": "Die Zeit für den Code ist abgelaufen — melde dich erneut an",
 "Код из приложения-аутентификатора": "Code aus deiner Authenticator-App",
-"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Öffne deine Code-App (zum Beispiel „Passwörter“) und gib die 6 Ziffern für Owl Messenger ein."
+"Откройте приложение с кодами (например, «Пароли») и введите 6 цифр для Owl Messenger.": "Öffne deine Code-App (zum Beispiel „Passwörter“) und gib die 6 Ziffern für Owl Messenger ein.",
+"Безопасность": "Sicherheit",
+"Вход с кодом": "Anmeldung mit Code",
+"Включить": "Einschalten",
+"Включён: после пароля Owl спрашивает 6-значный код из приложения-аутентификатора.": "An: Nach dem Passwort fragt Owl nach einem 6-stelligen Code aus deiner Authenticator-App.",
+"У админ-аккаунта выключить нельзя.": "Beim Admin-Konto lässt sich das nicht ausschalten.",
+"После пароля Owl будет спрашивать код из приложения-аутентификатора (на iPhone — «Пароли»). Так аккаунт не украдут, даже узнав пароль.": "Nach dem Passwort fragt Owl nach einem Code aus deiner Authenticator-App (auf dem iPhone „Passwörter“). So kann niemand dein Konto stehlen, selbst wenn er dein Passwort kennt.",
+"Для этого введите пароль от аккаунта ещё раз:": "Gib dafür dein Passwort noch einmal ein:",
+"Открыть в приложении кодов": "In der Code-App öffnen",
+"Ключ вручную: {key}": "Schlüssel manuell: {key}",
+"1. Нажмите «Открыть в приложении кодов» и сохраните код (или отсканируйте QR с другого устройства). 2. Вернитесь в Owl и введите 6 цифр, которые показывает приложение.": "1. Tippe auf „In der Code-App öffnen“ und speichere den Code (oder scanne den QR-Code mit einem anderen Gerät). 2. Komm zurück zu Owl und gib die 6 Ziffern aus der App ein.",
+"1. Наведите камеру телефона на QR-код и добавьте код в приложение-аутентификатор (на iPhone — «Пароли»). 2. Введите 6 цифр, которые оно показывает.": "1. Richte die Handykamera auf den QR-Code und füge den Code deiner Authenticator-App hinzu (auf dem iPhone „Passwörter“). 2. Gib die 6 Ziffern ein, die sie anzeigt.",
+"Вход с кодом включён": "Anmeldung mit Code ist an",
+"Выключить вход с кодом? Аккаунт снова будет защищён только паролем.": "Anmeldung mit Code ausschalten? Dein Konto ist dann nur noch durch das Passwort geschützt.",
+"Вход с кодом выключен": "Anmeldung mit Code ist aus",
+"Сначала подтвердите почту": "Bestätige zuerst deine E-Mail"
 };
