@@ -319,6 +319,20 @@
         .message-content { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
       }
       .message-row.msg-selected .message-content { box-shadow: 0 0 0 2px var(--accent), 0 10px 30px rgba(0,0,0,.35); transform: scale(1.02); transition: transform .15s, box-shadow .15s; }
+      /* Выбор нескольких сообщений */
+      #select-bar { display: none; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+      .chat-header.selecting > :not(#select-bar) { display: none !important; }
+      .chat-header.selecting #select-bar { display: flex; }
+      #sel-count { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sel-acts { display: flex; gap: 4px; }
+      .sel-acts .icon-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+      .sel-acts .icon-btn.off { opacity: .35; }
+      .sel-danger { color: #ff3b30 !important; }
+      #chat-box.select-mode .message-row { position: relative; padding-left: 34px; box-sizing: border-box; cursor: pointer; -webkit-user-select: none; user-select: none; }
+      #chat-box.select-mode .message-row::before { content: ""; position: absolute; left: 4px; bottom: 8px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--text-muted); box-sizing: border-box; transition: background .15s, border-color .15s; }
+      #chat-box.select-mode .message-row.msg-picked::before { background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/12px no-repeat; border-color: var(--accent); }
+      #chat-box.select-mode .message-row.msg-picked .message-content { box-shadow: 0 0 0 2px var(--accent); }
+      #chat-box.select-mode .message-row.from-blocked { opacity: .5; }
       #msg-menu { position: fixed; inset: 0; z-index: 24000; background: rgba(5,4,12,.35); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); display: none; }
       #msg-menu.on { display: block; }
       .mm-sheet { position: fixed; width: 250px; background: color-mix(in srgb, var(--bg-panel) 92%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.4); padding: 6px; box-sizing: border-box; animation: mm-pop .14s ease-out; }
@@ -1814,13 +1828,15 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.91</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.92</div>
       </div>
       
       <!-- ЧАТ -->
       <div id="main-chat">
         <div id="chat-placeholder"><div><img src="/icon-192.png" alt=""><b>Выберите чат</b><span>Откройте переписку слева или найдите друга по нику</span></div></div>
         <div class="chat-header" id="chat-header-info">
+          <!-- Режим выбора нескольких сообщений: заменяет шапку, пока он включён (тексты и иконки ставит enterSelect) -->
+          <div id="select-bar" data-no-i18n><button class="icon-btn" id="sel-close"></button><span id="sel-count"></span><div class="sel-acts"><button class="icon-btn" data-sel="copy"></button><button class="icon-btn" data-sel="forward"></button><button class="icon-btn" data-sel="nest"></button><button class="icon-btn sel-danger" data-sel="delete"></button></div></div>
           <div style="display: flex; align-items: center;">
             <button class="icon-btn mobile-back-btn" id="mobile-back-btn">
                 <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -5998,6 +6014,7 @@
           catch (err) { console.error(err); showToast(t("Не удалось сохранить"), "error"); }
       });
       function quickReact(id) {
+          if (selMode) return;
           const row = document.getElementById("msg-" + id), m = loadedMsgs[id];
           if (!row || !m || row.classList.contains("from-blocked")) return;
           const r = quickReaction();
@@ -6022,6 +6039,7 @@
       const MENU_REACTIONS = ["👍", "❤", "😂", "😮", "😢", "🔥"];
       let menuMsgId = null, menuOpenedAt = 0;
       function openMsgMenu(id, x, y) {
+          if (selMode) return toggleSel(id); // в режиме выбора долгое нажатие и правая кнопка тоже просто отмечают
           const m = loadedMsgs[id], row = document.getElementById("msg-" + id);
           if (!m || !row || menuMsgId === id) return;
           const me = currentUser.uid, isMe = m.uid === me, hidden = row.classList.contains("from-blocked");
@@ -6036,6 +6054,7 @@
           if (!hidden && m.imageUrl) acts.push(["photo", icon("image", 20), t("Открыть фото")]);
           if (!hidden && !m.poll) acts.push(["forward", icon("forward", 20), t("Переслать")]);
           if (!hidden && !m.poll && !isNest(m.chatId)) acts.push(["nest", NEST_SVG(20), t("Сохранить в Гнездо")]);
+          if (!hidden) acts.push(["select", icon("check", 20), t("Выбрать")]);
           if (isMe && m.text) acts.push(["edit", icon("pencil", 20), t("Изменить")]);
           if (isMe || isAdmin) acts.push(["delete", icon("trash", 20), t("Удалить"), "danger"]);
           if (!isMe && !isAdmin) acts.push(["report", icon("flag", 20), t("Пожаловаться"), "danger"]);
@@ -6070,6 +6089,7 @@
               case "photo": { const img = document.querySelector(`#msg-${CSS.escape(id)} .message-content > img`); if (img) img.click(); break; }
               case "forward": openForward(m); break;
               case "nest": forwardMessageTo(m, { chatId: nestId(), title: t("Гнездо"), targetUid: null }, t("Сохранено в Гнездо 🪺")); break;
+              case "select": enterSelect(id); break;
               case "edit": startEdit(id); break;
               case "delete": deleteMessage(id); break;
               case "report": openReport({ targetUid: m.uid, message: m }); break;
@@ -6084,8 +6104,94 @@
           openMsgMenu(row.getAttribute("data-msg-id"), e.clientX, e.clientY);
       });
 
+      // ===== ВЫБОР НЕСКОЛЬКИХ СООБЩЕНИЙ (меню → «Выбрать») =====
+      // Пока режим включён, нажатие на сообщение отмечает его; действия — в панели вместо шапки чата.
+      // Не больше SEL_MAX за раз: пересылка — это обычная отправка, а она ограничена 40 сообщениями в минуту
+      const SEL_MAX = 20;
+      let selMode = false;
+      const selIds = new Set();
+      const selMsgs = () => [...selIds].map(id => loadedMsgs[id]).filter(Boolean).sort((a, b) => getTime(a.timestamp) - getTime(b.timestamp));
+      const canDeleteMsg = (m) => m.uid === currentUser.uid || isAdmin;
+      function selPaint() {
+          const list = selMsgs();
+          document.getElementById("sel-count").textContent = t("Выбрано: {n}", { n: list.length });
+          const can = { copy: list.some(m => m.text), forward: list.some(m => !m.poll), nest: !isNest(currentChatId) && list.some(m => !m.poll), delete: list.length > 0 && list.every(canDeleteMsg) };
+          document.querySelectorAll("#select-bar [data-sel]").forEach(b => { const a = b.getAttribute("data-sel"); b.classList.toggle("off", !can[a]); b.style.display = a === "nest" && isNest(currentChatId) ? "none" : ""; });
+      }
+      function enterSelect(id) {
+          if (selMode) return toggleSel(id);
+          selMode = true; selIds.clear();
+          const bar = document.getElementById("select-bar");
+          bar.querySelector("#sel-close").innerHTML = icon("x", 22); bar.querySelector("#sel-close").title = t("Отмена");
+          [["copy", icon("copy", 20), t("Копировать текст")], ["forward", icon("forward", 20), t("Переслать")], ["nest", NEST_SVG(20), t("Сохранить в Гнездо")], ["delete", icon("trash", 20), t("Удалить")]]
+              .forEach(([a, ic, title]) => { const b = bar.querySelector(`[data-sel="${a}"]`); b.innerHTML = ic; b.title = title; b.setAttribute("aria-label", title); });
+          document.getElementById("chat-header-info").classList.add("selecting");
+          document.getElementById("chat-box").classList.add("select-mode");
+          toggleSel(id);
+      }
+      function exitSelect() {
+          if (!selMode) return;
+          selMode = false; selIds.clear();
+          document.querySelectorAll(".msg-picked").forEach(r => r.classList.remove("msg-picked"));
+          document.getElementById("chat-header-info").classList.remove("selecting");
+          document.getElementById("chat-box").classList.remove("select-mode");
+      }
+      function toggleSel(id) {
+          const row = document.getElementById("msg-" + id);
+          if (!row || !loadedMsgs[id] || row.classList.contains("from-blocked")) return;
+          if (selIds.has(id)) selIds.delete(id);
+          else { if (selIds.size >= SEL_MAX) return showToast(t("Можно выбрать до {n} сообщений", { n: SEL_MAX }), "info"); selIds.add(id); }
+          row.classList.toggle("msg-picked", selIds.has(id));
+          if (navigator.vibrate) navigator.vibrate(6);
+          if (!selIds.size) return exitSelect();
+          selPaint();
+      }
+      // В режиме выбора нажатие на сообщение только отмечает его (фото, ссылки и опросы не срабатывают)
+      document.getElementById("chat-box").addEventListener("click", (e) => {
+          if (!selMode) return;
+          const row = e.target.closest(".message-row[data-msg-id]"); if (!row) return;
+          e.preventDefault(); e.stopPropagation();
+          toggleSel(row.getAttribute("data-msg-id"));
+      }, true);
+      document.getElementById("sel-close").addEventListener("click", exitSelect);
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && selMode && !menuMsgId) exitSelect(); });
+      document.getElementById("select-bar").addEventListener("click", async (e) => {
+          const b = e.target.closest("[data-sel]"); if (!b) return;
+          const list = selMsgs(); if (!list.length) return exitSelect();
+          switch (b.getAttribute("data-sel")) {
+              case "copy": {
+                  const text = list.filter(m => m.text).map(m => m.chatId === NEWS_ID ? newsText(m) : m.text).join("\n\n");
+                  if (!text) return showToast(t("В выбранных сообщениях нет текста"), "info");
+                  try { await navigator.clipboard.writeText(text); showToast(t("Текст скопирован"), "copy"); }
+                  catch (_) { prompt(t("Скопируйте текст:"), text); }
+                  return exitSelect();
+              }
+              case "forward": {
+                  const fw = list.filter(m => !m.poll);
+                  if (!fw.length) return showToast(t("Эти сообщения нельзя переслать"), "info");
+                  exitSelect(); return openForward(fw);
+              }
+              case "nest": {
+                  const fw = list.filter(m => !m.poll);
+                  if (!fw.length) return showToast(t("Эти сообщения нельзя переслать"), "info");
+                  exitSelect(); return forwardManyTo(fw, { chatId: nestId(), title: t("Гнездо"), targetUid: null }, t("Сохранено в Гнездо 🪺"));
+              }
+              case "delete": {
+                  if (!list.every(canDeleteMsg)) return showToast(t("Удалить можно только свои сообщения"), "info");
+                  if (!confirm(t("Удалить выбранные сообщения ({n})?", { n: list.length }))) return;
+                  const ids = list.map(m => m.id);
+                  exitSelect(); fixPreviewAfterDelete(ids);
+                  const res = await Promise.allSettled(ids.map(id => deleteDoc(doc(db, "messages", id))));
+                  const failed = res.filter(r => r.status === "rejected").length;
+                  if (failed) { console.error(res.find(r => r.status === "rejected").reason); showToast(t("Не удалось удалить"), "error"); }
+                  else showToast(t("Удалено: {n}", { n: ids.length }), "trash");
+                  return;
+              }
+          }
+      });
+
       // ===== ПЕРЕСЫЛКА =====
-      let fwMsg = null;
+      let fwMsgs = null; // что пересылаем: одно сообщение или несколько выбранных
       function forwardTargets() {
           const items = [], seen = new Set();
           const add = (it) => { if (!seen.has(it.chatId)) { seen.add(it.chatId); items.push(it); } };
@@ -6114,28 +6220,35 @@
               : `<div class="empty-hint" style="margin:8px">${t("Чатов не найдено")}</div>`;
       }
       function openForward(m) {
-          fwMsg = m; document.getElementById("fw-search").value = "";
+          fwMsgs = Array.isArray(m) ? m : [m]; document.getElementById("fw-search").value = "";
           renderForwardList();
           document.getElementById("forward-screen").style.display = "flex";
       }
-      const closeForward = () => { document.getElementById("forward-screen").style.display = "none"; fwMsg = null; };
+      const closeForward = () => { document.getElementById("forward-screen").style.display = "none"; fwMsgs = null; };
       document.getElementById("fw-close").addEventListener("click", closeForward);
       document.getElementById("fw-search").addEventListener("input", renderForwardList);
       document.getElementById("fw-list").addEventListener("click", async (e) => {
-          const item = e.target.closest("[data-chat]"); if (!item || !fwMsg) return;
+          const item = e.target.closest("[data-chat]"); if (!item || !fwMsgs) return;
           const target = forwardTargets().find(i => i.chatId === item.getAttribute("data-chat")); if (!target) return;
-          const m = fwMsg; closeForward();
-          forwardMessageTo(m, target);
+          const list = fwMsgs; closeForward();
+          forwardManyTo(list, target);
       });
       // Переслать сообщение в чат (и «Сохранить в Гнездо» — это пересылка себе)
-      async function forwardMessageTo(m, target, savedToast) {
+      const forwardMessageTo = (m, target, savedToast) => forwardManyTo([m], target, savedToast);
+      // Несколько сообщений пересылаются по одному, в порядке переписки; на первой ошибке останавливаемся
+      async function forwardManyTo(list, target, savedToast) {
           if (target.targetUid && (blockedMe(target.targetUid) || !canWriteTo(target.targetUid))) return showToast(t("Пользователь ограничил, кто может ему писать"), "block");
+          let sent = 0;
+          try { for (const m of list) { await forwardOne(m, target); sent++; } }
+          catch (err) { return showToast(sent ? t("Переслано {n} из {total}: {error}", { n: sent, total: list.length, error: sendErrorText(err) }) : sendErrorText(err), "error"); }
+          showToast(savedToast || t("Переслано в «{chat}»", { chat: target.title }), savedToast ? "check" : "forward");
+      }
+      async function forwardOne(m, target) {
           const orig = m.chatId === NEWS_ID ? { uid: "", name: "Owl Messenger" } : m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
           if (m.text) data.text = m.chatId === NEWS_ID ? newsText(m) : m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
           const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
-          try { await postMessage(target.chatId, data, preview); showToast(savedToast || t("Переслано в «{chat}»", { chat: target.title }), savedToast ? "check" : "forward"); }
-          catch (err) { showToast(sendErrorText(err), "error"); }
+          await postMessage(target.chatId, data, preview);
       }
 
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
@@ -6158,6 +6271,7 @@
       window.loadChat = (chatId, title, targetUid, isGroup = false) => {
         try {
             if (!chatId) return;
+            exitSelect();
             showChatPlaceholder(false);
             if (typeof closeChatSearch === "function") closeChatSearch();
             document.getElementById("chat-search-btn").style.display = "";
@@ -6840,16 +6954,16 @@
           } catch (e) { console.log("Push канала:", e); showToast("Push о посте не отправился", "alert"); }
       }
       // Самое новое из загруженных сообщений открытого чата
-      function latestLoadedMsg(exceptId) {
-          let best = null;
-          for (const m of Object.values(loadedMsgs)) { if (m.id !== exceptId && m.chatId === currentChatId && (!best || getTime(m.timestamp) > getTime(best.timestamp))) best = m; }
+      function latestLoadedMsg(except) { // except — id или массив id, которые не учитывать
+          let best = null; const skip = new Set([].concat(except || []));
+          for (const m of Object.values(loadedMsgs)) { if (!skip.has(m.id) && m.chatId === currentChatId && (!best || getTime(m.timestamp) > getTime(best.timestamp))) best = m; }
           return best;
       }
-      // Удалили последнее сообщение — превью переводим на предыдущее
-      function fixPreviewAfterDelete(deletedId) {
-          const latest = latestLoadedMsg();
-          if (!latest || latest.id !== deletedId || !currentChatId) return;
-          const prev = latestLoadedMsg(deletedId);
+      // Удалили последнее сообщение (одно или несколько выбранных) — превью переводим на самое свежее из оставшихся
+      function fixPreviewAfterDelete(deleted) {
+          const ids = [].concat(deleted), latest = latestLoadedMsg();
+          if (!latest || !ids.includes(latest.id) || !currentChatId) return;
+          const prev = latestLoadedMsg(ids);
           const data = prev
               ? { lastMessageText: msgPreviewText(prev), lastMessageSender: prev.sender || "", lastMessageSenderUid: prev.uid || "", lastMessageId: prev.id }
               : { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), lastMessageId: deleteField() };
@@ -7046,7 +7160,7 @@
           const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
           box.addEventListener("click", e => { if (Date.now() < suppressClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
           box.addEventListener("touchstart", e => {
-              if (e.touches.length !== 1 || e.target.closest("audio,button,a,.reply-quote")) return;
+              if (e.touches.length !== 1 || selMode || e.target.closest("audio,button,a,.reply-quote")) return;
               row = e.target.closest(".message-row[data-msg-id]"); if (!row) return;
               bubble = row.querySelector(".message-content"); sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; locked = false;
               const id = row.getAttribute("data-msg-id");

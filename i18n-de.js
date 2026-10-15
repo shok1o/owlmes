@@ -635,5 +635,13 @@ export default {
 "Вход с кодом включён": "Anmeldung mit Code ist an",
 "Выключить вход с кодом? Аккаунт снова будет защищён только паролем.": "Anmeldung mit Code ausschalten? Dein Konto ist dann nur noch durch das Passwort geschützt.",
 "Вход с кодом выключен": "Anmeldung mit Code ist aus",
-"Сначала подтвердите почту": "Bestätige zuerst deine E-Mail"
+"Сначала подтвердите почту": "Bestätige zuerst deine E-Mail",
+"Выбрано: {n}": "Ausgewählt: {n}",
+"Можно выбрать до {n} сообщений": "Du kannst bis zu {n} Nachrichten auswählen",
+"В выбранных сообщениях нет текста": "Die ausgewählten Nachrichten enthalten keinen Text",
+"Эти сообщения нельзя переслать": "Diese Nachrichten können nicht weitergeleitet werden",
+"Удалить можно только свои сообщения": "Du kannst nur deine eigenen Nachrichten löschen",
+"Удалить выбранные сообщения ({n})?": "Ausgewählte Nachrichten löschen ({n})?",
+"Удалено: {n}": "Gelöscht: {n}",
+"Переслано {n} из {total}: {error}": "{n} von {total} weitergeleitet: {error}"
 };

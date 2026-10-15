@@ -635,5 +635,13 @@ export default {
 "Вход с кодом включён": "Sign-in code turned on",
 "Выключить вход с кодом? Аккаунт снова будет защищён только паролем.": "Turn off the sign-in code? Your account will be protected by your password only.",
 "Вход с кодом выключен": "Sign-in code turned off",
-"Сначала подтвердите почту": "Please confirm your email first"
+"Сначала подтвердите почту": "Please confirm your email first",
+"Выбрано: {n}": "Selected: {n}",
+"Можно выбрать до {n} сообщений": "You can select up to {n} messages",
+"В выбранных сообщениях нет текста": "The selected messages have no text",
+"Эти сообщения нельзя переслать": "These messages can't be forwarded",
+"Удалить можно только свои сообщения": "You can only delete your own messages",
+"Удалить выбранные сообщения ({n})?": "Delete the selected messages ({n})?",
+"Удалено: {n}": "Deleted: {n}",
+"Переслано {n} из {total}: {error}": "Forwarded {n} of {total}: {error}"
 };
