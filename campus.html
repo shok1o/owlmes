@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#070d1c">
 <meta name="robots" content="noindex">
-<title>Сова правосудия — демо</title>
+<title>Киприда — демо</title>
 <link rel="icon" href="icon-192.png">
 <style>
-  /* «Сова правосудия» — демо-версия мессенджера юридического факультета на основе Owl.
+  /* «Киприда» — демо-версия мессенджера юридического факультета на основе Owl.
      Всё локально: данные заготовлены, ничего не отправляется на сервер. */
   :root {
     --bg-main: #060c1b; --bg-panel: #0c1630; --bg-chat: #08112a; --bg-elev: #13214a;
@@ -188,7 +188,7 @@
 <div id="app">
   <aside class="side">
     <div class="side-top">
-      <div class="brand"><span id="logo-sm"></span><div><b>Сова правосудия</b><small>Юридический институт</small></div></div>
+      <div class="brand"><span id="logo-sm"></span><div><b>Киприда</b><small>РГУП им. В.М. Лебедева</small></div></div>
       <span class="demo-badge">ДЕМО</span>
     </div>
     <div class="me-card" id="me-card"></div>
@@ -207,7 +207,7 @@
     <div class="empty" id="empty">
       <div id="logo-big"></div>
       <b>Выберите чат</b>
-      Каналы курсов, группа, преподаватели и ИИ-помощник «Сова-юрист»
+      Каналы курсов, группа, преподаватели и ИИ-помощник «Кипа»
     </div>
   </main>
 </div>
@@ -222,10 +222,13 @@
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ===== Иконки =====
-  const OWL = (s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="og${s}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f6fe4"/><stop offset="1" stop-color="#0f2560"/></linearGradient></defs>
-    <path d="M14 10 Q19 17 24 19 Q32 15 40 19 Q45 17 50 10 Q57 22 57 36 Q57 52 43 58 Q32 62 21 58 Q7 52 7 36 Q7 22 14 10Z" fill="url(#og${s})" stroke="#8fb4ff" stroke-width="1.6"/>
-    <circle cx="23" cy="33" r="9" fill="#060c1b"/><circle cx="41" cy="33" r="9" fill="#060c1b"/><circle cx="23" cy="33" r="4.2" fill="#8fb4ff"/><circle cx="41" cy="33" r="4.2" fill="#8fb4ff"/>
-    <path d="M32 39 l-3.5 4 h7z" fill="#8fb4ff"/></svg>`;
+  // Слонёнок Киприда — маскот (подопечная РГУП в Московском зоопарке)
+  const MASCOT = (s = 40) => `<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="eg${s}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b7bf0"/><stop offset="1" stop-color="#16348a"/></linearGradient></defs>
+    <ellipse cx="13" cy="28" rx="11" ry="14" fill="#2552b8" stroke="#8fb4ff" stroke-width="1.4"/><ellipse cx="51" cy="28" rx="11" ry="14" fill="#2552b8" stroke="#8fb4ff" stroke-width="1.4"/>
+    <ellipse cx="14.5" cy="29" rx="6" ry="8.5" fill="#6f9cf5" opacity=".45"/><ellipse cx="49.5" cy="29" rx="6" ry="8.5" fill="#6f9cf5" opacity=".45"/>
+    <path d="M32 11 C44 11 49 20 49 30 C49 37 45 41 40 43 C38 44 37 46 37 49 C37 54 40 56 43 55 C45.5 54.3 46.5 56.5 44.5 58.5 C39.5 62.5 30 60.5 29.5 51 C29.3 47 27.5 44 24 43 C19 41 15 37 15 30 C15 20 20 11 32 11Z" fill="url(#eg${s})" stroke="#8fb4ff" stroke-width="1.4" stroke-linejoin="round"/>
+    <circle cx="25.5" cy="28" r="3.2" fill="#060c1b"/><circle cx="38.5" cy="28" r="3.2" fill="#060c1b"/><circle cx="26.5" cy="27" r="1" fill="#fff"/><circle cx="39.5" cy="27" r="1" fill="#fff"/>
+    <path d="M22 35 Q24 37 26 36.5" fill="none" stroke="#8fb4ff" stroke-width="1.3" stroke-linecap="round" opacity=".7"/><path d="M42 35 Q40 37 38 36.5" fill="none" stroke="#8fb4ff" stroke-width="1.3" stroke-linecap="round" opacity=".7"/></svg>`;
   const SCALES = (s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="3" x2="12" y2="21"/><line x1="7" y1="21" x2="17" y2="21"/><line x1="4" y1="7" x2="20" y2="7"/><path d="M4 7 L1.5 13 a3 3 0 0 0 5 0 Z"/><path d="M20 7 L17.5 13 a3 3 0 0 0 5 0 Z"/></svg>`;
   const TICK = (c = "#2f6fe4", s = 15) => `<span class="tick" title="Подтверждён вузом"><svg width="${s}" height="${s}" viewBox="0 0 24 24"><path d="M12 1.5l2.6 2.2 3.4-.4 1 3.3 3 1.7-1 3.3 1 3.3-3 1.7-1 3.3-3.4-.4L12 22.5l-2.6-2.2-3.4.4-1-3.3-3-1.7 1-3.3-1-3.3 3-1.7 1-3.3 3.4.4z" fill="${c}"/><path d="M8 12.3l2.6 2.6L16.2 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
   const I = {
@@ -239,8 +242,8 @@
     student: `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7fb0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>`,
     teacher: SCALES(30).replace('stroke="currentColor"', 'stroke="#8fb4ff"'),
   };
-  $("#logo-sm").innerHTML = OWL(36);
-  $("#logo-big").innerHTML = OWL(72);
+  $("#logo-sm").innerHTML = MASCOT(36);
+  $("#logo-big").innerHTML = MASCOT(72);
   const EMPTY = $("#main").innerHTML;
 
   // ===== Люди и роли =====
@@ -265,14 +268,15 @@
   const state = { submitted: false, submittedCount: 12, readCount: 21 };
   const chats = [
     // uni: true — университетский контур, только после подтверждения статуса студента или сотрудника
-    { id: "ai", uni: true, type: "ai", sec: "Помощник", title: "Сова-юрист", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${OWL(30)}</div>` },
+    { id: "ai", uni: true, type: "ai", sec: "Помощник", title: "Кипа", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${MASCOT(30)}</div>` },
     { id: "civ", uni: true, type: "channel", owner: "teacher", sec: "Курсы", title: "Гражданское право", sub: () => role === "teacher" ? "Ваш канал курса · 27 студентов" : "Канал курса · Иванова Е.В.", av: () => `<div class="av ch">${SCALES(22)}</div>`, unread: 2 },
     { id: "crim", uni: true, type: "channel", owner: "petrov", sec: "Курсы", title: "Уголовное право", sub: () => "Канал курса · Петров А.С.", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#3a2f7a,#1b1550)">${I.book.replace('width="16" height="16"', 'width="22" height="22"')}</div>` },
     { id: "grp", uni: true, type: "group", sec: "Группа", title: "ЮР-201", sub: () => "Беседа группы · 27 участников", av: () => `<div class="av grp">201</div>`, unread: 5 },
     { id: "dm", uni: true, type: "dm", sec: "Личные", title: () => role === "student" ? PEOPLE.teacher.short : PEOPLE.student.name, sub: () => role === "student" ? "Преподаватель · гражданское право" : "Студентка · ЮР-201", av: () => avatar(other()) },
     { id: "friend", type: "chat", sec: "Личные", title: "Сергей Белов", sub: () => "Обычная переписка", av: () => avatar("friend") },
     { id: "dean", uni: true, type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Объявления для студентов и сотрудников", av: () => `<div class="av dean">${SCALES(22)}</div>` },
-    { id: "news", type: "channel", owner: "dean", sec: "Открыто для всех", title: "Юрфак · новости", sub: () => "Публичный канал факультета", av: () => `<div class="av dean" style="background:linear-gradient(135deg,#2b6a8f,#173d5e)">${OWL(28)}</div>` },
+    { id: "news", type: "channel", owner: "dean", sec: "Открыто для всех", title: "РГУП · новости", sub: () => "Публичный канал факультета", av: () => `<div class="av dean" style="background:linear-gradient(135deg,#2b6a8f,#173d5e)">${MASCOT(28)}</div>` },
+    { id: "zoo", type: "channel", owner: "dean", sec: "Открыто для всех", title: "Киприда в зоопарке", sub: () => "Новости о нашей подопечной", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#16348a)">${MASCOT(30)}</div>` },
     { id: "clinic", type: "clinic", sec: "Открыто для всех", title: "Юридическая клиника", sub: () => role === "guest" ? "Бесплатная консультация от студентов-юристов" : "Вопросы граждан · ответы под контролем преподавателя", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#5a46a8)">${SCALES(22)}</div>`, unread: 1 },
   ];
   const titleOf = (c) => typeof c.title === "function" ? c.title() : c.title;
@@ -316,17 +320,21 @@
       { from: "dean", time: "10:00", cls: "announce", html: "<p><b>День открытых дверей</b></p><p>26 октября в 12:00 — встреча с абитуриентами и родителями, ауд. 101. Вход свободный.</p>" },
       { from: "dean", time: "15:30", html: "<p>Юридическая клиника факультета бесплатно консультирует граждан — задайте вопрос в чате «Юридическая клиника».</p>" },
     ],
+    zoo: [
+      { day: "Сегодня" },
+      { from: "dean", time: "12:00", html: "<p>Здесь будут новости о Киприде из Московского зоопарка: фото, видео и приглашения на студенческие визиты 🐘</p>" },
+    ],
     // Клиника: гражданин видит только свой диалог, студенты и преподаватели — очередь вопросов (only: guest / uni)
     clinic: [
       { day: "Сегодня" },
-      { from: "clinic", time: "09:00", only: "guest", html: "<p><b>Юридическая клиника юрфака</b></p><p>Задайте вопрос — ответ подготовят студенты старших курсов под руководством преподавателя. Бесплатно, срок — до 3 рабочих дней.</p><p>Не указывайте паспортные данные и другие лишние сведения.</p>" },
+      { from: "clinic", time: "09:00", only: "guest", html: "<p><b>Юридическая клиника РГУП</b></p><p>Задайте вопрос — ответ подготовят студенты старших курсов под руководством преподавателя. Бесплатно, срок — до 3 рабочих дней.</p><p>Не указывайте паспортные данные и другие лишние сведения.</p>" },
       { from: "citizen", time: "08:41", only: "uni", html: "<p>Здравствуйте! Купила куртку, через 5 дней разошёлся шов. Магазин отказывается вернуть деньги. Что мне делать?</p>" },
       { from: "clinic", time: "08:42", only: "uni", html: "<p>Вопрос № К-0139 · ваш ответ увидит гражданин только после проверки преподавателем.</p>" },
     ],
     ai: [],
   };
 
-  // ===== Ответы «Совы-юриста» (в демо — заготовленные; в полной версии — ИИ по официальным текстам законов) =====
+  // ===== Ответы «Кипы» (в демо — заготовленные; в полной версии — ИИ по официальным текстам законов) =====
   const AI = [
     { key: /1064|деликт|причинени[ея] вреда|презумпц/i, chip: "Объясни ст. 1064 ГК РФ простыми словами",
       html: `<p><b>Статья 1064 ГК РФ — общие основания ответственности за причинение вреда.</b></p>
@@ -379,7 +387,7 @@
   const strip = (h) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   function renderList() {
     const q = $("#search").value.trim().toLowerCase();
-    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Каналы курсов, беседа группы, преподаватели и ИИ-помощник «Сова-юрист» — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "", sec = "";
+    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Каналы курсов, беседа группы, преподаватели и ИИ-помощник «Кипа» — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "", sec = "";
     chats.forEach(c => {
       if (c.uni && !verified()) return;
       const t = titleOf(c);
@@ -399,7 +407,7 @@
     if (m.day) return `<div class="day">${esc(m.day)}</div>`;
     const mine = isMine(m);
     let from = "";
-    if (m.from === "ai") from = `<div class="from">Сова-юрист ${SCALES(13)}</div>`;
+    if (m.from === "ai") from = `<div class="from">Кипа ${SCALES(13)}</div>`;
     else if (!mine && (c.type === "group" || c.type === "channel" || c.type === "clinic")) {
       if (m.from === "clinic") from = `<div class="from">Юридическая клиника ${TICK("#6a7cff", 13)}</div>`;
       else if (m.from === "dean") from = `<div class="from" style="color:var(--light)">Деканат ${TICK("#6a7cff", 13)}</div>`;
@@ -417,7 +425,7 @@
   function taskHtml() {
     const pct = Math.round(state.submittedCount / TOTAL * 100);
     const acts = role === "student"
-      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `<button class="btn soft" data-act="explain">${SCALES(15)} Разобрать с Совой</button>`
+      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `<button class="btn soft" data-act="explain">${SCALES(15)} Разобрать с Кипой</button>`
       : `<button class="btn ghost" data-act="list">Кто сдал (${state.submittedCount})</button><button class="btn ghost" data-act="remind">Напомнить несдавшим</button>`;
     return `<div class="task"><div class="t-head">${I.file} Казус №3: договор ссуды <span class="due">до 22 октября</span></div>
       <div class="t-body">Петров бесплатно дал соседу велосипед на неделю, сосед вернул его со сломанной рамой. Квалифицируйте отношения и определите, что может требовать Петров.</div>
@@ -443,7 +451,7 @@
       <div class="msgs" id="msgs"></div>${chips}${foot}`;
     renderMsgs();
     renderList();
-    if (c.type === "ai" && !MSGS.ai.length) aiSay({ html: `<p>Здравствуйте! Я <b>Сова-юрист</b> — помощник по учёбе. Объясню норму простыми словами, помогу разобрать казус или подготовиться к семинару.</p><p>Каждый ответ — со ссылкой на статью закона. Выберите вопрос ниже или задайте свой.</p>` }, 300);
+    if (c.type === "ai" && !MSGS.ai.length) aiSay({ html: `<p>Здравствуйте! Я <b>Кипа</b> — ИИ-помощник «Киприды» по учёбе. Объясню норму простыми словами, помогу разобрать казус или подготовиться к семинару.</p><p>Каждый ответ — со ссылкой на статью закона. Выберите вопрос ниже или задайте свой.</p>` }, 300);
     if (opts.ask) setTimeout(() => ask(opts.ask), 350);
     const inp = $("#input"); if (inp && matchMedia("(pointer: fine)").matches) inp.focus();
   }
@@ -455,11 +463,11 @@
   const now = () => new Date().toTimeString().slice(0, 5);
   function push(id, m) { (MSGS[id] = MSGS[id] || []).push(m); if (currentId === id) { const c = chats.find(x => x.id === id); $("#msgs").insertAdjacentHTML("beforeend", bubbleHtml(c, m)); $("#msgs").scrollTop = 1e9; } renderList(); }
 
-  // ===== «Сова-юрист» =====
+  // ===== «Кипа» =====
   let aiBusy = false;
   function aiSay(ans, delay = 900, chatId = "ai", extra = {}) {
     const box = $("#msgs");
-    const tmp = document.createElement("div"); tmp.className = "row"; tmp.innerHTML = `<div class="bubble ai"><div class="from">Сова-юрист ${SCALES(13)}</div><span class="typing"><i></i><i></i><i></i></span></div>`;
+    const tmp = document.createElement("div"); tmp.className = "row"; tmp.innerHTML = `<div class="bubble ai"><div class="from">Кипа ${SCALES(13)}</div><span class="typing"><i></i><i></i><i></i></span></div>`;
     if (box && currentId === chatId) { box.appendChild(tmp); box.scrollTop = 1e9; }
     aiBusy = true;
     setTimeout(() => { tmp.remove(); aiBusy = false; push(chatId, { from: "ai", time: now(), html: ans.html, src: ans.src, ...extra }); }, reduce ? 50 : delay);
@@ -531,31 +539,31 @@
   // ===== Вход: выбор роли → данные → проверка по списку вуза =====
   const card = $("#onb-card");
   function onbWelcome() {
-    card.innerHTML = `${OWL(76)}<h1>Сова правосудия</h1><p class="lead">Мессенджер для всех — и университетский раздел для студентов и преподавателей юрфака</p>
+    card.innerHTML = `${MASCOT(76)}<h1>Киприда</h1><p class="lead">Мессенджер РГУП: для всех — и с университетским разделом для студентов и преподавателей</p>
       <div class="feat">
         <div><i>${SCALES(16)}</i><span><b>Каналы курсов</b> — объявления, задания и сдача работ без потерянных сообщений</span></div>
-        <div><i>${OWL(18)}</i><span><b>Сова-юрист</b> — объясняет нормы и помогает с казусами, всегда со ссылкой на статью</span></div>
+        <div><i>${MASCOT(18)}</i><span><b>Кипа</b> — объясняет нормы и помогает с казусами, всегда со ссылкой на статью</span></div>
         <div><i>${TICK("#6a7cff", 16)}</i><span><b>Выбор за вами</b> — обычный мессенджер доступен всем, а университетский раздел открывается после подтверждения статуса</span></div>
       </div>
       <button class="big btn primary" data-onb="role" style="justify-content:center">Войти</button>
       <button class="linkish" data-onb="skip">Пропустить — сразу к демо</button>`;
   }
   function onbRole(verifyOnly = false) {
-    card.innerHTML = `${OWL(56)}<h1>${verifyOnly ? "Подтвердить статус" : "Как будете пользоваться?"}</h1><p class="lead">${verifyOnly ? "Откроются каналы курсов, беседа группы, преподаватели и «Сова-юрист»" : "Обычный мессенджер доступен всем. Статус студента или сотрудника открывает университетский раздел — его можно подтвердить и позже"}</p>
+    card.innerHTML = `${MASCOT(56)}<h1>${verifyOnly ? "Подтвердить статус" : "Как будете пользоваться?"}</h1><p class="lead">${verifyOnly ? "Откроются каналы курсов, беседа группы, преподаватели и «Кипа»" : "Обычный мессенджер доступен всем. Статус студента или сотрудника открывает университетский раздел — его можно подтвердить и позже"}</p>
       <div class="role-pick">${verifyOnly ? "" : `<button class="wide" data-onb="guest">${I.lock.replace('width="16" height="16"', 'width="26" height="26"')}<span>Просто общаться<small>регистрация по почте, без статуса</small></span></button>`}<button data-onb="form" data-r="student">${I.student}Студент<small>по студбилету</small></button><button data-onb="form" data-r="teacher">${I.teacher}Преподаватель<small>по документу сотрудника</small></button></div>`;
   }
   function onbForm(r) {
     role = r;
     const st = r === "student";
-    card.innerHTML = `${OWL(56)}<h1>${st ? "Студенческий билет" : "Документ сотрудника"}</h1><p class="lead">Сверим данные со списком ${st ? "деканата" : "отдела кадров"} — это займёт пару секунд</p>
-      <div class="field"><label>Вуз</label><select><option>Юридический институт (демо)</option></select></div>
+    card.innerHTML = `${MASCOT(56)}<h1>${st ? "Студенческий билет" : "Документ сотрудника"}</h1><p class="lead">Сверим данные со списком ${st ? "деканата" : "отдела кадров"} — это займёт пару секунд</p>
+      <div class="field"><label>Вуз</label><select><option>РГУП им. В.М. Лебедева (демо)</option></select></div>
       <div class="field"><label>ФИО</label><input value="${esc(PEOPLE[r].name)}"></div>
       <div class="field"><label>${st ? "Номер студенческого билета" : "Табельный номер"}</label><input value="${st ? "ЮР-2025-01843" : "Т-00417"}" inputmode="text"></div>
       <button class="big btn primary" data-onb="check" style="justify-content:center">Проверить и войти</button>
       <div class="note">${I.lock}<span>Мы <b>не храним</b> фото и сканы документов: номер только сверяется со списком вуза, после этого остаётся лишь отметка «подтверждён».</span></div>`;
   }
   function onbGuest() {
-    card.innerHTML = `${OWL(56)}<h1>Обычный аккаунт</h1><p class="lead">Переписка с друзьями, открытые каналы и бесплатная юридическая клиника</p>
+    card.innerHTML = `${MASCOT(56)}<h1>Обычный аккаунт</h1><p class="lead">Переписка с друзьями, открытые каналы и бесплатная юридическая клиника</p>
       <div class="field"><label>Имя</label><input value="Анна Смирнова"></div>
       <div class="field"><label>Почта</label><input type="email" value="anna.com"></div>
       <button class="big btn primary" data-onb="enterGuest" style="justify-content:center">Создать аккаунт</button>
@@ -563,7 +571,7 @@
   }
   function onbCheck() {
     const st = role === "student";
-    card.innerHTML = `${OWL(56)}<h1>Проверяем…</h1>
+    card.innerHTML = `${MASCOT(56)}<h1>Проверяем…</h1>
       <div class="steps">
         <div class="step" id="s1"><span class="dot"></span>Ищем номер в списке ${st ? "деканата" : "сотрудников"}</div>
         <div class="step" id="s2"><span class="dot"></span>${st ? "Группа ЮР-201, 2 курс" : "Кафедра гражданского права"}</div>
@@ -579,9 +587,9 @@
   }
   function onbDone() {
     const p = PEOPLE[role];
-    card.innerHTML = `${OWL(76)}<h1 style="display:flex;align-items:center;justify-content:center;gap:8px">Подтверждено ${TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 24)}</h1>
+    card.innerHTML = `${MASCOT(76)}<h1 style="display:flex;align-items:center;justify-content:center;gap:8px">Подтверждено ${TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 24)}</h1>
       <p class="lead">${esc(p.name)}<br>${esc(p.sub)}</p>
-      <button class="big btn primary" data-onb="enter" style="justify-content:center">Открыть «Сову правосудия»</button>`;
+      <button class="big btn primary" data-onb="enter" style="justify-content:center">Открыть «Киприду»</button>`;
   }
   function enterApp() { $("#onb").hidden = true; setRole(role); if (matchMedia("(min-width: 900px)").matches) openChat(role === "teacher" ? "civ" : role === "student" ? "ai" : "clinic"); }
   card.addEventListener("click", (e) => {
