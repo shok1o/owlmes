@@ -181,7 +181,7 @@
   .pet-hero { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .pet-hero .m { animation: petFloat 3.2s ease-in-out infinite; filter: drop-shadow(0 10px 18px rgba(47,111,228,.35)); }
   .pet-hero.lvlup .m { animation: petUp .9s ease-out; }
-  .pet-hero .m { cursor: pointer; } .pet-hero .m svg { display: block; transition: width .9s cubic-bezier(.3,1.6,.5,1), height .9s cubic-bezier(.3,1.6,.5,1); }
+  .pet-hero .m { cursor: pointer; } .pet-hero .m svg { display: block; transition: width .9s cubic-bezier(.3,1.6,.5,1), height .9s cubic-bezier(.3,1.6,.5,1), transform .25s ease-out, filter .25s ease-out; }
   .pet-hero .m.poke { animation: petHop .5s ease-out; }
   .pet-hero svg .earL, .pet-hero svg .earR, .pet-hero svg .eyes, .pet-hero svg .tassel { transform-box: view-box; }
   .pet-hero svg .earL { transform-origin: 20px 30px; animation: earL 2.6s ease-in-out infinite; }
@@ -189,12 +189,17 @@
   .pet-hero svg .eyes { transform-origin: 32px 28.5px; animation: blink 4.5s infinite; }
   .pet-hero svg .tassel { transform-origin: 32px 9.8px; animation: tassel 2.6s ease-in-out infinite; }
   .pet-stage { font-size: 12px; color: var(--muted); }
+  .pet-hero.is3d .m { width: 320px; max-width: 100%; height: 270px; animation: none; filter: none; cursor: grab; }
+  .pet-hero.is3d .m canvas { display: block; } .pet-hero.is3d .pet-shadow { display: none; }
   @keyframes earL { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-9deg); } }
   @keyframes earR { 0%,100% { transform: rotate(0); } 50% { transform: rotate(9deg); } }
   @keyframes blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
   @keyframes tassel { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
   @keyframes petHop { 0% { transform: translateY(0); } 35% { transform: translateY(-22px) scale(1.04, .96); } 70% { transform: translateY(0) scale(1.06, .94); } 100% { transform: none; } }
-  @keyframes petFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  @keyframes petFloat { 0%,100% { transform: perspective(400px) translateY(0) rotateY(-12deg); } 50% { transform: perspective(400px) translateY(-8px) rotateY(12deg); } }
+  .pet-hero .m svg { transform: perspective(400px) rotateY(var(--ry, 0deg)) rotateX(var(--rx, 0deg)); filter: drop-shadow(var(--sx, 0px) 10px 12px rgba(0,0,0,.45)) brightness(var(--br, 1)); }
+  .pet-shadow { width: 70px; height: 10px; margin-top: -4px; border-radius: 50%; background: radial-gradient(rgba(0,0,0,.55), transparent 70%); animation: petShadow 3.2s ease-in-out infinite; }
+  @keyframes petShadow { 0%,100% { transform: scaleX(1); opacity: .9; } 50% { transform: scaleX(.75); opacity: .55; } }
   @keyframes petUp { 0% { transform: scale(1); } 40% { transform: scale(1.18) translateY(-10px); filter: drop-shadow(0 0 26px rgba(143,180,255,.9)); } 100% { transform: scale(1); } }
   .pet-lvl { font-size: 18px; font-weight: 700; } .pet-rank { color: var(--light); font-size: 14px; }
   .pet-card { width: 100%; max-width: 440px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
@@ -212,7 +217,7 @@
   .pet-opt.right { border-color: var(--ok); background: rgba(52,199,123,.14); } .pet-opt.wrong { border-color: var(--danger); background: rgba(255,91,91,.12); }
   .pet-why { margin-top: 12px; font-size: 13.5px; line-height: 1.5; color: var(--text); } .pet-why p { margin: 0 0 8px; }
   .pet-note { font-size: 12px; color: var(--muted); }
-  @media (prefers-reduced-motion: reduce) { .pet-hero .m, .pet-hero.lvlup .m, .pet-hero .m.poke, .pet-hero svg * { animation: none !important; } .pet-hero .m svg { transition: none; } .pet-bar i { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .pet-hero .m, .pet-hero.lvlup .m, .pet-hero .m.poke, .pet-hero svg *, .pet-shadow { animation: none !important; } .pet-hero .m svg { transition: none; } .pet-bar i { transition: none; } }
 </style>
 </head>
 <body>
@@ -486,6 +491,182 @@
       ${role === "teacher" ? `<div style="font-size:12px;color:var(--muted);margin-bottom:5px">Сдали ${state.submittedCount} из ${TOTAL}</div><div class="progress"><i style="width:${pct}%"></i></div>` : ""}
       <div class="t-acts">${acts}</div></div>`;
   }
+  // ===== 3D-Кипа (маскот РГУП) для экрана «Мой слонёнок» =====
+  // three.js грузится из интернета только при открытии экрана; без сети остаётся плоский слонёнок
+  let threeP = null;
+  const loadThree = () => threeP || (threeP = new Promise((ok, no) => { if (window.THREE) return ok();
+    const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
+    sc.onload = ok; sc.onerror = () => { threeP = null; no(); }; document.head.appendChild(sc); }));
+  function KIPA3D(host, startLevel, onTap) {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const el = host;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    el.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.set(0, 1.9, 6.6); camera.lookAt(0, 1.5, 0);
+
+    // Свет: мягкий общий + основной + голубой контровой (фирменный #8fb4ff)
+    scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x0a1230, 0.75));
+    const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(3, 6, 5); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x8fb4ff, 0.8); rim.position.set(-4, 3, -4); scene.add(rim);
+
+    // Кожа: лёгкая «морщинистая» фактура из шума — свет играет на поверхности, как на настоящей коже
+    const noiseTex = (() => { const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d");
+      g.fillStyle = "#808080"; g.fillRect(0, 0, 256, 256);
+      for (let i = 0; i < 2600; i++) { const v = 100 + Math.random() * 60 | 0; g.fillStyle = `rgb(${v},${v},${v})`; g.beginPath(); g.arc(Math.random() * 256, Math.random() * 256, Math.random() * 2.2 + .4, 0, 7); g.fill(); }
+      g.strokeStyle = "rgba(70,70,70,.35)"; g.lineWidth = 1;
+      for (let i = 0; i < 90; i++) { const x = Math.random() * 256, y = Math.random() * 256; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 10, y + Math.random() * 6 - 3, x + 18 + Math.random() * 10, y + Math.random() * 4 - 2); g.stroke(); }
+      const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); return t; })();
+    const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.62, metalness: 0.02 }, o));
+    const skin = new THREE.MeshPhysicalMaterial({ color: 0x8b8fca, roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.35 }), skinDark = new THREE.MeshPhysicalMaterial({ color: 0x7c80bb, roughness: 0.5, clearcoat: 0.3, clearcoatRoughness: 0.35 }),
+          inner = mat(0xf5a3b8, { roughness: 0.75, emissive: 0x5a2030, emissiveIntensity: 0.25, side: THREE.DoubleSide }),
+          black = mat(0x070d22, { roughness: 0.15 }), white = mat(0xffffff, { roughness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.4 }),
+          pink = new THREE.MeshBasicMaterial({ color: 0xff8fb0, transparent: true, opacity: 0.45, depthWrite: false }),
+          nail = mat(0xf2f0ff, { roughness: 0.35 }), cap = mat(0x14234f, { roughness: 0.8 }), tasselM = mat(0x8fb4ff, { roughness: 0.5 }),
+          tusk = mat(0xf1f5ff, { roughness: 0.3 });
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    const sph = (r, m, w = 48, h = 32) => new THREE.Mesh(new THREE.SphereGeometry(r, w, h), m);
+    const add = (parent, mesh, x = 0, y = 0, z = 0) => { mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh; };
+    const onSurface = (parent, mesh, n, r) => { n = n.clone().normalize(); mesh.position.copy(n.multiplyScalar(r)); mesh.quaternion.setFromUnitVectors(V(0, 0, 1), n.clone().normalize()); parent.add(mesh); return mesh; };
+
+    // Цельные формы: одна сфера, плавно «вылепленная» под нужный силуэт — без стыков между деталями
+    const sculpt = (r, fn, w = 72, h = 54) => { const g = new THREE.SphereGeometry(r, w, h), p = g.attributes.position, v = V(0, 0, 0);
+      for (let i = 0; i < p.count; i++) { v.set(p.getX(i), p.getY(i), p.getZ(i)); fn(v, v.clone().normalize()); p.setXYZ(i, v.x, v.y, v.z); }
+      g.computeVertexNormals(); return g; };
+    const pet = new THREE.Group(); scene.add(pet);
+    const hoodie = mat(0x1c2a62, { roughness: 0.92 }), hoodDark = mat(0x152150, { roughness: 0.95 });
+    // Толстовка РГУП: туловище сидит прямо, как на стикерах
+    const body = add(pet, new THREE.Mesh(sculpt(0.95, (v, d) => { const k = 1 + 0.14 * Math.max(0, -d.y); v.x *= k; v.z *= k * 0.88; v.y *= 1.1; }), hoodie), 0, 1.0, 0);
+    const hood = add(pet, new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.2, 16, 40), hoodie), 0, 1.92, -0.12); hood.rotation.x = 1.35;
+    [-1, 1].forEach(s => { add(pet, new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.45, 6), nail), s * 0.16, 1.62, 0.78).rotation.x = -0.25;
+      add(pet, sph(0.035, nail, 10, 8), s * 0.16, 1.38, 0.84); });
+    // Нашивка на груди: «РГУП» и весы — рисуем на холсте
+    const emblem = (() => { const c = document.createElement("canvas"); c.width = 512; c.height = 300; const g = c.getContext("2d");
+      g.strokeStyle = g.fillStyle = "#eef3ff"; g.lineWidth = 9; g.lineCap = g.lineJoin = "round";
+      g.beginPath(); g.moveTo(256, 30); g.lineTo(256, 135); g.moveTo(215, 135); g.lineTo(297, 135); g.moveTo(186, 55); g.lineTo(326, 55);
+      g.moveTo(186, 55); g.lineTo(166, 100); g.lineTo(206, 100); g.closePath(); g.moveTo(326, 55); g.lineTo(306, 100); g.lineTo(346, 100); g.closePath(); g.stroke();
+      g.font = "bold 120px -apple-system, Arial, sans-serif"; g.textAlign = "center"; g.fillText("РГУП", 256, 270);
+      return new THREE.CanvasTexture(c); })();
+    const patch = add(pet, new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.53), new THREE.MeshStandardMaterial({ map: emblem, transparent: true, roughness: 0.9 })), 0, 1.02, 0.84);
+    patch.rotation.x = -0.08; patch.castShadow = false;
+    // Лапки-руки в рукавах; правая умеет махать
+    const arm = (s) => { const g = new THREE.Group(); add(pet, g, s * 0.82, 1.5, 0.1);
+      add(g, sph(0.25, hoodie), 0, -0.36, 0).scale.set(0.95, 1.7, 0.95);
+      add(g, sph(0.21, skin), 0, -0.78, 0).scale.set(1, 0.9, 1); g.rotation.z = s * 0.35; g.rotation.x = -0.35; return g; };
+    const armL = arm(-1), armR = arm(1);
+    // Ножки вытянуты вперёд, как у сидящего слонёнка
+    [-1, 1].forEach(s => { const x = s * 0.42;
+      add(pet, sph(0.3, skin), x, 0.3, 0.55).scale.set(1, 0.95, 1.45);
+      [-0.13, 0, 0.13].forEach(dx => add(pet, sph(0.06, nail, 14, 10), x + dx, 0.22, 0.93).scale.set(1, 0.8, 0.6)); });
+    const tail = new THREE.Group(); add(pet, tail, 0, 0.5, -0.8);
+    add(tail, sph(0.08, skinDark, 12, 10), 0, -0.1, -0.12);
+
+    // Голова: чуть вытянутая, с выпуклым лбом
+    const head = new THREE.Group(); add(pet, head, 0, 2.55, 0.1);
+    const muzzle = V(0, -0.35, 0.94).normalize();   // мордочка мягко вытянута вперёд — оттуда растёт хобот
+    add(head, new THREE.Mesh(sculpt(0.85, (v, d) => { v.multiplyScalar(1 + 0.2 * Math.exp(-d.distanceToSquared(muzzle) / 0.12)); v.y *= 0.97; v.z *= 0.95; }), skin));
+    // Уши: тонкие, «чашечкой», на шарнире у головы
+    const earGeo = (r, depth) => { const g = new THREE.SphereGeometry(r, 48, 32), p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i) * 0.95, y = p.getY(i) * 1.12 - (p.getY(i) < 0 ? p.getY(i) * 0.15 : 0), z = p.getZ(i) * 0.16;
+        p.setXYZ(i, x, y, z + depth * (x * x + y * y) / (r * r)); } g.computeVertexNormals(); return g; };
+    const ear = (s) => { const g = new THREE.Group(); add(head, g, s * 0.62, 0.05, -0.15);
+      const e = add(g, new THREE.Mesh(earGeo(0.92, 0.28), skin), s * 0.7, -0.05, 0);
+      add(g, new THREE.Mesh(earGeo(0.68, 0.22), inner), s * 0.69, -0.08, 0.12); g.rotation.y = s * 0.45; return g; };
+    const earL = ear(-1), earR = ear(1);
+    // Глаза: блестящие, с двумя бликами и бровками
+    const eyes = new THREE.Group(); head.add(eyes);
+    [-1, 1].forEach(s => { const n = V(s * 0.38, 0.12, 0.8);
+      const e = onSurface(eyes, sph(0.19, black), n, 0.75); e.scale.set(0.85, 1.12, 0.55);
+      add(e, sph(0.055, white, 16, 12), 0.06, 0.07, 0.165); add(e, sph(0.025, white, 12, 8), -0.05, -0.07, 0.17);
+      const brow = onSurface(head, new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.022, 8, 20, Math.PI * 0.55), skinDark), V(s * 0.38, 0.36, 0.72), 0.83);
+      brow.rotateZ(Math.PI * 0.22 + (s > 0 ? -0.15 : 0.15)); });
+    // Румянец — плоские пятна прямо на коже
+    [-1, 1].forEach(s => onSurface(head, new THREE.Mesh(new THREE.CircleGeometry(0.13, 24), pink), V(s * 0.6, -0.18, 0.6), 0.86).scale.set(1.3, 0.8, 1));
+    // Бивни — появляются у взрослого слона
+    const tusks = new THREE.Group(); head.add(tusks);
+    [-1, 1].forEach(s => { const t = add(tusks, new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.45, 16), tusk), s * 0.24, -0.5, 0.7); t.rotation.set(2.3, 0, -s * 0.25); });
+
+    // Хобот: своя сетка — толстый у основания, тонкий к кончику, с кольцевыми складками; гнётся каждый кадр
+    const TN = 60, TM = 28, tPos = new Float32Array((TN + 1) * TM * 3), tIdx = [];
+    for (let i = 0; i < TN; i++) for (let j = 0; j < TM; j++) { const a = i * TM + j, b = i * TM + (j + 1) % TM, c = a + TM, d = b + TM; tIdx.push(a, b, c, b, d, c); }
+    const tGeo = new THREE.BufferGeometry(); tGeo.setAttribute("position", new THREE.BufferAttribute(tPos, 3)); tGeo.setIndex(tIdx);
+    const trunkMesh = add(head, new THREE.Mesh(tGeo, skin));
+    const nostrils = new THREE.Group(); head.add(nostrils);
+    [-1, 1].forEach(s => add(nostrils, sph(0.028, black, 12, 8), s * 0.04, 0, 0).scale.set(1, 1.3, 0.4));
+    const tipDisc = add(nostrils, new THREE.Mesh(new THREE.CircleGeometry(0.11, 24), skinDark), 0, 0, -0.008);
+    const tmp = { t: V(), bn: V(), n: V(), p: V() };
+    function bendTrunk(curl, sway) {
+      const curve = new THREE.CatmullRomCurve3([V(0, -0.1, 0.45), V(0, -0.36, 0.78), V(sway * 0.06, -0.6, 0.9),
+        V(sway * 0.12, -0.74, 0.98 + curl * 0.05), V(sway * 0.18, -0.78 + curl * 0.14, 1.12 + curl * 0.1)]);
+      for (let i = 0; i <= TN; i++) { const u = i / TN, p = curve.getPointAt(u), t = curve.getTangentAt(u);
+        tmp.bn.crossVectors(t, V(1, 0, 0)).normalize(); tmp.n.crossVectors(tmp.bn, t).normalize();
+        let r = 0.3 * (1 - u) + 0.16 * u; r *= 1 + 0.028 * Math.sin(u * 64) * Math.min(1, Math.max(0, u - 0.2) * 4);
+        if (u > 0.985) r *= 0.94;
+        for (let j = 0; j < TM; j++) { const a = j / TM * Math.PI * 2, k = (i * TM + j) * 3;
+          tPos[k] = p.x + (tmp.n.x * Math.cos(a) + tmp.bn.x * Math.sin(a)) * r;
+          tPos[k + 1] = p.y + (tmp.n.y * Math.cos(a) + tmp.bn.y * Math.sin(a)) * r;
+          tPos[k + 2] = p.z + (tmp.n.z * Math.cos(a) + tmp.bn.z * Math.sin(a)) * r; }
+        if (i === TN) { nostrils.position.copy(p); nostrils.quaternion.setFromUnitVectors(V(0, 0, 1), t); } }
+      tGeo.attributes.position.needsUpdate = true; tGeo.computeVertexNormals(); tGeo.computeBoundingSphere();
+    }
+    bendTrunk(0, 0);
+
+    // Шапочка выпускника: шнурок идёт от пуговки к углу и свисает кисточкой
+    const hat = new THREE.Group(); add(head, hat, 0, 0.82, -0.02); hat.rotation.x = -0.18;
+    add(hat, new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.52, 0.26, 40), cap));
+    const board = add(hat, new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 1.3), cap), 0, 0.15, 0); board.rotation.y = Math.PI / 4;
+    add(hat, sph(0.06, tasselM, 16, 12), 0, 0.2, 0);
+    add(hat, new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(0, 0.2, 0), V(0.45, 0.2, 0), V(0.9, 0.18, 0)]), 12, 0.014, 6), tasselM));
+    const tassel = new THREE.Group(); add(hat, tassel, 0.9, 0.18, 0);
+    add(tassel, new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.4, 6), tasselM), 0, -0.2, 0);
+    add(tassel, new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.08, 0.2, 12), tasselM), 0, -0.48, 0);
+    // Пол с тенью
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(3, 48), new THREE.ShadowMaterial({ opacity: 0.35 }));
+    floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+    // Рост: малыш с большой головой → взрослый слон
+    let level = 1, scaleNow = 0.6, hop = 0;
+    const STAGES = ["Малыш", "Малыш", "Подросток", "Подросток", "Взрослый слон"];
+    const sizeOf = l => 0.6 + (l - 1) * 0.12;
+    const setLevel = l => { level = Math.max(1, Math.min(5, l));
+      head.scale.setScalar(1.2 - (level - 1) * 0.04); tusks.visible = false; hat.visible = level >= 3; hop = 1; };
+    setLevel(startLevel); hop = 0; scaleNow = sizeOf(level);
+
+    // Вращение пальцем/мышью, нажатие — прыжок
+    let rotY = 0.5, vel = 0, drag = null, moved = 0;
+    el.addEventListener("pointerdown", e => { drag = e.clientX; moved = 0; el.setPointerCapture(e.pointerId); });
+    el.addEventListener("pointermove", e => { if (drag === null) return; const d = e.clientX - drag; drag = e.clientX; moved += Math.abs(d); vel = d * 0.01; rotY += vel; });
+    el.addEventListener("pointerup", () => { if (moved < 5) { hop = 1; onTap && onTap(); } drag = null; });
+
+    const resize = () => { const w = host.clientWidth || 300, h = host.clientHeight || 260; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
+    addEventListener("resize", resize); resize(); renderer.domElement.style.touchAction = "none";
+
+    const api = { canvas: renderer.domElement, alive: true, setLevel };
+    const clock = new THREE.Clock();
+    (function loop() {
+      const t = clock.getElapsedTime(), m = reduce ? 0 : 1;
+      if (drag === null) { rotY += vel; vel *= 0.94; if (Math.abs(vel) < 0.001) rotY += 0.003 * m; }
+      pet.rotation.y = rotY;
+      scaleNow += (sizeOf(level) - scaleNow) * 0.08; pet.scale.setScalar(scaleNow);
+      hop = Math.max(0, hop - 0.025);
+      pet.position.y = (Math.sin(t * 2) * 0.05 + Math.sin(hop * Math.PI) * 0.6) * m;
+      earL.rotation.y = -0.35 - Math.sin(t * 2.4) * 0.3 * m; earR.rotation.y = 0.35 + Math.sin(t * 2.4) * 0.3 * m;
+      bendTrunk(Math.sin(t * 1.3) * m, Math.sin(t * 0.9) * m);
+      head.rotation.z = Math.sin(t * 1.2) * 0.04 * m;
+      const wave = Math.max(hop, (t % 7) < 1.6 ? Math.sin((t % 7) / 1.6 * Math.PI) : 0) * m;
+      armR.rotation.z = 0.35 + wave * 2.2 + Math.sin(t * 14) * 0.25 * wave; armL.rotation.z = -0.35 - Math.sin(t * 2) * 0.05 * m;
+      tail.rotation.z = Math.sin(t * 5) * 0.4 * m; tassel.rotation.z = Math.sin(t * 2.4 + 1) * 0.25 * m;
+      eyes.scale.y = (t % 4.5) > 4.35 ? 0.1 : 1;
+      renderer.render(scene, camera);
+      if (!renderer.domElement.isConnected) { removeEventListener("resize", resize); renderer.dispose(); api.alive = false; return; }
+      requestAnimationFrame(loop);
+    })();
+    return api;
+  }
+
   // «Мой слонёнок»: питомец растёт от «Казуса дня». Демо — прогресс не сохраняется.
   const PET = { xp: 40, streak: 3, answer: null };
   const PET_RANKS = ["Первокурсник", "Стажёр", "Помощник юриста", "Юрист", "Судья"];
@@ -507,14 +688,28 @@
     const lv = petLevel(), inLv = PET.xp % 100, a = PET.answer, sz = arguments[0] || petSize();
     const opts = CASE.opts.map((o, k) => `<button class="pet-opt${a === null ? "" : k === CASE.right ? " right" : k === a ? " wrong" : ""}" data-act="pet-ans" data-k="${k}"${a === null ? "" : " disabled"}>${esc(o)}</button>`).join("");
     const res = a === null ? "" : `<div class="pet-why"><p>${a === CASE.right ? "✅ Верно! +30 XP" : "Не совсем — но за попытку +10 XP"} · бонус за серию 🔥${PET.streak} дня: +30 XP</p>${CASE.why}<p class="pet-note">Новый казус — завтра.</p></div>`;
-    return `<div class="pet-hero" id="petHero"><div class="m" data-act="pet-poke" title="Погладить">${PET_SVG(sz)}</div><div class="pet-lvl">Уровень ${lv}</div><div class="pet-rank">${PET_RANKS[Math.min(lv, PET_RANKS.length) - 1]}</div><div class="pet-stage">${petStage(lv)} · растёт с каждым уровнем</div></div>
+    return `<div class="pet-hero" id="petHero"><div class="m" data-act="pet-poke" title="Погладить">${PET_SVG(sz)}</div><div class="pet-shadow"></div><div class="pet-lvl">Уровень ${lv}</div><div class="pet-rank">${PET_RANKS[Math.min(lv, PET_RANKS.length) - 1]}</div><div class="pet-stage">${petStage(lv)} · растёт с каждым уровнем</div></div>
       <div class="pet-card"><div class="pet-row"><span>Опыт: ${inLv} / 100 XP</span><span>🔥 Серия: ${PET.streak} дня</span></div><div class="pet-bar"><i style="width:${inLv}%"></i></div>
         <div class="pet-awards">${PET_AWARDS.map(([ic, n], k) => `<div class="pet-award${k < lv ? "" : " locked"}"><b>${ic}</b>${k < lv ? "" : `<span class="lk">${I.lock}</span> `}${n}<br><span class="pet-note">ур. ${k + 1}</span></div>`).join("")}</div></div>
       <div class="pet-card"><b>⚖️ Казус дня</b><div class="pet-q">${esc(CASE.q)}</div>${opts}${res}</div>
       <div class="pet-note">Демо: прогресс не сохраняется</div>`;
   }
+  let kipa = null;
+  const kipaTap = () => toast(["Ту-ту! 🐘", "Кипе приятно 💙", "Решим ещё казус?"][Math.floor(Math.random() * 3)]);
+  function useKipa(m) { m.removeAttribute("data-act"); m.removeAttribute("title"); m.innerHTML = ""; m.append(kipa.canvas); $("#petHero").classList.add("is3d"); }
+  function mountKipa() {
+    loadThree().then(() => { const m = $("#petHero .m"); if (!m || currentId !== "pet") return;
+      $("#petHero").classList.add("is3d"); m.innerHTML = ""; kipa = KIPA3D(m, petLevel(), kipaTap); useKipa(m); }).catch(() => {});
+  }
   function openPet(c) {
     $("#main").innerHTML = `<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"><b><span>${esc(c.title)}</span></b><small>Питомец растёт, когда вы решаете казусы</small></div></div><div class="pet" id="pet">${petHtml()}</div>`;
+    // Объём: слонёнок поворачивается вслед за курсором или пальцем
+    const box = $("#pet"), tilt = (x, y) => { const v = $("#petHero svg"); if (!v || reduce) return;
+      v.style.setProperty("--ry", x * 28 + "deg"); v.style.setProperty("--rx", -y * 16 + "deg"); v.style.setProperty("--sx", -x * 10 + "px"); v.style.setProperty("--br", 1 + y * -0.12); };
+    box.addEventListener("pointermove", e => { const sv = $("#petHero svg"); if (!sv) return; const r = sv.getBoundingClientRect(), k = v => Math.max(-1, Math.min(1, v / 180));
+      tilt(k(e.clientX - r.left - r.width / 2), k(e.clientY - r.top - r.height / 2)); });
+    box.addEventListener("pointerleave", () => tilt(0, 0));
+    kipa = null; mountKipa();
     renderList();
   }
   function petAnswer(k) {
@@ -522,7 +717,8 @@
     const before = petLevel(); PET.answer = k; PET.streak++;
     PET.xp += (k === CASE.right ? 30 : 10) + 30;
     $("#pet").innerHTML = petHtml(petSize(before)); renderList();
-    if (petLevel() > before) { $("#petHero").classList.add("lvlup"); requestAnimationFrame(() => requestAnimationFrame(() => { const v = $("#petHero svg"); v.style.width = v.style.height = petSize() + "px"; })); toast(`Новый уровень ${petLevel()}: ${PET_RANKS[petLevel() - 1]}! Награда: ${PET_AWARDS[petLevel() - 1][1]}`); }
+    if (kipa && kipa.alive) { useKipa($("#petHero .m")); kipa.setLevel(petLevel()); }
+    if (petLevel() > before) { $("#petHero").classList.add("lvlup"); requestAnimationFrame(() => requestAnimationFrame(() => { const v = $("#petHero svg"); if (v) v.style.width = v.style.height = petSize() + "px"; })); toast(`Новый уровень ${petLevel()}: ${PET_RANKS[petLevel() - 1]}! Награда: ${PET_AWARDS[petLevel() - 1][1]}`); }
     else toast(k === CASE.right ? "Верно! +30 XP" : "+10 XP за попытку");
   }
 
