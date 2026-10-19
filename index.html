@@ -1828,7 +1828,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.93</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.94</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3921,7 +3921,7 @@
             dmFirst = false; metaChanged();
           }, (e) => console.log("chats_metadata (личные):", e.code));
           let globalFirst = true;
-          globalMetaListener = onSnapshot(doc(db, "chats_metadata", "global"), (d) => {
+          if (isAdmin) globalMetaListener = onSnapshot(doc(db, "chats_metadata", "global"), (d) => {
             applyMeta("global", d.exists() ? d.data() : null, globalFirst); globalFirst = false; metaChanged();
           }, (e) => console.log("chats_metadata (global):", e.code));
           let newsFirst = true;
@@ -4371,7 +4371,8 @@
           if(confirm("Вы уверены, что хотите УДАЛИТЬ ВСЕ сообщения в Глобальном чате? Это необратимо!")) {
               try {
                   const q = query(collection(db, "messages"), where("chatId", "==", "global"));
-                  const snap = await getDocs(q); snap.forEach(d => deleteDoc(d.ref));
+                  const snap = await getDocs(q); await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+                  await deleteDoc(doc(db, "chats_metadata", "global")).catch(e => console.log(e)); // убираем и превью последнего сообщения
                   showToast("Глобальный чат полностью очищен!", "trash"); document.getElementById("admin-global-screen").style.display = "none";
               } catch(e) { console.error(e); }
           }
@@ -4463,12 +4464,12 @@
                 document.getElementById("delete-group-btn").onclick = async () => {
                     if(confirm(t("ВЫ УВЕРЕНЫ? Это навсегда удалит беседу и всю переписку в ней для всех участников!"))) {
                         const q = query(collection(db, "messages"), where("chatId", "==", g.id)); const snap = await getDocs(q); await Promise.all(snap.docs.map(d => deleteDoc(d.ref))); await deleteDoc(doc(db, "groups", g.id)); // сначала сообщения, потом группа (так требуют правила)
-                        document.getElementById("group-info-screen").style.display = "none"; window.loadChat('global', t('Глобальный чат'), null);
+                        document.getElementById("group-info-screen").style.display = "none"; window.loadChat(NEWS_ID, t("Новости Owl"), null, false);
                     }
                 };
             } else { document.getElementById("delete-group-btn").style.display = "none"; document.getElementById("leave-group-btn").style.display = "block"; document.getElementById("add-members-block").style.display = "none"; }
             let leaveBtn = document.getElementById("leave-group-btn");
-            leaveBtn.onclick = async () => { if(confirm(t("Точно хотите покинуть беседу?"))) { await setDoc(doc(db, "groups", g.id), { members: arrayRemove(currentUser.uid) }, { merge: true }); document.getElementById("group-info-screen").style.display = "none"; window.loadChat('global', t('Глобальный чат'), null); } };
+            leaveBtn.onclick = async () => { if(confirm(t("Точно хотите покинуть беседу?"))) { await setDoc(doc(db, "groups", g.id), { members: arrayRemove(currentUser.uid) }, { merge: true }); document.getElementById("group-info-screen").style.display = "none"; window.loadChat(NEWS_ID, t("Новости Owl"), null, false); } };
             document.getElementById("group-info-screen").style.display = "flex"; return;
         }
 
@@ -4641,10 +4642,10 @@
             let chatItemsArray = [];
 
             let globalMeta = chatsMetaCache['global'];
-            let globalPreview = globalMeta && globalMeta.lastMessageText ? sharedPreview(globalMeta) : t("Доступен всем пользователям");
+            let globalPreview = globalMeta && globalMeta.lastMessageText ? sharedPreview(globalMeta) : "Закрыт — архив виден только админу";
             let globalTime = globalMeta && globalMeta.timestamp ? getTime(globalMeta.timestamp) : 0;
             
-            if (currentFilter === 'all') {
+            if (currentFilter === 'all' && isAdmin) {
                 chatItemsArray.push({
                     id: 'global', targetUid: 'global', isGroup: false, name: t('Глобальный чат'), subtext: globalPreview,
                     avatarHtml: `<div style="background: var(--accent); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; color: white;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>`,
@@ -6209,7 +6210,6 @@
           });
           items.sort((a, b) => b.t - a.t);
           items.unshift({ chatId: nestId(), title: t("Гнездо"), targetUid: null, isGroup: false, av: `<div class="fw-av nest">${NEST_SVG(22)}</div>`, t: Infinity });
-          items.push({ chatId: "global", title: t("Глобальный чат"), targetUid: null, isGroup: false, av: `<div class="fw-av">${icon("users", 20)}</div>`, t: 0 });
           return items;
       }
       function renderForwardList() {
@@ -6271,6 +6271,7 @@
       window.loadChat = (chatId, title, targetUid, isGroup = false) => {
         try {
             if (!chatId) return;
+            if (chatId === 'global' && !isAdmin) { chatId = NEWS_ID; title = t("Новости Owl"); targetUid = null; isGroup = false; }
             exitSelect();
             showChatPlaceholder(false);
             if (typeof closeChatSearch === "function") closeChatSearch();
@@ -6320,7 +6321,7 @@
             let titleHtml = escapeHTML(title || t("Чат")); let statusHtml = ""; let headerTrigger = document.getElementById("header-profile-trigger");
             
             if (chatId === 'global') {
-                if (isAdmin) { titleHtml = `<span style="display:flex; align-items:center; gap:5px;">${t("Глобальный чат")} <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>`; statusHtml = "Настройки (Админ)"; headerTrigger.setAttribute("data-profile-target", "admin-settings"); headerTrigger.style.cursor = "pointer"; } 
+                if (isAdmin) { titleHtml = `<span style="display:flex; align-items:center; gap:5px;">${t("Глобальный чат")} <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>`; statusHtml = "Закрыт · Настройки (Админ)"; headerTrigger.setAttribute("data-profile-target", "admin-settings"); headerTrigger.style.cursor = "pointer"; } 
                 else { titleHtml = t("Глобальный чат"); statusHtml = t("Чат для всех пользователей приложения"); headerTrigger.removeAttribute("data-profile-target"); headerTrigger.style.cursor = "default"; }
             } else if (chatId === NEWS_ID) {
                 titleHtml = `<span class="nest-title">${escapeHTML(t("Новости Owl"))}${OFFICIAL_SVG(16)}</span>`; statusHtml = t("Официальный канал Owl");
