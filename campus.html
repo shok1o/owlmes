@@ -261,28 +261,25 @@
   .role-switch button.on { background: none; }
 
   /* Список чатов: свайп влево — закрепить / без звука, вправо — прочитано */
-  .ci-wrap { position: relative; border-radius: 16px; overflow: hidden; margin: 1px 0; touch-action: pan-y; }
-  .chat-item { position: relative; z-index: 1; border-radius: 16px; transition: background .2s, transform .45s var(--spring); }
+  .ci-wrap { margin: 1px 0; }
+  .chat-item { position: relative; z-index: 1; border-radius: 16px; transition: background .2s, transform .45s var(--spring), box-shadow .3s; }
   .chat-item.active { background: rgba(255,255,255,.08); box-shadow: var(--rim); }
-  .ci-wrap.sw .chat-item { background: #101e44; }
-  .ci-wrap.sw .chat-item.active { background: #172952; }
-  .ci-under { position: absolute; inset: 0; display: flex; opacity: 0; }
-  .ci-wrap.sw .ci-under { opacity: 1; }
-  .ci-l { flex: 1; display: flex; align-items: center; gap: 8px; padding-left: 18px; font-size: 13px; font-weight: 600; color: #fff; background: linear-gradient(90deg, #2f6fe4, #1c48b0); transition: background .2s; }
-  .ci-wrap.arm .ci-l { background: linear-gradient(90deg, #34c77b, #1f8f57); }
-  .ci-wrap.arm .ci-l svg { animation: rxpop .4s var(--spring); }
-  .ci-r { display: flex; }
-  .ci-r button { width: 74px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11px; font-weight: 600; color: #fff; }
-  .ci-r button:first-child { background: #6a7cff; } .ci-r button:last-child { background: #3b4f96; }
-  .ci-wrap.hint .chat-item { animation: hint 1.5s var(--out); }
-  @keyframes hint { 0%, 100% { transform: none; } 30%, 55% { transform: translateX(-120px); } }
+  .chat-item.lifted { transform: scale(1.02); background: rgba(255,255,255,.1); box-shadow: var(--rim), 0 12px 30px -10px rgba(0,0,0,.6); }
+  @media (pointer: coarse) { .chat-item { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; } }
+  /* Меню чата (долгое нажатие или правый клик) */
+  .ci-menu { position: absolute; z-index: 20; min-width: 200px; padding: 6px; border-radius: 18px; background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); box-shadow: var(--rim), 0 18px 40px -10px rgba(0,0,0,.7); display: flex; flex-direction: column; animation: pickIn .3s var(--spring); }
+  .ci-menu button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; font-size: 14px; font-weight: 600; text-align: left; transition: background .2s, transform .3s var(--spring); }
+  .ci-menu button:hover { background: rgba(255,255,255,.08); } .ci-menu button:active { transform: scale(.96); }
+  .ci-menu svg { color: var(--light); flex-shrink: 0; }
+  .list.hint { animation: lhint 1.6s var(--out); }
+  @keyframes lhint { 0%, 100% { transform: none; } 30%, 50% { transform: translateX(-56px); opacity: .6; } }
   .ci-name svg, .ci-meta svg { width: 14px; height: 14px; flex-shrink: 0; opacity: .65; }
   .unread { animation: rxpop .45s var(--spring); }
   .unread.muted { background: #4a5a85; }
   .ptr { position: absolute; left: 50%; z-index: 0; opacity: 0; pointer-events: none; filter: drop-shadow(0 4px 10px rgba(47,111,228,.6)); transition: opacity .3s, transform .45s var(--spring); }
   .ptr.spin svg { animation: spin .9s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .list { position: relative; z-index: 1; transition: transform .45s var(--spring); }
+  .list { position: relative; z-index: 1; touch-action: pan-y; transition: transform .45s var(--spring), opacity .3s; }
 
   /* Чат: шапка и поле ввода парят над сообщениями */
   .chat-head { position: absolute; z-index: 5; top: calc(8px + env(safe-area-inset-top)); left: 10px; right: 10px; padding: 8px 10px; min-height: 60px; border: none; border-radius: 24px; background: var(--glass); box-shadow: var(--rim), var(--lift); }
@@ -373,7 +370,7 @@
   .pet-opt { background: rgba(255,255,255,.07); border-color: rgba(170,200,255,.14); }
   .pet-award { box-shadow: inset 0 1px 0 rgba(255,255,255,.15); }
   @media (prefers-reduced-motion: reduce) {
-    body::before, body::after, .row.new, .unread, .ci-wrap.hint .chat-item, .onb-card.swap, .onb-card > svg:first-child, .rx-pick, .rx-pick button, .rx.pop, .reply-bar, .main > .chat-head, .main > .empty { animation: none !important; }
+    body::before, body::after, .row.new, .unread, .list.hint, .ci-menu, .onb-card.swap, .onb-card > svg:first-child, .rx-pick, .rx-pick button, .rx.pop, .reply-bar, .main > .chat-head, .main > .empty { animation: none !important; }
     .role-switch .thumb, .send, .chat-item, .row[data-i], .list, .toast { transition-duration: .01s !important; }
   }
   /* ===== Папки чатов ===== */
@@ -696,8 +693,7 @@
   function itemHtml(c) {
     const t = titleOf(c);
     const tag = c.type === "dm" ? `<span class="role-tag ${PEOPLE[other()].tag}">${role === "student" ? "ПРЕПОД." : "СТУДЕНТ"}</span>` : c.id === "dean" ? TICK("#6a7cff", 14) : "";
-    return `<div class="ci-wrap" data-id="${c.id}"><div class="ci-under"><span class="ci-l">${c.unread ? I.read + " Прочитано" : I.unread + " Непрочитано"}</span><span class="ci-r">
-        <button data-act="ci-pin" data-id="${c.id}">${I.pin}${c.pinned ? "Открепить" : "Закрепить"}</button><button data-act="ci-mute" data-id="${c.id}">${I.mute}${c.muted ? "Со звуком" : "Без звука"}</button></span></div>
+    return `<div class="ci-wrap" data-id="${c.id}">
       <div class="chat-item${c.id === currentId ? " active" : ""}" data-id="${c.id}" role="button" tabindex="0">${c.av()}
         <div class="ci-body"><div class="ci-name"><span>${esc(t)}</span>${tag}${c.muted ? I.mute : ""}</div><div class="ci-sub">${esc(c.id === "ai" ? c.sub() : lastText(c))}</div></div>
         <div class="ci-meta">${c.pinned ? I.pin : ""}${c.unread ? `<span class="unread${c.muted ? " muted" : ""}">${c.unread}</span>` : ""}</div></div></div>`;
@@ -711,7 +707,7 @@
     const pinned = vis.filter(c => c.pinned);
     if (pinned.length) { html += `<div class="sec">Закреплено</div>` + pinned.map(itemHtml).join(""); sec = "📌"; }
     vis.filter(c => !c.pinned).forEach(c => { if (c.sec !== sec) { sec = c.sec; html += `<div class="sec">${esc(sec)}</div>`; } html += itemHtml(c); });
-    swOpen = null;
+    closeMenu();
     $("#list").innerHTML = html || `<div class="empty" style="padding:20px">${q ? "Ничего не найдено" : "В этой папке пока пусто"}</div>`;
   }
   // Папки: «Учёба» — университетский контур, «Личные» — переписка, «Открытое» — каналы и клиника для всех
@@ -732,7 +728,7 @@
     if (k === folder) return; const ks = FOLDERS.map(f => f[0]), dir = ks.indexOf(k) > ks.indexOf(folder) ? "fx-l" : "fx-r";
     // бегунок переезжает с прежней позиции: сохраняем её до перерисовки
     const old = $("#folders .fthumb"), fx = old && old.style.getPropertyValue("--fx"), fw = old && old.style.getPropertyValue("--fw");
-    folder = k; closeSw(); renderList(); buzz(5);
+    folder = k; renderList(); buzz(5);
     const t = $("#folders .fthumb"); if (t && fx) { t.style.transition = "none"; t.style.setProperty("--fx", fx); t.style.setProperty("--fw", fw); void t.offsetWidth; t.style.transition = "";
       const b = $("#folders button.on"); t.style.setProperty("--fx", b.offsetLeft + "px"); t.style.setProperty("--fw", b.offsetWidth + "px"); }
     const l = $("#list"); l.classList.remove("fx-l", "fx-r"); void l.offsetWidth; l.classList.add(dir); l.scrollTop = 0;
@@ -1093,26 +1089,53 @@
     end(s, cancel) { APP.classList.remove("dragging"); $("#main").style.transform = $(".side").style.transform = $(".side").style.filter = ""; if (!cancel && (s.dx > s.w * .33 || s.v > .5)) { buzz(); goBack(); } }
   });
 
-  // 2) Список: влево — «Закрепить / Без звука», вправо — «Прочитано»
-  const OPEN = 148; let swOpen = null;
-  const itemOf = w => w.querySelector(".chat-item");
-  function openSw(w) { if (swOpen && swOpen !== w) closeSw(); swOpen = w; w.classList.add("sw", "open"); itemOf(w).style.transform = `translateX(${-OPEN}px)`; }
-  function closeSw() { const w = swOpen; swOpen = null; if (!w) return; w.classList.remove("open"); itemOf(w).style.transform = ""; setTimeout(() => { if (swOpen !== w) w.classList.remove("sw"); }, 450); }
-  gesture($("#list"), ".ci-wrap", {
-    start(s) { if (swOpen && swOpen !== s.t) closeSw(); s.base = s.t.classList.contains("open") ? -OPEN : 0; s.t.classList.add("sw"); itemOf(s.t).style.transition = "none"; },
-    move(s) {
-      let x = s.base + s.dx; x = x > 0 ? rub(x, 160) : x < -OPEN ? -OPEN - rub(-OPEN - x, 60) : x; s.px = x;
-      itemOf(s.t).style.transform = `translateX(${x}px)`;
-      const arm = x > 72; if (arm !== !!s.arm) { s.arm = arm; s.t.classList.toggle("arm", arm); if (arm) buzz(); }
+  // 2) Свайп по списку влево/вправо — соседняя папка: список и бегунок папок едут за пальцем
+  let fdrag = false, lpChat = null;
+  const visFolders = () => FOLDERS.map(f => f[0]).filter(k => k !== "study" || verified());
+  gesture($("#list"), ".list", {
+    start(s) {
+      fdrag = true; clearTimeout(lpChat); closeMenu();
+      const ks = visFolders(), i = ks.indexOf(folder), bs = [...document.querySelectorAll("#folders button")], by = k => bs.find(b => b.dataset.folder === k);
+      s.prev = ks[i - 1]; s.next = ks[i + 1]; s.w = $("#list").offsetWidth; s.cur = by(folder); s.bp = by(s.prev); s.bn = by(s.next);
+      s.th = $("#folders .fthumb"); s.th.style.transition = "none"; $("#list").style.transition = "none";
     },
-    end(s) {
-      const it = itemOf(s.t); it.style.transition = ""; s.t.classList.remove("arm");
-      if (s.arm) { const c = chats.find(x => x.id === s.t.dataset.id); c.unread = c.unread ? 0 : 1; it.style.transform = ""; swOpen = null;
-        toast(c.unread ? "Отмечено как непрочитанное" : "Прочитано ✓"); setTimeout(renderList, 380); return; }
-      if (s.px < -OPEN / 2 || s.v < -.4) { openSw(s.t); buzz(); } else { swOpen = s.t; closeSw(); }
+    move(s) {
+      let x = s.dx; const nb = x < 0 ? s.next : s.prev; if (!nb) x = x < 0 ? -rub(-x, 60) : rub(x, 60);
+      const l = $("#list"); l.style.transform = `translateX(${x}px)`; l.style.opacity = 1 - Math.min(.5, Math.abs(x) / s.w);
+      const tb = x < 0 ? s.bn : s.bp, k = Math.min(1, Math.abs(x) / s.w);
+      if (tb && s.cur) { s.th.style.setProperty("--fx", s.cur.offsetLeft + (tb.offsetLeft - s.cur.offsetLeft) * k + "px"); s.th.style.setProperty("--fw", s.cur.offsetWidth + (tb.offsetWidth - s.cur.offsetWidth) * k + "px"); }
+      const arm = !!nb && Math.abs(x) > s.w * .22; if (arm !== !!s.arm) { s.arm = arm; if (arm) buzz(); }
+    },
+    end(s, cancel) {
+      const l = $("#list"), nb = s.dx < 0 ? s.next : s.prev; fdrag = false; s.th.style.transition = "";
+      if (!cancel && nb && (Math.abs(s.dx) > s.w * .22 || Math.abs(s.v) > .45)) {
+        l.style.transition = "transform .18s ease-in, opacity .18s"; l.style.transform = `translateX(${s.dx < 0 ? -s.w * .5 : s.w * .5}px)`; l.style.opacity = 0;
+        setTimeout(() => { l.style.transition = l.style.transform = l.style.opacity = ""; setFolder(nb); }, 170);
+      } else { l.style.transition = l.style.transform = l.style.opacity = ""; renderFolders(); }
     }
   });
-  document.addEventListener("pointerdown", e => { if (swOpen && !e.target.closest(".ci-wrap.open")) closeSw(); if (!e.target.closest(".rx-pick")) closePick(); }, true);
+  // Меню чата: долгое нажатие (телефон) или правый клик (компьютер)
+  function closeMenu() { const m = $(".ci-menu"); if (m) m.remove(); document.querySelectorAll(".chat-item.lifted").forEach(x => x.classList.remove("lifted")); }
+  function chatMenu(item) {
+    closeMenu(); closePick(); const c = chats.find(x => x.id === item.dataset.id); if (!c) return;
+    const side = $(".side"), r = item.getBoundingClientRect(), sr = side.getBoundingClientRect(), el = document.createElement("div");
+    el.className = "ci-menu"; el.setAttribute("role", "menu");
+    el.innerHTML = `<button data-act="ci-pin" data-id="${c.id}">${I.pin}${c.pinned ? "Открепить" : "Закрепить"}</button><button data-act="ci-mute" data-id="${c.id}">${I.mute}${c.muted ? "Включить звук" : "Без звука"}</button><button data-act="ci-read" data-id="${c.id}">${c.unread ? I.read + "Прочитано" : I.unread + "Непрочитано"}</button>`;
+    side.appendChild(el);
+    let top = r.bottom - sr.top + 6; if (top + el.offsetHeight > sr.height - 10) top = r.top - sr.top - el.offsetHeight - 6;
+    el.style.top = top + "px"; el.style.left = Math.min(sr.width - el.offsetWidth - 12, Math.max(12, r.left - sr.left + 56)) + "px";
+    item.classList.add("lifted"); buzz(12);
+  }
+  $("#list").addEventListener("pointerdown", e => {
+    const item = e.target.closest(".chat-item"); if (!item || e.button) return; const x = e.clientX, y = e.clientY; clearTimeout(lpChat);
+    lpChat = setTimeout(() => { swallowClick(); chatMenu(item); }, 450);
+    const off = () => ["pointermove", "pointerup", "pointercancel"].forEach(t => removeEventListener(t, stop));
+    const stop = ev => { if (ev.type !== "pointermove" || Math.hypot(ev.clientX - x, ev.clientY - y) > 8) { clearTimeout(lpChat); off(); } };
+    ["pointermove", "pointerup", "pointercancel"].forEach(t => addEventListener(t, stop));
+  });
+  $("#list").addEventListener("contextmenu", e => { const item = e.target.closest(".chat-item"); if (!item) return; e.preventDefault(); chatMenu(item); });
+  document.addEventListener("scroll", closeMenu, true);
+  document.addEventListener("pointerdown", e => { if (!e.target.closest(".ci-menu")) closeMenu(); if (!e.target.closest(".rx-pick")) closePick(); }, true);
 
   // 3) Потянуть список вниз — обновить (слонёнок крутится)
   (() => {
@@ -1120,10 +1143,10 @@
     let p = null, busy = false;
     const set = dy => { list.style.transform = dy ? `translateY(${dy}px)` : ""; ind.style.opacity = Math.min(1, dy / 56); ind.style.transform = `translate(-50%, ${dy / 2 - 18}px) rotate(${dy * 4}deg)`; };
     const start = y => { if (list.scrollTop > 0 || busy) return; p = { y0: y, dy: 0 }; ind.style.top = list.offsetTop + "px"; };
-    const move = (y, ev) => { if (!p) return; const d = y - p.y0; if (d <= 0) { if (p.dy) set(0); p.dy = 0; return; }
+    const move = (y, ev) => { if (!p) return; if (fdrag || p.cancel) { p.cancel = true; return; } const d = y - p.y0; if (d <= 0) { if (p.dy) set(0); p.dy = 0; return; }
       if (ev.cancelable) ev.preventDefault(); list.style.transition = ind.style.transition = "none"; p.dy = rub(d, 150); set(p.dy);
       const arm = p.dy > 60; if (arm !== !!p.arm) { p.arm = arm; if (arm) buzz(); } };
-    const end = () => { if (!p) return; const was = p; p = null; list.style.transition = ind.style.transition = ""; if (was.dy > 6) swallowClick();
+    const end = () => { if (!p) return; const was = p; p = null; ind.style.transition = ""; if (was.cancel) { ind.style.opacity = 0; return; } list.style.transition = ""; if (was.dy > 6) swallowClick();
       if (!was.arm) return set(0);
       busy = true; set(56); ind.classList.add("spin");
       setTimeout(() => { ind.classList.remove("spin"); set(0); busy = false; renderList(); toast("Всё актуально ✓"); }, reduce ? 200 : 1100); };
@@ -1213,7 +1236,6 @@
   document.addEventListener("click", (e) => {
     const fb = e.target.closest("[data-folder]"); if (fb) return setFolder(fb.dataset.folder);
     const item = e.target.closest(".chat-item");
-    if (item && swOpen && item.closest(".ci-wrap") === swOpen) return closeSw();
     if (item) return openChat(item.dataset.id);
     if (e.target.closest("#back")) return goBack();
     const bub = e.target.closest("#msgs .row[data-i] .bubble");
@@ -1237,6 +1259,7 @@
       case "wp-x": closeWp(true); break;
       case "wp-set": setWp(a.dataset.k); break;
       case "ci-pin": { const c = chats.find(x => x.id === a.dataset.id); c.pinned = !c.pinned; buzz(); renderList(); toast(c.pinned ? "Чат закреплён наверху 📌" : "Чат откреплён"); break; }
+      case "ci-read": { const c = chats.find(x => x.id === a.dataset.id); c.unread = c.unread ? 0 : 1; buzz(); renderList(); toast(c.unread ? "Отмечено как непрочитанное" : "Прочитано ✓"); break; }
       case "ci-mute": { const c = chats.find(x => x.id === a.dataset.id); c.muted = !c.muted; buzz(); renderList(); toast(c.muted ? "Уведомления выключены" : "Уведомления включены"); break; }
       case "pet-lvl": petShowLevel(+a.dataset.l); break;
       case "pet-poke": a.classList.remove("poke"); void a.offsetWidth; a.classList.add("poke"); toast(["Ту-ту! 🐘", "Слонёнку приятно 💙", "Решим ещё казус?"][Math.floor(Math.random() * 3)]); break;
@@ -1336,9 +1359,9 @@
   let hinted = false;
   function enterApp() {
     $("#onb").hidden = true; stopSlides(); setRole(role); if (matchMedia("(min-width: 900px)").matches) openChat(role === "teacher" ? "civ" : role === "student" ? "ai" : "clinic");
-    if (hinted || reduce) return; hinted = true;   // один раз показываем, что чаты можно смахивать
-    setTimeout(() => { const w = $("#list .ci-wrap"); if (!w || (isMobile() && APP.classList.contains("chat-open"))) return;
-      w.classList.add("sw", "hint"); setTimeout(() => w.classList.remove("sw", "hint"), 1550); toast("Подсказка: смахните чат влево или вправо"); }, 1200);
+    if (hinted || reduce) return; hinted = true;   // один раз показываем, что папки листаются свайпом
+    setTimeout(() => { const l = $("#list"); if (isMobile() && APP.classList.contains("chat-open")) return;
+      l.classList.add("hint"); setTimeout(() => l.classList.remove("hint"), 1650); toast("Смахните список — соседняя папка. Удерживайте чат — меню"); }, 1200);
   }
   new MutationObserver(() => { card.classList.remove("swap"); void card.offsetWidth; card.classList.add("swap"); }).observe(card, { childList: true });
   card.addEventListener("click", (e) => {
