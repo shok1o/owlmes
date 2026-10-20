@@ -453,6 +453,81 @@
   .onb-back { position: absolute; z-index: 2; left: 14px; top: 14px; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.07); box-shadow: var(--rim); color: var(--muted); }
   .onb-back:active { transform: scale(.9); }
   @media (prefers-reduced-motion: reduce) { .onb-bg span, .onb-card::before, .hero-orb::before, .hero-orb svg, .wall::before, .wall::after, .wall.fade, .sheet, .list.fx-l, .list.fx-r { animation: none !important; } }
+  /* ===== Шапка: кнопка «ДЕМО» (смена роли для показа) и аватар профиля ===== */
+  .side-top { gap: 8px; }
+  button.demo-badge { cursor: pointer; padding: 5px 9px; white-space: nowrap; transition: transform .35s var(--spring), background .2s; }
+  button.demo-badge:active { transform: scale(.94); }
+  .me-btn { border-radius: 50%; padding: 0; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(143,180,255,.35); transition: transform .35s var(--spring); }
+  .me-btn:active { transform: scale(.9); }
+  .demo-menu { left: auto !important; right: 12px; }
+  .brand > div { min-width: 0; } .brand small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 420px) { .demo-badge .dm-l { display: none; } }
+  .demo-menu .dm-h { font-size: 11px; color: var(--muted); padding: 6px 12px 4px; }
+  .demo-menu button.cur { color: var(--light); }
+  .side[data-tab="profile"] .search, .side[data-tab="profile"] .folders, .side[data-tab="contacts"] .folders { display: none; }
+
+  /* ===== Нижняя панель разделов ===== */
+  .tabbar { position: relative; z-index: 2; display: flex; margin: 6px 10px calc(10px + env(safe-area-inset-bottom)); padding: 5px; border-radius: 26px; background: rgba(255,255,255,.06); box-shadow: var(--rim); }
+  .tabbar button { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 5px; border-radius: 20px; font-size: 10.5px; font-weight: 600; color: var(--muted); transition: color .2s, background .3s, transform .35s var(--spring); }
+  .tabbar button.on { color: #fff; background: rgba(143,180,255,.18); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 0 0 1px rgba(143,180,255,.25); }
+  .tabbar button:active { transform: scale(.9); }
+  .tabbar .tb-ic { width: 26px; height: 26px; display: grid; place-items: center; }
+  .tabbar .tb-badge { position: absolute; top: 2px; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; animation: rxpop .45s var(--spring); }
+  .tabbar .tb-lock { position: absolute; top: 3px; left: calc(50% + 7px); }
+  .tabbar .tb-lock svg { width: 11px; height: 11px; }
+
+  /* ===== Контакты ===== */
+  .c-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 16px; cursor: pointer; transition: background .15s, transform .35s var(--spring); }
+  .c-item:hover { background: rgba(255,255,255,.04); } .c-item:active { transform: scale(.985); }
+  .c-body { flex: 1; min-width: 0; }
+  .c-name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; }
+  .c-name span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .c-fr { color: var(--light); font-size: 13px; }
+  .role-tag.o { color: #9fd8e8; background: rgba(47,143,170,.18); }
+
+  /* ===== Профили ===== */
+  .av.xl { width: 92px; height: 92px; font-size: 32px; box-shadow: 0 0 0 4px rgba(143,180,255,.18), 0 14px 30px -10px rgba(0,0,0,.6); }
+  .prof { flex: 1; overflow-y: auto; position: relative; z-index: 1; padding: calc(86px + env(safe-area-inset-top)) 16px 30px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .p-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding-top: 6px; }
+  .p-name { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 6px; justify-content: center; }
+  .p-sub { color: var(--muted); font-size: 14px; }
+  .p-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .btn.ghost.on { color: var(--light); } .btn.danger { color: #ff9d9d; }
+  .p-card { width: 100%; max-width: 440px; padding: 12px 14px; border-radius: 20px; background: rgba(255,255,255,.06); box-shadow: var(--rim); }
+  .p-wrap { max-width: 520px; margin: 0 auto; padding-bottom: 8px; }
+  .list .p-card { width: auto; max-width: none; margin: 0 4px 10px; }
+  .p-card .p-note { justify-content: flex-start; text-align: left; max-width: none; }
+  .p-h { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 2px 0 6px; }
+  .p-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(170,200,255,.08); font-size: 14px; }
+  .p-row span { color: var(--muted); } .p-row b { font-weight: 600; text-align: right; }
+  .p-note { max-width: 440px; text-align: center; display: flex; gap: 6px; align-items: flex-start; justify-content: center; line-height: 1.4; }
+  .p-note svg { flex-shrink: 0; margin-top: 1px; }
+  .p-me { padding: 4px 0 12px; }
+  .p-pet { display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform .35s var(--spring); }
+  .p-pet:active { transform: scale(.98); }
+  .p-pet .pp-b { flex: 1; min-width: 0; } .p-pet b { display: block; font-size: 15px; } .p-pet span { font-size: 12.5px; color: var(--muted); }
+  .p-pet .pet-bar { margin: 6px 0 0; height: 6px; } .p-pet .chev { transform: rotate(180deg); color: var(--muted); display: flex; }
+  .p-mini { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+  .p-mini > span { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; } .p-mini small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .btn.sm { padding: 6px 10px; font-size: 12px; }
+  .tgl { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(170,200,255,.08); cursor: pointer; }
+  .tgl span { flex: 1; font-size: 14px; font-weight: 600; } .tgl small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  .tgl input { position: absolute; opacity: 0; pointer-events: none; }
+  .tgl i { width: 46px; height: 28px; border-radius: 14px; background: rgba(255,255,255,.14); position: relative; flex-shrink: 0; transition: background .3s; box-shadow: inset 0 1px 2px rgba(0,0,0,.3); }
+  .tgl i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); transition: transform .4s var(--spring); }
+  .tgl input:checked + i { background: var(--accent); } .tgl input:checked + i::after { transform: translateX(18px); }
+  .tgl input:focus-visible + i { outline: 2px solid var(--light); outline-offset: 2px; }
+  .p-sel { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0 4px; font-size: 14px; font-weight: 600; }
+  .p-sel select { background: rgba(255,255,255,.08); border: none; border-radius: 10px; padding: 7px 10px; box-shadow: var(--rim); }
+  .p-out { width: calc(100% - 8px); margin: 4px 4px 16px; justify-content: center; }
+  .p-edit { margin-top: 8px; }
+
+  /* ===== Облегчённый режим: без стекла, живого фона и 3D ===== */
+  html.lite *, html.lite *::before, html.lite *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  html.lite body::before, html.lite body::after, html.lite .wall::before, html.lite .wall::after, html.lite #onb::before, html.lite .onb-card::before, html.lite .hero-orb::before { animation: none !important; }
+  html.lite .onb-bg { display: none; }
+  html.lite .side, html.lite .chat-head, html.lite .composer, html.lite .readonly, html.lite .chip, html.lite .toast, html.lite .onb-card, html.lite .rx-pick, html.lite .ci-menu, html.lite .sheet, html.lite .reply-bar { background: #10204a; }
 </style>
 </head>
 <body>
@@ -464,23 +539,16 @@
 </div>
 
 <div id="app">
-  <aside class="side">
+  <aside class="side" data-tab="chats">
     <div class="side-top">
       <div class="brand"><span id="logo-sm"></span><div><b>Киприда</b><small>РГУП им. В.М. Лебедева</small></div></div>
-      <span class="demo-badge">ДЕМО</span>
+      <button class="demo-badge" id="demoBtn" data-act="demo-roles" aria-haspopup="menu" title="Для показа: посмотреть глазами разных людей">ДЕМО</button>
+      <button class="me-btn" id="meBtn" data-act="nav" data-nav="profile" aria-label="Мой профиль"></button>
     </div>
-    <div class="me-card" id="me-card"></div>
-    <div class="role-switch" role="tablist" aria-label="Смотреть как">
-      <i class="thumb" aria-hidden="true"></i>
-      <button data-role="guest" role="tab">Без статуса</button>
-      <button data-role="student" role="tab">Студент</button>
-      <button data-role="teacher" role="tab">Препод.</button>
-    </div>
-    <div class="role-hint">Для показа: одно приложение глазами разных людей</div>
-    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg><input id="search" placeholder="Поиск по чатам и курсам" autocomplete="off"></div>
+    <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg><input id="search" placeholder="Поиск по чатам" autocomplete="off"></div>
     <div class="folders" id="folders" role="tablist" aria-label="Папки"></div>
     <div class="list" id="list"></div>
-    <div class="side-foot"><span>Демо на основе Owl Messenger</span><button id="restart">Начать заново</button></div>
+    <nav class="tabbar" id="tabbar" aria-label="Разделы"></nav>
   </aside>
 
   <main class="main" id="main">
@@ -543,6 +611,10 @@
     read: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
     unread: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/></svg>`,
     palette: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.5 3.3A2 2 0 0 1 12 22z"/><circle cx="7.5" cy="10.5" r="1.2" fill="currentColor"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/><circle cx="16.5" cy="10.5" r="1.2" fill="currentColor"/></svg>`,
+    chats: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.8L3 21l1.9-5A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg>`,
+    users: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>`,
+    user: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    game: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1" fill="currentColor"/><circle cx="18" cy="11" r="1" fill="currentColor"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 5 19c1 0 2-.5 2.6-1.4L9 16h6l1.4 1.6A3 3 0 0 0 22 15.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
     reply: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>`,
   };
   $("#logo-sm").innerHTML = MASCOT(36);
@@ -551,14 +623,16 @@
 
   // ===== Люди и роли =====
   const PEOPLE = {
-    guest: { name: "Анна Смирнова", initials: "АС", color: "#3b4a6b", sub: "Обычный аккаунт · статус не подтверждён" },
-    student: { name: "Анна Смирнова", initials: "АС", color: "#2f6fe4", sub: "Студентка · группа ЮР-201", tag: "s" },
-    teacher: { name: "Елена Викторовна Иванова", short: "Иванова Е.В.", initials: "ЕИ", color: "#4654b8", sub: "Доцент · кафедра гражданского права", tag: "t" },
-    petrov: { name: "Петров Алексей Сергеевич", short: "Петров А.С.", initials: "ПА", color: "#5a46a8", tag: "t" },
-    max: { name: "Максим Орлов", initials: "МО", color: "#2b6a8f", tag: "s" },
-    dasha: { name: "Дарья Ким", initials: "ДК", color: "#6a4bb5", tag: "s" },
-    ilya: { name: "Илья Соколов", initials: "ИС", color: "#2f8f6a", tag: "s" },
-    friend: { name: "Сергей Белов", initials: "СБ", color: "#2f7a8f" },
+    guest: { name: "Анна Смирнова", initials: "АС", color: "#3b4a6b", sub: "Обычный аккаунт · статус не подтверждён", kind: "user" },
+    student: { name: "Анна Смирнова", initials: "АС", color: "#2f6fe4", sub: "Студентка · группа ЮР-201", tag: "s", kind: "student", group: "ЮР-201", course: "2 курс", program: "Юриспруденция", form: "очная" },
+    teacher: { name: "Елена Викторовна Иванова", short: "Иванова Е.В.", initials: "ЕИ", color: "#4654b8", sub: "Доцент · кафедра гражданского права", tag: "t", kind: "teacher", position: "Доцент кафедры гражданского права", degree: "к.ю.н., доцент", hours: "вт 14:00–16:00", room: "каб. 318" },
+    petrov: { name: "Петров Алексей Сергеевич", short: "Петров А.С.", initials: "ПА", color: "#5a46a8", tag: "t", kind: "teacher", position: "Профессор кафедры уголовного права", degree: "д.ю.н., профессор", hours: "чт 12:00–14:00", room: "каб. 221" },
+    spec: { name: "Кузнецова Марина Андреевна", short: "Кузнецова М.А.", initials: "МК", color: "#2f7a8f", kind: "spec", position: "Специалист учебного офиса", hours: "пн–пт 10:00–17:00, обед 13–14", room: "каб. 104" },
+    max: { name: "Максим Орлов", initials: "МО", color: "#2b6a8f", tag: "s", kind: "student", group: "ЮР-201", course: "2 курс", program: "Юриспруденция", form: "очная" },
+    dasha: { name: "Дарья Ким", initials: "ДК", color: "#6a4bb5", tag: "s", kind: "student", group: "ЮР-201", course: "2 курс", program: "Юриспруденция", form: "очная" },
+    ilya: { name: "Илья Соколов", initials: "ИС", color: "#2f8f6a", tag: "s", kind: "student", group: "ЮР-201", course: "2 курс", program: "Юриспруденция", form: "очно-заочная" },
+    friend: { name: "Сергей Белов", initials: "СБ", color: "#2f7a8f", kind: "user" },
+    spam: { name: "Курсовые на заказ 24/7", initials: "КЗ", color: "#5a5f73", kind: "user" },
     citizen: { name: "Ольга Н.", short: "Ольга Н. · гражданка", initials: "ОН", color: "#7a4b8f" },
   };
   let role = "student"; // guest — обычный аккаунт без подтверждённого статуса: доступен мессенджер и открытые разделы
@@ -571,17 +645,18 @@
   const state = { submitted: false, submittedCount: 12, readCount: 21 };
   const chats = [
     // uni: true — университетский контур, только после подтверждения статуса студента или сотрудника
-    { id: "ai", uni: true, type: "ai", sec: "Помощник", title: "Кипа", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${MASCOT(30)}</div>` },
-    { id: "pet", uni: true, type: "pet", sec: "Помощник", title: "Мой слонёнок", sub: () => `Уровень ${petLevel()} · ${PET_RANKS[Math.min(petLevel(), PET_RANKS.length) - 1]} · 🔥${PET.streak}`, av: () => `<div class="av ai">${MASCOT(30)}</div>` },
-    { id: "civ", uni: true, type: "channel", owner: "teacher", sec: "Курсы", title: "Гражданское право", sub: () => role === "teacher" ? "Ваш канал курса · 27 студентов" : "Канал курса · Иванова Е.В.", av: () => `<div class="av ch">${SCALES(22)}</div>`, unread: 2 },
-    { id: "crim", uni: true, type: "channel", owner: "petrov", sec: "Курсы", title: "Уголовное право", sub: () => "Канал курса · Петров А.С.", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#3a2f7a,#1b1550)">${I.book.replace('width="16" height="16"', 'width="22" height="22"')}</div>` },
-    { id: "grp", uni: true, type: "group", sec: "Группа", title: "ЮР-201", sub: () => "Беседа группы · 27 участников", av: () => `<div class="av grp">201</div>`, unread: 5 },
-    { id: "dm", uni: true, type: "dm", sec: "Личные", title: () => role === "student" ? PEOPLE.teacher.short : PEOPLE.student.name, sub: () => role === "student" ? "Преподаватель · гражданское право" : "Студентка · ЮР-201", av: () => avatar(other()) },
-    { id: "friend", type: "chat", sec: "Личные", title: "Сергей Белов", sub: () => "Обычная переписка", av: () => avatar("friend") },
-    { id: "dean", uni: true, type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Объявления для студентов и сотрудников", av: () => `<div class="av dean">${SCALES(22)}</div>` },
-    { id: "news", type: "channel", owner: "dean", sec: "Открыто для всех", title: "РГУП · новости", sub: () => "Публичный канал факультета", av: () => `<div class="av dean" style="background:linear-gradient(135deg,#2b6a8f,#173d5e)">${MASCOT(28)}</div>` },
-    { id: "zoo", type: "channel", owner: "dean", sec: "Открыто для всех", title: "Киприда в зоопарке", sub: () => "Новости о нашей подопечной", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#16348a)">${MASCOT(30)}</div>` },
-    { id: "clinic", type: "clinic", sec: "Открыто для всех", title: "Юридическая клиника", sub: () => role === "guest" ? "Бесплатная консультация от студентов-юристов" : "Вопросы граждан · ответы под контролем преподавателя", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#5a46a8)">${SCALES(22)}</div>`, unread: 1 },
+    { id: "ai", hidden: true, uni: true, type: "ai", sec: "Помощник", title: "Кипа", sub: () => "ИИ-помощник по праву · отвечает со ссылками на нормы", av: () => `<div class="av ai">${MASCOT(30)}</div>` },
+    { id: "pet", hidden: true, uni: true, type: "pet", sec: "Помощник", title: "Мой слонёнок", sub: () => `Уровень ${petLevel()} · ${PET_RANKS[Math.min(petLevel(), PET_RANKS.length) - 1]} · 🔥${PET.streak}`, av: () => `<div class="av ai">${MASCOT(30)}</div>` },
+    { id: "civ", folder: "study", uni: true, type: "channel", owner: "teacher", sec: "Курсы", title: "Гражданское право", sub: () => role === "teacher" ? "Ваш канал курса · 27 студентов" : "Канал курса · Иванова Е.В.", av: () => `<div class="av ch">${SCALES(22)}</div>`, unread: 2 },
+    { id: "crim", folder: "study", uni: true, type: "channel", owner: "petrov", sec: "Курсы", title: "Уголовное право", sub: () => "Канал курса · Петров А.С.", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#3a2f7a,#1b1550)">${I.book.replace('width="16" height="16"', 'width="22" height="22"')}</div>` },
+    { id: "grp", folder: "study", uni: true, type: "group", sec: "Группа", title: "ЮР-201", sub: () => "Беседа группы · 27 участников", av: () => `<div class="av grp">201</div>`, unread: 5 },
+    { id: "dm", folder: "personal", uni: true, type: "dm", sec: "Личные", title: () => role === "student" ? PEOPLE.teacher.short : PEOPLE.student.name, sub: () => role === "student" ? "Преподаватель · гражданское право" : "Студентка · ЮР-201", av: () => avatar(other()) },
+    { id: "friend", folder: "personal", peer: "friend", type: "chat", sec: "Личные", title: "Сергей Белов", sub: () => "Обычная переписка", av: () => avatar("friend") },
+    { id: "dean", folder: "uni", uni: true, type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Объявления для студентов и сотрудников", av: () => `<div class="av dean">${SCALES(22)}</div>` },
+    { id: "spec", folder: "uni", peer: "spec", uni: true, type: "chat", sec: "Факультет", title: "Учебный офис", sub: () => "Кузнецова М.А. · каб. 104 · пн–пт 10–17", av: () => avatar("spec"), unread: 1, reply: "<p>Спасибо, получила. Отвечу в часы работы учебного офиса.</p>" },
+    { id: "news", folder: "uni", type: "channel", owner: "dean", sec: "Открыто для всех", title: "РГУП · новости", sub: () => "Публичный канал факультета", av: () => `<div class="av dean" style="background:linear-gradient(135deg,#2b6a8f,#173d5e)">${MASCOT(28)}</div>` },
+    { id: "zoo", folder: "uni", type: "channel", owner: "dean", sec: "Открыто для всех", title: "Киприда в зоопарке", sub: () => "Новости о нашей подопечной", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#16348a)">${MASCOT(30)}</div>` },
+    { id: "clinic", folder: "uni", type: "clinic", sec: "Открыто для всех", title: "Юридическая клиника", sub: () => role === "guest" ? "Бесплатная консультация от студентов-юристов" : "Вопросы граждан · ответы под контролем преподавателя", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#5a46a8)">${SCALES(22)}</div>`, unread: 1 },
   ];
   const titleOf = (c) => typeof c.title === "function" ? c.title() : c.title;
 
@@ -613,6 +688,11 @@
     dean: [
       { day: "Понедельник" },
       { from: "dean", time: "12:00", cls: "announce", html: "<p><b>Деканат юридического факультета</b></p><p>Запись на юридическую клинику открыта до 25 октября. Студенты 2–4 курсов могут консультировать граждан под руководством преподавателей.</p>" },
+    ],
+    spec: [
+      { day: "Сегодня" },
+      { from: "spec", to: "student", time: "10:15", html: "<p>Анна, здравствуйте! Справка об обучении готова — заберите в каб. 104, пн–пт с 10:00 до 17:00 (обед 13:00–14:00).</p>" },
+      { from: "spec", to: "teacher", time: "10:20", html: "<p>Елена Викторовна, добрый день! Напоминаю: ведомость по группе ЮР-201 нужно сдать до пятницы, каб. 104.</p>" },
     ],
     friend: [
       { day: "Вчера" },
@@ -679,14 +759,12 @@
   // ===== Рендер списка =====
   let currentId = null;
   function renderMe() {
-    const p = PEOPLE[role];
-    $("#me-card").innerHTML = `${avatar(role)}<div class="who"><b>${esc(p.name)}</b><span>${esc(p.sub)}</span></div>${verified() ? TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 20) : ""}`;
-    document.querySelectorAll(".role-switch button").forEach(b => b.classList.toggle("on", b.dataset.role === role));
-    const rs = $(".role-switch"); rs.dataset.r = role; rs.style.setProperty("--i", ["guest", "student", "teacher"].indexOf(role));
+    $("#meBtn").innerHTML = avatar(role, "sm");
+    $("#demoBtn").innerHTML = `<span class="dm-l">ДЕМО · </span>${{ guest: "Без статуса", student: "Студент", teacher: "Препод." }[role]} ▾`;
   }
   function lastText(c) {
     if (c.id === "ai") return MSGS.ai.length ? strip(MSGS.ai[MSGS.ai.length - 1].html) : c.sub();
-    const arr = (MSGS[c.id] || []).filter(m => m.html);
+    const arr = (MSGS[c.id] || []).filter(m => m.html && (!m.to || m.to === role));
     return arr.length ? strip(arr[arr.length - 1].html) : c.sub();
   }
   const strip = (h) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -699,30 +777,160 @@
         <div class="ci-meta">${c.pinned ? I.pin : ""}${c.unread ? `<span class="unread${c.muted ? " muted" : ""}">${c.unread}</span>` : ""}</div></div></div>`;
   }
   function renderList() {
+    renderTabbar(); $(".side").dataset.tab = sideTab;
+    $("#search").placeholder = sideTab === "contacts" ? "Поиск по контактам" : verified() ? "Поиск по чатам и курсам" : "Поиск по чатам";
+    if (sideTab === "contacts") { closeMenu(); return renderContacts(); }
+    if (sideTab === "profile") { closeMenu(); return renderProfile(); }
     const q = $("#search").value.trim().toLowerCase();
-    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Каналы курсов, беседа группы, преподаватели и ИИ-помощник «Кипа» — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "", sec = "";
-    if (folder === "study" && !verified()) folder = "all";
+    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Курсы, беседа группы, учебный офис, «Кипа» и слонёнок — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "", sec = "";
+    const fs = visFolders(); if (!fs.includes(folder)) folder = fs[0];
     renderFolders();
-    const vis = chats.filter(c => !(c.uni && !verified()) && (folder === "all" || folderOf(c) === folder) && !(q && !(titleOf(c) + " " + c.sub()).toLowerCase().includes(q)));
+    // каждый чат лежит ровно в одной папке; поиск ищет сразу во всех
+    const vis = chats.filter(c => !c.hidden && !(c.uni && !verified()) && (q ? (titleOf(c) + " " + c.sub()).toLowerCase().includes(q) : folderOf(c) === folder));
     const pinned = vis.filter(c => c.pinned);
     if (pinned.length) { html += `<div class="sec">Закреплено</div>` + pinned.map(itemHtml).join(""); sec = "📌"; }
     vis.filter(c => !c.pinned).forEach(c => { if (c.sec !== sec) { sec = c.sec; html += `<div class="sec">${esc(sec)}</div>`; } html += itemHtml(c); });
     closeMenu();
     $("#list").innerHTML = html || `<div class="empty" style="padding:20px">${q ? "Ничего не найдено" : "В этой папке пока пусто"}</div>`;
   }
-  // Папки: «Учёба» — университетский контур, «Личные» — переписка, «Открытое» — каналы и клиника для всех
-  const FOLDERS = [["all", "Все"], ["study", "Учёба"], ["personal", "Личные"], ["open", "Открытое"]];
-  const folderOf = c => c.type === "dm" || c.type === "chat" ? "personal" : c.uni ? "study" : "open";
-  let folder = "all";
+  // Папки без повторов: «Учёба» — курсы и группа, «Вуз» — деканат, учебный офис и открытые каналы, «Личные» — переписка
+  const FOLDERS = [["study", "Учёба"], ["uni", "Вуз"], ["personal", "Личные"]];
+  const folderOf = c => c.folder || "personal";
+  let folder = "study";
   function renderFolders() {
     const box = $("#folders");
     const vis = FOLDERS.filter(([k]) => k !== "study" || verified());
     box.innerHTML = `<i class="fthumb"></i>` + vis.map(([k, n]) => {
-      const cnt = chats.filter(c => !(c.uni && !verified()) && !c.muted && (k === "all" || folderOf(c) === k)).reduce((a, c) => a + (c.unread || 0), 0);
+      const cnt = chats.filter(c => !c.hidden && !(c.uni && !verified()) && !c.muted && folderOf(c) === k).reduce((a, c) => a + (c.unread || 0), 0);
       return `<button role="tab" data-folder="${k}" class="${k === folder ? "on" : ""}" aria-selected="${k === folder}">${n}${cnt ? `<span class="fb">${cnt}</span>` : ""}</button>`; }).join("");
     requestAnimationFrame(() => { const b = box.querySelector("button.on"), t = box.querySelector(".fthumb"); if (!b || !t) return;
       t.style.setProperty("--fx", b.offsetLeft + "px"); t.style.setProperty("--fw", b.offsetWidth + "px"); });
   }
+
+  // ===== Нижняя панель: Чаты · Контакты · Кипа · Слонёнок · Профиль =====
+  let sideTab = "chats", navOn = "chats";
+  function renderTabbar() {
+    if ((navOn === "ai" || navOn === "pet") && currentId !== navOn) navOn = sideTab;
+    const unread = chats.filter(c => !c.hidden && !c.muted && !(c.uni && !verified())).reduce((a, c) => a + (c.unread || 0), 0);
+    const TABS = [["chats", "Чаты", I.chats], ["contacts", "Контакты", I.users], ["ai", "Кипа", MASCOT(26)], ["pet", "Слонёнок", I.game], ["profile", "Профиль", I.user]];
+    $("#tabbar").innerHTML = TABS.map(([k, n, ic]) => `<button data-act="nav" data-nav="${k}" class="${k === navOn ? "on" : ""}" aria-label="${n}"${k === navOn ? ' aria-current="page"' : ""}><span class="tb-ic">${ic}</span>${n}${k === "chats" && unread ? `<span class="tb-badge">${unread}</span>` : ""}${(k === "ai" || k === "pet") && !verified() ? `<span class="tb-lock">${I.lock}</span>` : ""}</button>`).join("");
+  }
+  function nav(k) {
+    if (k === "ai" || k === "pet") {
+      if (!verified()) { toast("Кипа и слонёнок — после подтверждения статуса"); $("#onb").hidden = false; onbRole(true); return; }
+      navOn = k; return openChat(k);
+    }
+    navOn = k; if (k === sideTab) { $("#list").scrollTop = 0; renderTabbar(); return; }
+    const ks = ["chats", "contacts", "profile"], dir = ks.indexOf(k) > ks.indexOf(sideTab) ? "fx-l" : "fx-r";
+    sideTab = k; $("#search").value = ""; renderList(); buzz(5);
+    const l = $("#list"); l.classList.remove("fx-l", "fx-r"); void l.offsetWidth; l.classList.add(dir); l.scrollTop = 0;
+  }
+
+  // ===== Контакты, друзья, чёрный список =====
+  const FRIENDS = { student: new Set(["max", "friend"]), teacher: new Set(["petrov"]), guest: new Set(["friend"]) };
+  const BLOCKED = { student: new Set(["spam"]), teacher: new Set(), guest: new Set(["spam"]) };
+  const ORGS = {
+    dean: { name: "Деканат юридического факультета", room: "каб. 201", hours: "пн–пт 9:30–17:30", note: "Справки, приказы, вопросы по учебному плану", chat: "dean", label: "канал деканата", ic: () => SCALES(22) },
+    office: { name: "Учебный офис", room: "каб. 104", hours: "пн–пт 10:00–17:00, обед 13–14", note: "Справки об обучении, расписание, ведомости", chat: "spec", label: "чат учебного офиса", ic: () => I.file.replace('width="16" height="16"', 'width="22" height="22"') },
+    clinic: { name: "Юридическая клиника", room: "каб. 115", hours: "пн–чт 12:00–18:00", note: "Бесплатные консультации граждан под контролем преподавателей", chat: "clinic", label: "чат клиники", ic: () => SCALES(22) },
+  };
+  const personLine = k => { const p = PEOPLE[k]; return p.kind === "student" ? `${p.group} · ${p.course}` : p.kind === "teacher" || p.kind === "spec" ? `${p.position} · ${p.room}` : "Обычный аккаунт"; };
+  const kindTag = k => { const p = PEOPLE[k]; return p.kind === "teacher" ? `<span class="role-tag t">ПРЕПОД.</span>` : p.kind === "spec" ? `<span class="role-tag o">СОТРУДНИК</span>` : ""; };
+  function cItem(k) {
+    const p = PEOPLE[k], fr = FRIENDS[role].has(k), bl = BLOCKED[role].has(k);
+    return `<div class="c-item" data-act="prof" data-p="${k}" role="button" tabindex="0">${avatar(k)}<div class="c-body"><div class="c-name"><span>${esc(p.name)}</span>${kindTag(k)}${fr ? `<span class="c-fr" title="В друзьях">★</span>` : ""}</div><div class="c-sub">${bl ? "В чёрном списке" : esc(personLine(k))}</div></div></div>`;
+  }
+  function renderContacts() {
+    const q = $("#search").value.trim().toLowerCase(), fr = [...FRIENDS[role]].filter(k => !BLOCKED[role].has(k));
+    const secs = role === "student" ? [["Друзья", fr], ["Преподаватели", ["teacher", "petrov"]], ["Специалисты", ["spec"]], ["Моя группа · ЮР-201", ["max", "dasha", "ilya"]]]
+      : role === "teacher" ? [["Друзья", fr], ["Коллеги", ["petrov"]], ["Специалисты", ["spec"]], ["Студенты · ЮР-201", ["student", "max", "dasha", "ilya"]]]
+      : [["Друзья", fr]];
+    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Преподаватели и однокурсники</b><p>Списки преподавателей, специалистов и вашей группы откроются после подтверждения статуса.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "";
+    const hit = k => !q || (PEOPLE[k].name + " " + personLine(k)).toLowerCase().includes(q);
+    secs.forEach(([t, ks]) => { ks = ks.filter(k => k !== role && hit(k)); if (ks.length) html += `<div class="sec">${t}</div>` + ks.map(cItem).join(""); });
+    const os = Object.keys(ORGS).filter(k => !q || ORGS[k].name.toLowerCase().includes(q));
+    if (os.length) html += `<div class="sec">Общие контакты вуза</div>` + os.map(k => `<div class="c-item" data-act="org" data-o="${k}" role="button" tabindex="0"><div class="av ch">${ORGS[k].ic()}</div><div class="c-body"><div class="c-name"><span>${esc(ORGS[k].name)}</span></div><div class="c-sub">${esc(ORGS[k].room + " · " + ORGS[k].hours)}</div></div></div>`).join("")
+      + `<p class="pet-note" style="margin:8px 10px 14px">Кабинеты и часы в демо условные.</p>`;
+    $("#list").innerHTML = html || `<div class="empty" style="padding:20px">Никого не найдено</div>`;
+  }
+  // Кто что видит: студенты друг у друга — имя, фамилию, группу и курс; преподаватель у студента — ещё учебные данные;
+  // у преподавателей и специалистов всем в вузе видны должность, часы приёма и кабинет
+  const canSee = k => PEOPLE[k] && (PEOPLE[k].kind === "user" || verified());
+  function infoRows(k) {
+    const p = PEOPLE[k], r = [];
+    if (p.kind === "teacher" || p.kind === "spec") { r.push(["Должность", p.position]); if (p.degree) r.push(["Учёная степень", p.degree]); r.push(["Часы приёма", p.hours], ["Кабинет", p.room]); }
+    else if (p.kind === "student") { r.push(["Группа", p.group], ["Курс", p.course]); if (role === "teacher") r.push(["Направление", p.program], ["Форма обучения", p.form], ["Статус", "подтверждён вузом"]); }
+    else r.push(["Аккаунт", "обычный, без статуса вуза"]);
+    return r;
+  }
+  const rowsHtml = r => r.map(([a, b]) => `<div class="p-row"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join("");
+  const seeNote = k => PEOPLE[k].kind === "student" ? (role === "teacher" ? "Преподаватель видит учебные данные студента. Телефон и почта скрыты." : "Студенты видят друг у друга только имя, фамилию, группу и курс.")
+    : PEOPLE[k].kind === "user" ? "Обычный аккаунт: данные вуза у него не отображаются." : "Часы приёма и кабинет видны всем студентам и сотрудникам вуза.";
+  function profShell(title, sub, body) {
+    APP.classList.add("chat-open"); closePick(); closeWp();
+    $("#main").innerHTML = `<div class="wall wp-law" id="wall"></div><div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button><div class="ch-title"><b><span>${esc(title)}</span></b><small>${esc(sub)}</small></div></div><div class="prof" id="prof">${body}</div>`;
+    renderList();
+  }
+  function openProfile(k) {
+    if (!canSee(k)) return toast("Профиль доступен после подтверждения статуса");
+    const p = PEOPLE[k], fr = FRIENDS[role].has(k), bl = BLOCKED[role].has(k); currentId = "prof:" + k;
+    const tick = p.kind !== "user" ? TICK(p.kind === "student" ? "#2f6fe4" : "#6a7cff", 20) : "";
+    profShell("Профиль", p.short || p.name, `<div class="p-hero">${avatar(k, "xl")}<div class="p-name">${esc(p.name)} ${tick}</div><div class="p-sub">${esc(personLine(k))}</div></div>
+      <div class="p-acts"><button class="btn primary" data-act="dm-with" data-p="${k}">${I.chats.replace('width="22" height="22"', 'width="16" height="16"')} Написать</button>
+        <button class="btn ghost${fr ? " on" : ""}" data-act="friend-tgl" data-p="${k}">${fr ? "✓ В друзьях" : "+ В друзья"}</button>
+        <button class="btn ghost danger" data-act="block-tgl" data-p="${k}">${bl ? "Разблокировать" : "В чёрный список"}</button></div>
+      <div class="p-card">${rowsHtml(infoRows(k))}</div><p class="pet-note p-note">${I.eye} ${seeNote(k)}</p>`);
+  }
+  function openOrg(k) {
+    const o = ORGS[k], c = chats.find(x => x.id === o.chat), ok = c && !(c.uni && !verified()); currentId = "org:" + k;
+    profShell("Контакт вуза", o.name, `<div class="p-hero"><div class="av ch xl">${o.ic().replace(/width="22" height="22"/, 'width="40" height="40"')}</div><div class="p-name">${esc(o.name)}</div><div class="p-sub">${esc(o.note)}</div></div>
+      ${ok ? `<div class="p-acts"><button class="btn primary" data-act="open-chat" data-id="${o.chat}">Открыть ${o.label}</button></div>` : ""}
+      <div class="p-card">${rowsHtml([["Кабинет", o.room], ["Часы работы", o.hours]])}</div><p class="pet-note p-note">Кабинеты и часы в демо условные.</p>`);
+  }
+  function dmWith(k) {
+    if (BLOCKED[role].has(k)) return toast("Сначала уберите из чёрного списка");
+    if (verified() && k === other()) return openChat("dm");
+    const ex = chats.find(c => c.peer === k); if (ex) return openChat(ex.id);
+    const p = PEOPLE[k], id = "u_" + k;
+    chats.push({ id, type: "chat", peer: k, folder: "personal", uni: p.kind !== "user", sec: "Личные", title: p.short || p.name, sub: () => personLine(k), av: () => avatar(k),
+      reply: p.kind === "student" ? "<p>Привет! 👋</p>" : "<p>Получил(а), отвечу в часы приёма.</p>" });
+    MSGS[id] = []; openChat(id);
+  }
+  const peerOf = c => c.id === "dm" ? other() : c.peer;
+  function refreshView() { if (!currentId) return renderList(); const [t, k] = currentId.split(":"); if (t === "prof") openProfile(k); else if (t === "org") openOrg(k); else { openChat(currentId); } }
+
+  // ===== Мой профиль: данные, слонёнок, друзья, чёрный список, настройки =====
+  const SETTINGS = { notif: true, online: true, lite: false, who: "all" };
+  try { SETTINGS.lite = localStorage.getItem("kiprida-lite") === "1"; } catch (e) {}
+  document.documentElement.classList.toggle("lite", SETTINGS.lite);
+  const tgl = (k, t, d) => `<label class="tgl"><span>${t}${d ? `<small>${d}</small>` : ""}</span><input type="checkbox" data-set="${k}"${SETTINGS[k] ? " checked" : ""}><i></i></label>`;
+  function renderProfile() {
+    const p = PEOPLE[role], fr = [...FRIENDS[role]].filter(k => !BLOCKED[role].has(k)), bl = [...BLOCKED[role]];
+    const mini = k => `<div class="p-mini" data-act="prof" data-p="${k}" role="button">${avatar(k, "sm")}<span>${esc(PEOPLE[k].name)}<small>${esc(personLine(k))}</small></span></div>`;
+    let html = `<div class="p-me"><div class="p-hero">${avatar(role, "xl")}<div class="p-name">${esc(p.name)} ${verified() ? TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 20) : ""}</div><div class="p-sub">${esc(p.sub)}</div></div></div>`;
+    if (!verified()) html += `<div class="lock-card"><b>${I.lock} Статус не подтверждён</b><p>Подтвердите статус студента или сотрудника — откроются курсы, «Кипа» и слонёнок.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>`;
+    else {
+      const my = role === "teacher" ? [["Должность", p.position], ["Учёная степень", p.degree], ["Часы приёма", p.hours], ["Кабинет", p.room]] : [["Группа", p.group], ["Курс", p.course], ["Направление", p.program], ["Форма обучения", p.form]];
+      html += `<div class="p-card"><b class="p-h">Мои данные</b>${rowsHtml(my)}${role === "teacher" ? `<button class="btn soft sm p-edit" data-act="edit-hours">Изменить часы и кабинет</button>` : ""}
+        <p class="pet-note p-note" style="margin:10px 0 2px">${I.eye} ${role === "teacher" ? "Студенты видят вашу должность, степень, часы приёма и кабинет." : "Другие студенты видят только имя, фамилию, группу и курс."}</p></div>`;
+      html += `<div class="p-card p-pet" data-act="nav" data-nav="pet" role="button">${MASCOT(46)}<div class="pp-b"><b>Мой слонёнок · уровень ${petLevel()}</b><span>${PET_RANKS[Math.min(petLevel(), PET_RANKS.length) - 1]} · 🔥 серия ${PET.streak} дня</span><div class="pet-bar"><i style="width:${PET.xp % 100}%"></i></div></div><span class="chev">${I.back}</span></div>`;
+    }
+    html += `<div class="p-card"><b class="p-h">Друзья · ${fr.length}</b>${fr.length ? fr.map(mini).join("") : `<p class="pet-note">Пока никого — добавляйте из «Контактов».</p>`}</div>`;
+    html += `<div class="p-card"><b class="p-h">Чёрный список · ${bl.length}</b>${bl.length ? bl.map(k => `<div class="p-mini">${avatar(k, "sm")}<span>${esc(PEOPLE[k].name)}</span><button class="btn ghost sm" data-act="unblock" data-p="${k}">Разблокировать</button></div>`).join("") : `<p class="pet-note">Пусто.</p>`}<p class="pet-note">Заблокированные не могут вам писать и не видят ваш профиль.</p></div>`;
+    html += `<div class="p-card"><b class="p-h">Настройки</b>${tgl("notif", "Уведомления", "Сообщения, задания и объявления")}${tgl("online", "Показывать «в сети»", "")}${tgl("lite", "Облегчённый режим", "Без стеклянных эффектов, живого фона и 3D — для слабых компьютеров и телефонов")}
+      <label class="p-sel"><span>Кто может мне писать</span><select data-set="who">${[["all", "Все"], ["uni", "Вуз и друзья"], ["friends", "Только друзья"]].map(([v, t]) => `<option value="${v}"${SETTINGS.who === v ? " selected" : ""}>${t}</option>`).join("")}</select></label></div>`;
+    html += `<button class="btn ghost p-out" data-act="restart">Выйти · начать демо заново</button>`;
+    $("#list").innerHTML = `<div class="p-wrap">${html}</div>`;
+  }
+  document.addEventListener("change", e => {
+    const k = e.target.dataset && e.target.dataset.set; if (!k) return;
+    SETTINGS[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value; buzz(6);
+    if (k === "lite") { document.documentElement.classList.toggle("lite", SETTINGS.lite); try { localStorage.setItem("kiprida-lite", SETTINGS.lite ? "1" : "0"); } catch (err) {}
+      toast(SETTINGS.lite ? "Облегчённый режим: без стекла, живого фона и 3D" : "Обычный режим со стеклом и анимациями"); }
+    else if (k === "who") toast("Писать вам смогут: " + e.target.selectedOptions[0].textContent.toLowerCase());
+    else toast(SETTINGS[k] ? "Включено" : "Выключено");
+  });
+
   let lastFx = "all";
   function setFolder(k) {
     if (k === folder) return; const ks = FOLDERS.map(f => f[0]), dir = ks.indexOf(k) > ks.indexOf(folder) ? "fx-l" : "fx-r";
@@ -936,6 +1144,7 @@
   const kipaTap = () => toast(["Ту-ту! 🐘", "Кипе приятно 💙", "Решим ещё казус?"][Math.floor(Math.random() * 3)]);
   function useKipa(m) { m.removeAttribute("data-act"); m.removeAttribute("title"); m.innerHTML = ""; m.append(kipa.canvas); $("#petHero").classList.add("is3d"); }
   function mountKipa() {
+    if (SETTINGS.lite) return;   // облегчённый режим: плоский слонёнок без 3D
     loadThree().then(() => { const m = $("#petHero .m"); if (!m || currentId !== "pet") return;
       $("#petHero").classList.add("is3d"); m.innerHTML = ""; kipa = KIPA3D(m, petLevel(), kipaTap); useKipa(m); }).catch(() => {});
   }
@@ -971,7 +1180,7 @@
 
   function openChat(id, opts = {}) {
     const c = chats.find(x => x.id === id); if (!c || (c.uni && !verified())) return;
-    currentId = id; c.unread = 0;
+    currentId = id; c.unread = 0; navOn = id === "ai" || id === "pet" ? id : sideTab;
     document.getElementById("app").classList.add("chat-open");
     if (c.type === "pet") return openPet(c);
     let headExtra = "";
@@ -982,10 +1191,12 @@
     let foot;
     const canWrite = c.type === "ai" || c.type === "group" || c.type === "dm" || c.type === "chat" || c.type === "clinic" || (c.type === "channel" && c.owner === role);
     const ph = c.type === "ai" ? "Спросите о любой норме или казусе…" : c.type === "channel" ? "Объявление для курса…" : c.type === "clinic" ? (verified() ? "Ответ гражданину — проверит преподаватель…" : "Опишите ситуацию — без паспортных данных…") : "Сообщение…";
-    if (canWrite) foot = `<div class="composer"><textarea id="input" rows="1" placeholder="${ph}"></textarea><button class="send" id="send" aria-label="Отправить">${I.send}</button></div>`;
+    const pr = peerOf(c);
+    if (pr && BLOCKED[role].has(pr)) foot = `<div class="readonly">${I.lock}<span>Пользователь в вашем чёрном списке</span><button class="btn ghost" data-act="block-tgl" data-p="${pr}">Разблокировать</button></div>`;
+    else if (canWrite) foot = `<div class="composer"><textarea id="input" rows="1" placeholder="${ph}"></textarea><button class="send" id="send" aria-label="Отправить">${I.send}</button></div>`;
     else foot = `<div class="readonly">${I.lock}<span>В канал пишет только ${c.owner === "dean" ? "деканат" : "преподаватель"}</span>${c.owner === "teacher" ? `<button class="btn ghost" data-act="ask">Задать вопрос лично</button>` : ""}</div>`;
     const chips = c.type === "ai" ? `<div class="chips">${AI.filter(a => !(a.studentOnly && role !== "student") && !(a.teacherOnly && role !== "teacher")).map(a => `<button class="chip" data-q="${esc(a.chip)}">${esc(a.chip)}</button>`).join("")}</div>` : "";
-    $("#main").innerHTML = `${wallHtml(c)}<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"><b><span>${esc(t)}</span>${tick}</b><small>${esc(status)}</small></div>${headExtra}<button class="head-btn icon" data-act="wp" aria-label="Фон чата" title="Фон чата">${I.palette}</button></div>
+    $("#main").innerHTML = `${wallHtml(c)}<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"${peerOf(c) ? ` data-act="prof" data-p="${peerOf(c)}" role="button" title="Открыть профиль" style="cursor:pointer"` : ""}><b><span>${esc(t)}</span>${tick}</b><small>${esc(status)}</small></div>${headExtra}<button class="head-btn icon" data-act="wp" aria-label="Фон чата" title="Фон чата">${I.palette}</button></div>
       <div class="msgs" id="msgs"></div><div class="dock" id="dock"><div id="replyBar"></div>${chips}${foot}</div>`;
     reply = null; watchDock(); watchWall();
     renderMsgs();
@@ -996,7 +1207,7 @@
   }
   function renderMsgs() {
     const c = chats.find(x => x.id === currentId); const box = $("#msgs"); if (!box) return;
-    box.innerHTML = (MSGS[currentId] || []).map((m, i) => [m, i]).filter(([m]) => !m.only || m.only === (verified() ? "uni" : "guest")).map(([m, i]) => bubbleHtml(c, m, i)).join("");
+    box.innerHTML = (MSGS[currentId] || []).map((m, i) => [m, i]).filter(([m]) => (!m.only || m.only === (verified() ? "uni" : "guest")) && (!m.to || m.to === role)).map(([m, i]) => bubbleHtml(c, m, i)).join("");
     box.scrollTop = box.scrollHeight;
   }
   const now = () => new Date().toTimeString().slice(0, 5);
@@ -1035,7 +1246,7 @@
       return;
     }
     push(c.id, { from: role, time: now(), html: `<p>${esc(text).replace(/\n/g, "<br>")}</p>`, seen: c.type === "channel", reply: rq });
-    if (c.type === "chat") later(() => push(c.id, { from: "friend", time: now(), html: "<p>👍</p>" }));
+    if (c.type === "chat") later(() => push(c.id, { from: c.peer || "friend", time: now(), html: c.reply || "<p>👍</p>" }));
     if (c.type === "dm") setTimeout(() => push("dm", { from: other(), time: now(), html: role === "student" ? "<p>Спасибо, посмотрю и отвечу сегодня вечером.</p>" : "<p>Спасибо, Елена Викторовна! 🙏</p>" }), reduce ? 50 : 1600);
     if (c.type === "channel") toast(`Отправлено ${TOTAL} студентам — придёт уведомление`);
   }
@@ -1044,6 +1255,8 @@
     role = r; renderMe();
     const c = chats.find(x => x.id === currentId);
     if (c && c.uni && !verified()) { currentId = null; $("#main").innerHTML = EMPTY; document.getElementById("app").classList.remove("chat-open"); }
+    if (currentId && /^(prof|org):/.test(currentId)) { const k = currentId.slice(5);
+      if (currentId.startsWith("prof:") && !canSee(k)) { currentId = null; $("#main").innerHTML = EMPTY; APP.classList.remove("chat-open"); renderList(); } else refreshView(); return; }
     renderList(); if (currentId) openChat(currentId);
   }
   let toastTimer = null;
@@ -1081,7 +1294,7 @@
   }
 
   // 1) Назад свайпом вправо (телефон): чат едет за пальцем, список выглядывает из-под него
-  function goBack() { APP.classList.remove("chat-open"); currentId = null; closePick(); closeWp(); renderList(); }
+  function goBack() { APP.classList.remove("chat-open"); currentId = null; navOn = sideTab; closePick(); closeWp(); renderList(); }
   gesture($("#main"), ".main", {
     dir: 1, ok: (t, e) => isMobile() && APP.classList.contains("chat-open") && !e.target.closest("textarea, .pet-hero, .chips, .rx-pick, .pet-lvls"),
     start(s) { APP.classList.add("dragging"); s.w = $("#main").offsetWidth; closePick(); },
@@ -1093,6 +1306,7 @@
   let fdrag = false, lpChat = null;
   const visFolders = () => FOLDERS.map(f => f[0]).filter(k => k !== "study" || verified());
   gesture($("#list"), ".list", {
+    ok: () => sideTab === "chats" && !$("#search").value.trim(),
     start(s) {
       fdrag = true; clearTimeout(lpChat); closeMenu();
       const ks = visFolders(), i = ks.indexOf(folder), bs = [...document.querySelectorAll("#folders button")], by = k => bs.find(b => b.dataset.folder === k);
@@ -1133,6 +1347,13 @@
     const stop = ev => { if (ev.type !== "pointermove" || Math.hypot(ev.clientX - x, ev.clientY - y) > 8) { clearTimeout(lpChat); off(); } };
     ["pointermove", "pointerup", "pointercancel"].forEach(t => addEventListener(t, stop));
   });
+  function demoMenu(btn) {
+    closeMenu(); const side = $(".side"), r = btn.getBoundingClientRect(), sr = side.getBoundingClientRect(), el = document.createElement("div");
+    el.className = "ci-menu demo-menu"; el.setAttribute("role", "menu");
+    el.innerHTML = `<small class="dm-h">Смотреть как (для показа)</small>` + [["guest", "Без статуса", I.lock], ["student", "Студент", I.student.replace('width="30" height="30"', 'width="18" height="18"')], ["teacher", "Преподаватель", SCALES(18)]]
+      .map(([k, n, ic]) => `<button data-act="set-role" data-r="${k}"${k === role ? ' class="cur"' : ""}>${ic}${n}${k === role ? " ✓" : ""}</button>`).join("") + `<button data-act="restart">${I.back}Начать демо заново</button>`;
+    side.appendChild(el); el.style.top = r.bottom - sr.top + 6 + "px"; buzz(8);
+  }
   $("#list").addEventListener("contextmenu", e => { const item = e.target.closest(".chat-item"); if (!item) return; e.preventDefault(); chatMenu(item); });
   document.addEventListener("scroll", closeMenu, true);
   document.addEventListener("pointerdown", e => { if (!e.target.closest(".ci-menu")) closeMenu(); if (!e.target.closest(".rx-pick")) closePick(); }, true);
@@ -1247,7 +1468,6 @@
     }
     if (e.target.closest("#send")) return send();
     const chip = e.target.closest("[data-q]"); if (chip) return ask(chip.dataset.q);
-    const rs = e.target.closest(".role-switch button"); if (rs) { setRole(rs.dataset.role); toast(role === "teacher" ? "Теперь вы видите приложение глазами преподавателя" : role === "student" ? "Теперь вы видите приложение глазами студента" : "Обычный аккаунт: университетский раздел закрыт"); return; }
     const a = e.target.closest("[data-act]"); if (!a) return;
     switch (a.dataset.act) {
       case "pet-ans": petAnswer(+a.dataset.k); break;
@@ -1256,6 +1476,18 @@
       case "rx-reply": setReply(+a.parentElement.dataset.i); closePick(); break;
       case "reply-x": reply = null; renderReply(); break;
       case "wp": openWp(); break;
+      case "nav": nav(a.dataset.nav); break;
+      case "prof": openProfile(a.dataset.p); break;
+      case "org": openOrg(a.dataset.o); break;
+      case "open-chat": openChat(a.dataset.id); break;
+      case "dm-with": dmWith(a.dataset.p); break;
+      case "friend-tgl": { const k = a.dataset.p, F = FRIENDS[role]; if (F.has(k)) { F.delete(k); toast(`${PEOPLE[k].name} — удалён(а) из друзей`); } else { F.add(k); BLOCKED[role].delete(k); toast(`${PEOPLE[k].name} — теперь в друзьях`); confettiAt(a, 18); } buzz(); refreshView(); break; }
+      case "block-tgl": { const k = a.dataset.p, B = BLOCKED[role]; if (B.has(k)) { B.delete(k); toast("Убрано из чёрного списка"); } else { B.add(k); FRIENDS[role].delete(k); toast(`${PEOPLE[k].name} — в чёрном списке`); } buzz(); refreshView(); break; }
+      case "unblock": BLOCKED[role].delete(a.dataset.p); buzz(); toast("Убрано из чёрного списка"); renderList(); break;
+      case "edit-hours": toast("В полной версии часы и кабинет меняются здесь — студенты сразу видят обновление"); break;
+      case "demo-roles": demoMenu(a); break;
+      case "set-role": closeMenu(); setRole(a.dataset.r); toast(role === "teacher" ? "Теперь вы видите приложение глазами преподавателя" : role === "student" ? "Теперь вы видите приложение глазами студента" : "Обычный аккаунт: университетский раздел закрыт"); break;
+      case "restart": closeMenu(); $("#onb").hidden = false; onbWelcome(); break;
       case "wp-x": closeWp(true); break;
       case "wp-set": setWp(a.dataset.k); break;
       case "ci-pin": { const c = chats.find(x => x.id === a.dataset.id); c.pinned = !c.pinned; buzz(); renderList(); toast(c.pinned ? "Чат закреплён наверху 📌" : "Чат откреплён"); break; }
@@ -1277,6 +1509,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.target.id === "input" && e.key === "Enter" && !e.shiftKey && matchMedia("(pointer: fine)").matches) { e.preventDefault(); send(); }
     if (e.key === "Enter" && e.target.classList.contains("chat-item")) openChat(e.target.dataset.id);
+    if (e.key === "Enter" && e.target.classList.contains("c-item")) e.target.click();
     if (e.key === "Escape") { if ($("#sheet")) closeWp(true); else if ($(".rx-pick")) closePick(); else if (reply) { reply = null; renderReply(); } }
   });
   document.addEventListener("input", (e) => {
@@ -1290,25 +1523,10 @@
   const ONB_BACK = to => `<button class="onb-back" data-onb="${to}" aria-label="Назад">${I.back}</button>`;
   let onbV = false, slideTimer = null;
   function onbWelcome() {
-    const SL = [
-      [SCALES(26), "Учёба в одном месте", "Каналы курсов, задания и сдача работ — без потерянных сообщений"],
-      [MASCOT(34), "Кипа объяснит", "ИИ-помощник разбирает нормы и казусы — всегда со ссылкой на статью"],
-      [`<span style="font-size:26px">🐘</span>`, "Слонёнок растёт", "Решайте «Казус дня», копите опыт и открывайте награды"],
-      [TICK("#6a7cff", 28), "Выбор за вами", "Мессенджер открыт всем, университетский раздел — после подтверждения статуса"],
-    ];
+    stopSlides();
     card.innerHTML = `<div class="hero-orb">${MASCOT(92)}</div><h1 class="brandname">Киприда</h1><p class="sub">Мессенджер РГУП им. В.М. Лебедева</p>
-      <div class="slides" id="slides">${SL.map(([ic, t, d]) => `<div class="slide"><i>${ic}</i><b>${t}</b><span>${d}</span></div>`).join("")}</div>
-      <div class="dots" id="dots">${SL.map((_, k) => `<button data-slide="${k}" class="${k ? "" : "on"}" aria-label="Слайд ${k + 1}"></button>`).join("")}</div>
-      <button class="big btn primary" data-onb="role" style="justify-content:center">Войти</button>
+      <button class="big btn primary" data-onb="role" style="justify-content:center;margin-top:28px">Войти</button>
       <button class="linkish" data-onb="skip">Пропустить — сразу к демо</button>`;
-    const sl = $("#slides"), go = k => sl.scrollTo({ left: k * sl.clientWidth, behavior: reduce ? "auto" : "smooth" });
-    sl.addEventListener("scroll", () => { const k = Math.round(sl.scrollLeft / sl.clientWidth); document.querySelectorAll("#dots button").forEach((d, j) => d.classList.toggle("on", j === k)); }, { passive: true });
-    $("#dots").addEventListener("click", e => { const d = e.target.closest("[data-slide]"); if (d) { stopSlides(); go(+d.dataset.slide); } });
-    // мышью слайды тоже можно тянуть
-    let mx = null; sl.addEventListener("pointerdown", e => { if (e.pointerType === "mouse") { mx = { x: e.clientX, l: sl.scrollLeft }; stopSlides(); } });
-    addEventListener("pointerup", e => { if (!mx) return; const dx = e.clientX - mx.x; const k = Math.round(mx.l / sl.clientWidth) + (dx < -40 ? 1 : dx > 40 ? -1 : 0); mx = null; go(Math.max(0, Math.min(SL.length - 1, k))); }, { once: false });
-    sl.addEventListener("touchstart", stopSlides, { passive: true });
-    stopSlides(); if (!reduce) slideTimer = setInterval(() => { if (!document.body.contains(sl)) return stopSlides(); const k = (Math.round(sl.scrollLeft / sl.clientWidth) + 1) % SL.length; go(k); }, 3800);
   }
   function stopSlides() { clearInterval(slideTimer); slideTimer = null; }
   function onbRole(verifyOnly = false) {
@@ -1368,7 +1586,6 @@
     const b = e.target.closest("[data-onb]"); if (!b) return;
     ({ role: () => onbRole(), welcome: onbWelcome, back: () => onbRole(onbV), close: () => { $("#onb").hidden = true; }, guest: onbGuest, enterGuest: () => { role = "guest"; enterApp(); }, form: () => onbForm(b.dataset.r), check: onbCheck, enter: enterApp, skip: enterApp })[b.dataset.onb]();
   });
-  $("#restart").addEventListener("click", () => { $("#onb").hidden = false; onbWelcome(); });
 
   // Фон входа: всплывают символы права и слонята
   $("#onbBg").innerHTML = Array.from({ length: 16 }, (_, k) => { const keys = ["scales", "book", "cap", "gavel", "ele", "sect", "spark", "leaf"], sz = 22 + (k * 37) % 36;
