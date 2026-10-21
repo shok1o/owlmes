@@ -25,8 +25,7 @@
   input, select, textarea { font: inherit; color: var(--text); }
 
   /* ===== Каркас ===== */
-  #app { display: flex; height: 100dvh; max-width: 1280px; margin: 0 auto; background: var(--bg-panel); }
-  @media (min-width: 900px) { #app { height: calc(100dvh - 40px); margin-top: 20px; border-radius: 22px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0,0,0,.5); } }
+  #app { display: flex; height: 100dvh; background: var(--bg-panel); overflow: hidden; }
   .side { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-panel); }
   .main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-chat); position: relative; }
   /* Телефон: список и чат лежат друг на друге, чат выезжает справа и уходит свайпом назад */
@@ -204,7 +203,7 @@
   @keyframes blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
   @keyframes tassel { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
   @keyframes petHop { 0% { transform: translateY(0); } 35% { transform: translateY(-22px) scale(1.04, .96); } 70% { transform: translateY(0) scale(1.06, .94); } 100% { transform: none; } }
-  @keyframes petFloat { 0%,100% { transform: perspective(400px) translateY(0) rotateY(-12deg); } 50% { transform: perspective(400px) translateY(-8px) rotateY(12deg); } }
+  @keyframes petFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
   .pet-hero .m svg { transform: perspective(400px) rotateY(var(--ry, 0deg)) rotateX(var(--rx, 0deg)); filter: drop-shadow(var(--sx, 0px) 10px 12px rgba(0,0,0,.45)) brightness(var(--br, 1)); }
   .pet-shadow { width: 70px; height: 10px; margin-top: -4px; border-radius: 50%; background: radial-gradient(rgba(0,0,0,.55), transparent 70%); animation: petShadow 3.2s ease-in-out infinite; }
   @keyframes petShadow { 0%,100% { transform: scaleX(1); opacity: .9; } 50% { transform: scaleX(.75); opacity: .55; } }
@@ -243,8 +242,12 @@
   .glass, .chat-head, .composer, .readonly, .reply-bar, .chip, .toast, .onb-card, .rx-pick { -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
 
   #app { background: rgba(8,16,40,.30); }
-  @media (min-width: 900px) { #app { border: 1px solid var(--glass-brd); border-radius: 28px; box-shadow: 0 40px 100px -20px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.12); } .side { position: relative; } }
+  @media (min-width: 900px) { .side { position: relative; } }
   .side { background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); border-right-color: rgba(170,200,255,.1); }
+  /* Телефон: список и так на весь экран — размытие фона под ним не видно, а кадры съедает */
+  @media (max-width: 899px) { .side { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(12,24,58,.88); } html body::before, html body::after { animation: none !important; } }
+  body.swiping::before, body.swiping::after, body.swiping .wall::before, body.swiping .wall::after { animation-play-state: paused !important; }
+  .list, .main, .side { will-change: transform; }
   .main { background: radial-gradient(70% 50% at 85% 0%, rgba(47,111,228,.22), transparent 70%), radial-gradient(60% 50% at 0% 100%, rgba(106,124,255,.18), transparent 70%), rgba(5,10,26,.72); }
   @media (max-width: 899px) { .main { background: radial-gradient(70% 50% at 85% 0%, rgba(47,111,228,.22), transparent 70%), radial-gradient(60% 50% at 0% 100%, rgba(106,124,255,.18), transparent 70%), #060d22; } }
   .side-foot { border-top-color: rgba(170,200,255,.1); }
@@ -528,6 +531,33 @@
   html.lite body::before, html.lite body::after, html.lite .wall::before, html.lite .wall::after, html.lite #onb::before, html.lite .onb-card::before, html.lite .hero-orb::before { animation: none !important; }
   html.lite .onb-bg { display: none; }
   html.lite .side, html.lite .chat-head, html.lite .composer, html.lite .readonly, html.lite .chip, html.lite .toast, html.lite .onb-card, html.lite .rx-pick, html.lite .ci-menu, html.lite .sheet, html.lite .reply-bar { background: #10204a; }
+  /* ===== Заставка игры «Мой слонёнок» ===== */
+  .pet-splash { position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; overflow: hidden;
+    background: radial-gradient(80% 60% at 50% 38%, #1d3a8a 0%, #0b1638 55%, #050a1c 100%); animation: fadeIn .3s; }
+  .pet-splash.out { animation: psOut .55s var(--out) forwards; pointer-events: none; }
+  @keyframes psOut { to { opacity: 0; transform: scale(1.08); } }
+  .ps-rings { position: absolute; left: 50%; top: 40%; }
+  .ps-rings i { position: absolute; left: 0; top: 0; width: 120px; height: 120px; border-radius: 50%; border: 1.5px solid rgba(143,180,255,.35); transform: translate(-50%, -50%) scale(1); animation: psRing 3.3s ease-out infinite; }
+  .ps-rings i:nth-child(2) { animation-delay: 1.1s; } .ps-rings i:nth-child(3) { animation-delay: 2.2s; }
+  @keyframes psRing { from { transform: translate(-50%, -50%) scale(1); opacity: .9; } to { transform: translate(-50%, -50%) scale(4.6); opacity: 0; } }
+  .ps-stars b { position: absolute; left: var(--x); top: var(--y); width: 4px; height: 4px; border-radius: 50%; background: #cfe0ff; box-shadow: 0 0 8px #8fb4ff; transform: scale(var(--s)); opacity: .15; animation: psTw 2.4s ease-in-out var(--d) infinite; }
+  @keyframes psTw { 50% { opacity: 1; } }
+  .ps-hero { position: relative; animation: psPop .9s var(--spring) both; }
+  .ps-hero::before { content: ""; position: absolute; inset: -34px; border-radius: 50%; z-index: -1; background: conic-gradient(from var(--a), #2f6fe4, #8fb4ff, #6a7cff, #2f6fe4); filter: blur(30px); opacity: .55; animation: spinA 6s linear infinite; }
+  .ps-hero svg { display: block; animation: bob 3s ease-in-out .9s infinite; }
+  @keyframes psPop { 0% { transform: scale(.2) translateY(70px); opacity: 0; } 55% { opacity: 1; } 100% { transform: none; } }
+  .ps-title { font-size: 30px; margin: 16px 0 0; background: linear-gradient(180deg, #fff 30%, #8fb4ff); -webkit-background-clip: text; background-clip: text; color: transparent; animation: psRise .6s var(--out) .35s both; }
+  .ps-sub { color: #c3d0f0; margin: 0; font-size: 15px; animation: psRise .6s var(--out) .5s both; }
+  .ps-bar { width: 200px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; margin: 22px 0 8px; animation: psRise .6s var(--out) .6s both; }
+  .ps-bar i { display: block; height: 100%; width: 88%; border-radius: 3px; background: linear-gradient(90deg, #2f6fe4, #8fb4ff); transform-origin: left; animation: psLoad 2s cubic-bezier(.2,.7,.3,1) both; transition: width .35s; }
+  .pet-splash.ready .ps-bar i { width: 100%; }
+  @keyframes psLoad { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .ps-tip { font-size: 13px; color: var(--muted); margin: 0; max-width: 300px; animation: psRise .6s var(--out) .7s both; }
+  .ps-go { max-width: 240px; margin-top: 18px; justify-content: center; opacity: 0; transform: translateY(10px) scale(.95); pointer-events: none; transition: opacity .4s, transform .5s var(--spring); }
+  .pet-splash.ready .ps-go { opacity: 1; transform: none; pointer-events: auto; }
+  .pet-splash.quick .ps-go, .pet-splash.quick .ps-tip { display: none; }
+  @keyframes psRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .pet-splash *, .pet-splash *::before, .pet-splash { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -864,6 +894,8 @@
     return r;
   }
   const rowsHtml = r => r.map(([a, b]) => `<div class="p-row"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join("");
+  // в чёрный список — только обычные аккаунты и однокурсники; преподавателей и сотрудников вуза блокировать нельзя
+  const canBlock = k => PEOPLE[k].kind === "user" || (PEOPLE[k].kind === "student" && role !== "teacher");
   const seeNote = k => PEOPLE[k].kind === "student" ? (role === "teacher" ? "Преподаватель видит учебные данные студента. Телефон и почта скрыты." : "Студенты видят друг у друга только имя, фамилию, группу и курс.")
     : PEOPLE[k].kind === "user" ? "Обычный аккаунт: данные вуза у него не отображаются." : "Часы приёма и кабинет видны всем студентам и сотрудникам вуза.";
   function profShell(title, sub, body) {
@@ -878,8 +910,9 @@
     profShell("Профиль", p.short || p.name, `<div class="p-hero">${avatar(k, "xl")}<div class="p-name">${esc(p.name)} ${tick}</div><div class="p-sub">${esc(personLine(k))}</div></div>
       <div class="p-acts"><button class="btn primary" data-act="dm-with" data-p="${k}">${I.chats.replace('width="22" height="22"', 'width="16" height="16"')} Написать</button>
         <button class="btn ghost${fr ? " on" : ""}" data-act="friend-tgl" data-p="${k}">${fr ? "✓ В друзьях" : "+ В друзья"}</button>
-        <button class="btn ghost danger" data-act="block-tgl" data-p="${k}">${bl ? "Разблокировать" : "В чёрный список"}</button></div>
-      <div class="p-card">${rowsHtml(infoRows(k))}</div><p class="pet-note p-note">${I.eye} ${seeNote(k)}</p>`);
+        ${canBlock(k) ? `<button class="btn ghost danger" data-act="block-tgl" data-p="${k}">${bl ? "Разблокировать" : "В чёрный список"}</button>` : ""}</div>
+      <div class="p-card">${rowsHtml(infoRows(k))}</div><p class="pet-note p-note">${I.eye} ${seeNote(k)}</p>
+      ${canBlock(k) ? "" : `<p class="pet-note p-note">${I.lock} ${p.kind === "student" ? "Студентов вуза заблокировать нельзя — при нарушениях обращайтесь в деканат." : "Преподавателей и сотрудников вуза заблокировать нельзя. Чтобы не отвлекаться, выключите уведомления: удерживайте чат в списке."}</p>`}`);
   }
   function openOrg(k) {
     const o = ORGS[k], c = chats.find(x => x.id === o.chat), ok = c && !(c.uni && !verified()); currentId = "org:" + k;
@@ -1082,18 +1115,20 @@
       pet.add(m);
     });
     // Вращение пальцем/мышью; нажатие — Кипа машет ножкой
-    let rotY = 0.35, vel = 0, drag = null, moved = 0;
+    const REST = 0.35; let rotY = REST, vel = 0, drag = null, moved = 0;   // REST — исходный поворот, к нему Кипа возвращается
     const el = renderer.domElement; el.style.touchAction = "none";
     el.addEventListener("pointerdown", e => { drag = e.clientX; moved = 0; el.setPointerCapture(e.pointerId); });
     el.addEventListener("pointermove", e => { if (drag === null) return; const d = e.clientX - drag; drag = e.clientX; moved += Math.abs(d); vel = d * 0.01; rotY += vel; });
-    el.addEventListener("pointerup", () => { if (moved < 5) { play(Math.random() < 0.5 ? "Wave" : "Happy"); onTap && onTap(); } drag = null; });
+    const release = () => { if (drag === null) return; if (moved < 5) { play(Math.random() < 0.5 ? "Wave" : "Happy"); onTap && onTap(); }
+      drag = null; vel = 0; rotY = REST + Math.atan2(Math.sin(rotY - REST), Math.cos(rotY - REST)); };   // кратчайший путь назад, без лишних оборотов
+    el.addEventListener("pointerup", release); el.addEventListener("pointercancel", release);
     const resize = () => { const w = host.clientWidth || 300, h = host.clientHeight || 260; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     addEventListener("resize", resize); resize();
     const api = { canvas: el, alive: true, setLevel, react: kind => { react(kind); if (kind === "joy") play("Happy"); } };
     const clock = new THREE.Clock();
     (function loop() {
       const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-      if (drag === null) { rotY += vel; vel *= 0.94; if (Math.abs(vel) < 0.001 && !reduce) rotY += 0.003; }
+      if (drag === null) { vel += (REST - rotY) * 0.09; vel *= 0.74; rotY += vel; }   // пружинка к исходному положению
       pet.rotation.y = rotY;
       scaleNow += (sizeOf(level) - scaleNow) * 0.08; pet.scale.setScalar(scaleNow);
       if (K) {
@@ -1143,11 +1178,27 @@
   let kipa = null;
   const kipaTap = () => toast(["Ту-ту! 🐘", "Кипе приятно 💙", "Решим ещё казус?"][Math.floor(Math.random() * 3)]);
   function useKipa(m) { m.removeAttribute("data-act"); m.removeAttribute("title"); m.innerHTML = ""; m.append(kipa.canvas); $("#petHero").classList.add("is3d"); }
-  function mountKipa() {
-    if (SETTINGS.lite) return;   // облегчённый режим: плоский слонёнок без 3D
-    loadThree().then(() => { const m = $("#petHero .m"); if (!m || currentId !== "pet") return;
+  function mountKipa() {   // возвращает обещание: заставка ждёт, пока загрузится 3D (но не дольше 5 с)
+    if (SETTINGS.lite) return Promise.resolve();   // облегчённый режим: плоский слонёнок без 3D
+    const p = loadThree().then(() => { const m = $("#petHero .m"); if (!m || currentId !== "pet") return;
       $("#petHero").classList.add("is3d"); m.innerHTML = ""; kipa = KIPA3D(m, petLevel(), kipaTap); useKipa(m); }).catch(() => {});
+    return Promise.race([p, new Promise(ok => setTimeout(ok, 5000))]);
   }
+  // Заставка игры: при первом входе ждём «Играть», при следующих — короткая и исчезает сама
+  let petSplashSeen = false;
+  const PS_TIPS = ["Решайте «Казус дня» — слонёнок растёт вместе с вами", "Серия дней подряд даёт бонус опыта 🔥", "На каждом уровне — новая награда: от шарфика РГУП до молотка судьи", "Нажмите на слонёнка — он помашет вам"];
+  function petSplash() {
+    const first = !petSplashSeen, lv = petLevel(); petSplashSeen = true;
+    const el = document.createElement("div"); el.className = "pet-splash" + (first ? "" : " quick"); el.id = "petSplash";
+    el.innerHTML = `<div class="ps-rings"><i></i><i></i><i></i></div><div class="ps-stars">${Array.from({ length: 16 }, (_, k) => `<b style="--x:${(k * 37 + 5) % 100}%;--y:${(k * 53 + 11) % 100}%;--d:${(k % 6) * .4}s;--s:${.6 + (k % 3) * .35}"></b>`).join("")}</div>
+      <div class="ps-hero">${MASCOT(132)}</div><h2 class="ps-title">Мой слонёнок</h2><p class="ps-sub">Уровень ${lv} · ${PET_RANKS[Math.min(lv, PET_RANKS.length) - 1]} · 🔥 ${PET.streak}</p>
+      <div class="ps-bar"><i></i></div><p class="ps-tip">${PS_TIPS[Math.floor(Math.random() * PS_TIPS.length)]}</p>
+      <button class="big btn primary ps-go" data-act="ps-go">Играть</button>`;
+    el.addEventListener("click", e => { if (el.classList.contains("ready") && !e.target.closest(".ps-go")) closeSplash(); });
+    $("#main").appendChild(el);
+    return { el, first };
+  }
+  function closeSplash() { const el = $("#petSplash"); if (!el || el.classList.contains("out")) return; el.classList.add("out"); buzz(8); setTimeout(() => el.remove(), 560); }
   function openPet(c) {
     $("#main").innerHTML = `${wallHtml(c)}<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"><b><span>${esc(c.title)}</span></b><small>Питомец растёт, когда вы решаете казусы</small></div></div><div class="pet" id="pet">${petHtml()}</div>`;
     // Объём: слонёнок поворачивается вслед за курсором или пальцем
@@ -1156,7 +1207,12 @@
     box.addEventListener("pointermove", e => { const sv = $("#petHero svg"); if (!sv) return; const r = sv.getBoundingClientRect(), k = v => Math.max(-1, Math.min(1, v / 180));
       tilt(k(e.clientX - r.left - r.width / 2), k(e.clientY - r.top - r.height / 2)); });
     box.addEventListener("pointerleave", () => tilt(0, 0));
-    kipa = null; mountKipa(); watchWall();
+    kipa = null; const sp = petSplash(), t0 = performance.now();
+    mountKipa().then(() => setTimeout(() => {
+      if (!sp.el.isConnected) return; sp.el.classList.add("ready");
+      if (!sp.first) setTimeout(closeSplash, 350);
+    }, Math.max(0, (reduce ? 200 : sp.first ? 1500 : 550) - (performance.now() - t0))));
+    watchWall();
     renderList();
   }
   function petShowLevel(l) {   // демо-переключатель: сразу показать нужный уровень
@@ -1283,11 +1339,11 @@
           if (Math.abs(s.dy) > 10 && Math.abs(s.dy) > Math.abs(s.dx)) return stop();
           if (Math.abs(s.dx) < 10) return;
           if (h.dir && Math.sign(s.dx) !== h.dir) return stop();
-          s.on = true; h.start && h.start(s);
+          s.on = true; document.body.classList.add("swiping"); h.start && h.start(s);
         }
-        h.move(s);
+        if (!s.raf) s.raf = requestAnimationFrame(() => { s.raf = 0; if (s.on) h.move(s); });   // не чаще одного кадра
       };
-      const end = ev => { stop(); if (s.on) { swallowClick(); h.end(s, ev.type === "pointercancel"); } };
+      const end = ev => { stop(); if (s.on) { cancelAnimationFrame(s.raf); s.raf = 0; h.move(s); document.body.classList.remove("swiping"); swallowClick(); h.end(s, ev.type === "pointercancel"); } };
       const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", end); removeEventListener("pointercancel", end); };
       addEventListener("pointermove", move); addEventListener("pointerup", end); addEventListener("pointercancel", end);
     });
@@ -1476,13 +1532,14 @@
       case "rx-reply": setReply(+a.parentElement.dataset.i); closePick(); break;
       case "reply-x": reply = null; renderReply(); break;
       case "wp": openWp(); break;
+      case "ps-go": closeSplash(); break;
       case "nav": nav(a.dataset.nav); break;
       case "prof": openProfile(a.dataset.p); break;
       case "org": openOrg(a.dataset.o); break;
       case "open-chat": openChat(a.dataset.id); break;
       case "dm-with": dmWith(a.dataset.p); break;
       case "friend-tgl": { const k = a.dataset.p, F = FRIENDS[role]; if (F.has(k)) { F.delete(k); toast(`${PEOPLE[k].name} — удалён(а) из друзей`); } else { F.add(k); BLOCKED[role].delete(k); toast(`${PEOPLE[k].name} — теперь в друзьях`); confettiAt(a, 18); } buzz(); refreshView(); break; }
-      case "block-tgl": { const k = a.dataset.p, B = BLOCKED[role]; if (B.has(k)) { B.delete(k); toast("Убрано из чёрного списка"); } else { B.add(k); FRIENDS[role].delete(k); toast(`${PEOPLE[k].name} — в чёрном списке`); } buzz(); refreshView(); break; }
+      case "block-tgl": { const k = a.dataset.p, B = BLOCKED[role]; if (!B.has(k) && !canBlock(k)) break; if (B.has(k)) { B.delete(k); toast("Убрано из чёрного списка"); } else { B.add(k); FRIENDS[role].delete(k); toast(`${PEOPLE[k].name} — в чёрном списке`); } buzz(); refreshView(); break; }
       case "unblock": BLOCKED[role].delete(a.dataset.p); buzz(); toast("Убрано из чёрного списка"); renderList(); break;
       case "edit-hours": toast("В полной версии часы и кабинет меняются здесь — студенты сразу видят обновление"); break;
       case "demo-roles": demoMenu(a); break;
