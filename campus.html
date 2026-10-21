@@ -1115,7 +1115,7 @@
       pet.add(m);
     });
     // Вращение пальцем/мышью; нажатие — Кипа машет ножкой
-    const REST = 0.35; let rotY = REST, vel = 0, drag = null, moved = 0;   // REST — исходный поворот, к нему Кипа возвращается
+    const REST = 0; let rotY = REST, vel = 0, drag = null, moved = 0;   // REST — исходный поворот, к нему Кипа возвращается
     const el = renderer.domElement; el.style.touchAction = "none";
     el.addEventListener("pointerdown", e => { drag = e.clientX; moved = 0; el.setPointerCapture(e.pointerId); });
     el.addEventListener("pointermove", e => { if (drag === null) return; const d = e.clientX - drag; drag = e.clientX; moved += Math.abs(d); vel = d * 0.01; rotY += vel; });
@@ -1128,7 +1128,7 @@
     const clock = new THREE.Clock();
     (function loop() {
       const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-      if (drag === null) { vel += (REST - rotY) * 0.09; vel *= 0.74; rotY += vel; }   // пружинка к исходному положению
+      if (drag === null) rotY += (REST - rotY) * (1 - Math.exp(-dt * 3.2));   // плавно, без рывка, ~1 с до исходного положения
       pet.rotation.y = rotY;
       scaleNow += (sizeOf(level) - scaleNow) * 0.08; pet.scale.setScalar(scaleNow);
       if (K) {
