@@ -386,6 +386,10 @@
   .folders .fb { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
   .folders button:not(.on) .fb { background: rgba(143,180,255,.25); }
   .list.fx-l { animation: fxL .4s var(--out); } .list.fx-r { animation: fxR .4s var(--out); }
+  /* Лента папок: все списки рядом, едут за пальцем; у каждой папки свой вертикальный скролл */
+  .list.pager { overflow: hidden; padding: 0; }
+  .list.pager .track { display: flex; height: 100%; will-change: transform; }
+  .list.pager .pane { flex: 0 0 100%; min-width: 100%; height: 100%; overflow-y: auto; padding: 0 8px 16px; touch-action: pan-y; overscroll-behavior: contain; }
   @keyframes fxL { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
   @keyframes fxR { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 
@@ -842,19 +846,38 @@
   function renderList() {
     renderTabbar(); $(".side").dataset.tab = sideTab;
     $("#search").placeholder = sideTab === "contacts" ? "Поиск по контактам" : verified() ? "Поиск по чатам и курсам" : "Поиск по чатам";
+    if (sideTab !== "chats") $("#list").classList.remove("pager");   // лента — только в чатах
     if (sideTab === "contacts") { closeMenu(); return renderContacts(); }
     if (sideTab === "profile") { closeMenu(); return renderProfile(); }
     const q = $("#search").value.trim().toLowerCase();
-    let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Курсы, беседа группы, учебный офис, «Кипа» и слонёнок — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "", sec = "";
     const fs = visFolders(); if (!fs.includes(folder)) folder = fs[0];
     renderFolders();
-    // каждый чат лежит ровно в одной папке; поиск ищет сразу во всех
-    const vis = chats.filter(c => shown(c) && (q ? (titleOf(c) + " " + c.sub()).toLowerCase().includes(q) : folderOf(c) === folder));
-    const pinned = vis.filter(c => c.pinned);
-    if (pinned.length) { html += `<div class="sec">Закреплено</div>` + pinned.map(itemHtml).join(""); sec = "📌"; }
-    vis.filter(c => !c.pinned).forEach(c => { if (c.sec !== sec) { sec = c.sec; html += `<div class="sec">${esc(sec)}</div>`; } html += itemHtml(c); });
+    // список одной папки (или результатов поиска): закреплённые сверху, дальше по разделам
+    const listHtml = (arr, empty) => {
+      let h = "", sec = ""; const pinned = arr.filter(c => c.pinned);
+      if (pinned.length) { h += `<div class="sec">Закреплено</div>` + pinned.map(itemHtml).join(""); sec = "📌"; }
+      arr.filter(c => !c.pinned).forEach(c => { if (c.sec !== sec) { sec = c.sec; h += `<div class="sec">${esc(sec)}</div>`; } h += itemHtml(c); });
+      return h || `<div class="empty" style="padding:20px">${empty}</div>`;
+    };
     closeMenu();
-    $("#list").innerHTML = html || `<div class="empty" style="padding:20px">${q ? "Ничего не найдено" : "В этой папке пока пусто"}</div>`;
+    const L = $("#list");
+    // поиск ищет сразу во всех папках — обычный список
+    if (q) { L.classList.remove("pager"); L.innerHTML = listHtml(chats.filter(c => shown(c) && (titleOf(c) + " " + c.sub()).toLowerCase().includes(q)), "Ничего не найдено"); return; }
+    // лента: все папки рядом, у каждой свой скролл (позиция сохраняется при обновлении)
+    const keep = {}; L.querySelectorAll(".pane").forEach(pn => { keep[pn.dataset.f] = pn.scrollTop; });
+    const lock = role === "guest" ? `<div class="lock-card"><b>${I.lock} Университетский раздел</b><p>Курсы, беседа группы, учебный офис, «Кипа» и слонёнок — после подтверждения статуса студента или сотрудника вуза.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "";
+    L.classList.add("pager");
+    L.innerHTML = `<div class="track">${fs.map((f, i) => `<div class="pane" data-f="${f}">${i === 0 ? lock : ""}${listHtml(chats.filter(c => shown(c) && folderOf(c) === f), "В этой папке пока пусто")}</div>`).join("")}</div>`;
+    L.querySelectorAll(".pane").forEach(pn => { if (keep[pn.dataset.f]) pn.scrollTop = keep[pn.dataset.f]; });
+    setTrack(false);
+  }
+  // Сдвинуть ленту к текущей папке (с плавным торможением или сразу)
+  function setTrack(animate) {
+    const t = $("#list .track"); if (!t) return;
+    const i = Math.max(0, visFolders().indexOf(folder));
+    t.style.transition = animate && !reduce ? "transform .42s cubic-bezier(.22,1,.36,1)" : "none";
+    t.style.transform = `translateX(${-i * 100}%)`;
+    t.querySelectorAll(".pane").forEach(pn => { const on = pn.dataset.f === folder; pn.classList.toggle("on", on); pn.setAttribute("aria-hidden", on ? "false" : "true"); });
   }
   // Папки без повторов: «Учёба» — курсы и группа, «Вуз» — деканат, учебный офис и открытые каналы, «Личные» — переписка
   const FOLDERS = [["study", "Учёба"], ["uni", "Вуз"], ["personal", "Личные"]];
@@ -1021,13 +1044,12 @@
 
   let lastFx = "all";
   function setFolder(k) {
-    if (k === folder) return; const ks = FOLDERS.map(f => f[0]), dir = ks.indexOf(k) > ks.indexOf(folder) ? "fx-l" : "fx-r";
-    // бегунок переезжает с прежней позиции: сохраняем её до перерисовки
+    if (k === folder) return;
+    // бегунок переезжает с прежней позиции: сохраняем её до перерисовки вкладок
     const old = $("#folders .fthumb"), fx = old && old.style.getPropertyValue("--fx"), fw = old && old.style.getPropertyValue("--fw");
-    folder = k; renderList(); buzz(5);
+    folder = k; renderFolders(); setTrack(true); buzz(5);
     const t = $("#folders .fthumb"); if (t && fx) { t.style.transition = "none"; t.style.setProperty("--fx", fx); t.style.setProperty("--fw", fw); void t.offsetWidth; t.style.transition = "";
       const b = $("#folders button.on"); t.style.setProperty("--fx", b.offsetLeft + "px"); t.style.setProperty("--fw", b.offsetWidth + "px"); }
-    const l = $("#list"); l.classList.remove("fx-l", "fx-r"); void l.offsetWidth; l.classList.add(dir); l.scrollTop = 0;
   }
 
   // ===== Рендер чата =====
@@ -1417,26 +1439,28 @@
   let fdrag = false, lpChat = null;
   const visFolders = () => FOLDERS.map(f => f[0]).filter(k => k !== "study" || verified());
   gesture($("#list"), ".list", {
-    ok: () => sideTab === "chats" && !$("#search").value.trim(),
+    ok: () => sideTab === "chats" && $("#list").classList.contains("pager"),
     start(s) {
       fdrag = true; clearTimeout(lpChat); closeMenu();
-      const ks = visFolders(), i = ks.indexOf(folder), bs = [...document.querySelectorAll("#folders button")], by = k => bs.find(b => b.dataset.folder === k);
-      s.prev = ks[i - 1]; s.next = ks[i + 1]; s.w = $("#list").offsetWidth; s.cur = by(folder); s.bp = by(s.prev); s.bn = by(s.next);
-      s.th = $("#folders .fthumb"); s.th.style.transition = "none"; $("#list").style.transition = "none";
+      const ks = visFolders(), bs = [...document.querySelectorAll("#folders button")], by = k => bs.find(b => b.dataset.folder === k);
+      s.ks = ks; s.i = ks.indexOf(folder); s.w = $("#list").offsetWidth; s.cur = by(folder); s.bp = by(ks[s.i - 1]); s.bn = by(ks[s.i + 1]);
+      s.track = $("#list .track"); s.track.style.transition = "none";
+      s.th = $("#folders .fthumb"); s.th.style.transition = "none";
     },
     move(s) {
-      let x = s.dx; const nb = x < 0 ? s.next : s.prev; if (!nb) x = x < 0 ? -rub(-x, 60) : rub(x, 60);
-      const l = $("#list"); l.style.transform = `translateX(${x}px)`; l.style.opacity = 1 - Math.min(.5, Math.abs(x) / s.w);
-      const tb = x < 0 ? s.bn : s.bp, k = Math.min(1, Math.abs(x) / s.w);
+      let x = s.dx; const can = x < 0 ? s.i < s.ks.length - 1 : s.i > 0;
+      if (!can) x = x < 0 ? -rub(-x, 70) : rub(x, 70);                      // у края — «резинка»
+      s.track.style.transform = `translateX(${-s.i * s.w + x}px)`;
+      const tb = x < 0 ? s.bn : s.bp, k = Math.min(1, Math.abs(x) / s.w);   // бегунок папок перетекает вместе с лентой
       if (tb && s.cur) { s.th.style.setProperty("--fx", s.cur.offsetLeft + (tb.offsetLeft - s.cur.offsetLeft) * k + "px"); s.th.style.setProperty("--fw", s.cur.offsetWidth + (tb.offsetWidth - s.cur.offsetWidth) * k + "px"); }
-      const arm = !!nb && Math.abs(x) > s.w * .22; if (arm !== !!s.arm) { s.arm = arm; if (arm) buzz(); }
+      const arm = can && Math.abs(x) > s.w * .22; if (arm !== !!s.arm) { s.arm = arm; if (arm) buzz(); }
     },
     end(s, cancel) {
-      const l = $("#list"), nb = s.dx < 0 ? s.next : s.prev; fdrag = false; s.th.style.transition = "";
-      if (!cancel && nb && (Math.abs(s.dx) > s.w * .22 || Math.abs(s.v) > .45)) {
-        l.style.transition = "transform .18s ease-in, opacity .18s"; l.style.transform = `translateX(${s.dx < 0 ? -s.w * .5 : s.w * .5}px)`; l.style.opacity = 0;
-        setTimeout(() => { l.style.transition = l.style.transform = l.style.opacity = ""; setFolder(nb); }, 170);
-      } else { l.style.transition = l.style.transform = l.style.opacity = ""; renderFolders(); }
+      fdrag = false; s.th.style.transition = "";
+      const can = s.dx < 0 ? s.i < s.ks.length - 1 : s.i > 0;
+      const go = !cancel && can && (Math.abs(s.dx) > s.w * .22 || Math.abs(s.v) > .35);
+      if (go) setFolder(s.ks[s.i + (s.dx < 0 ? 1 : -1)]);
+      else { setTrack(true); renderFolders(); }
     }
   });
   // Меню чата: долгое нажатие (телефон) или правый клик (компьютер)
@@ -1474,7 +1498,8 @@
     const list = $("#list"), ind = document.createElement("div"); ind.className = "ptr"; ind.innerHTML = MASCOT(30); list.before(ind);
     let p = null, busy = false;
     const set = dy => { list.style.transform = dy ? `translateY(${dy}px)` : ""; ind.style.opacity = Math.min(1, dy / 56); ind.style.transform = `translate(-50%, ${dy / 2 - 18}px) rotate(${dy * 4}deg)`; };
-    const start = y => { if (list.scrollTop > 0 || busy) return; p = { y0: y, dy: 0 }; ind.style.top = list.offsetTop + "px"; };
+    const scroller = () => list.querySelector(".pane.on") || list;
+    const start = y => { if (scroller().scrollTop > 0 || busy) return; p = { y0: y, dy: 0 }; ind.style.top = list.offsetTop + "px"; };
     const move = (y, ev) => { if (!p) return; if (fdrag || p.cancel) { p.cancel = true; return; } const d = y - p.y0; if (d <= 0) { if (p.dy) set(0); p.dy = 0; return; }
       if (ev.cancelable) ev.preventDefault(); list.style.transition = ind.style.transition = "none"; p.dy = rub(d, 150); set(p.dy);
       const arm = p.dy > 60; if (arm !== !!p.arm) { p.arm = arm; if (arm) buzz(); } };
