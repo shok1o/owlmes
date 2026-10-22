@@ -101,7 +101,7 @@
   .msgs { flex: 1; overflow-y: auto; padding: 18px 16px 10px; display: flex; flex-direction: column; gap: 6px;
           background-image: radial-gradient(rgba(140,170,255,.07) 1px, transparent 1px); background-size: 26px 26px; }
   .day { align-self: center; font-size: 12px; color: var(--muted); background: rgba(12,22,48,.85); padding: 4px 10px; border-radius: 10px; margin: 8px 0; }
-  .row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; animation: in .25s ease both; }
+  .row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; animation: in .25s ease backwards; }
   .row.me { justify-content: flex-end; }
   @keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .row, .typing i { animation: none !important; } }
@@ -312,7 +312,7 @@
   .row[data-i]::after { content: ""; position: absolute; right: -40px; top: 50%; width: 30px; height: 30px; margin-top: -15px; border-radius: 50%; pointer-events: none;
     background: rgba(143,180,255,.18) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fb4ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 14 4 9 9 4'/%3E%3Cpath d='M20 20v-7a4 4 0 0 0-4-4H4'/%3E%3C/svg%3E") center/16px no-repeat;
     opacity: var(--rp, 0); transform: scale(calc(.5 + var(--rp, 0) * .5)); }
-  .row.new { animation: pop .5s var(--spring) both; transform-origin: 0 100%; } .row.me.new { transform-origin: 100% 100%; }
+  .row.new { animation: pop .5s var(--spring) backwards; transform-origin: 0 100%; } .row.me.new { transform-origin: 100% 100%; }
   .row.still { animation: none; }
   @keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.85); } to { opacity: 1; transform: none; } }
   .quote { border-left: 2px solid var(--light); background: rgba(143,180,255,.12); border-radius: 8px; padding: 4px 8px; margin: 2px 0 6px; font-size: 13px; }
@@ -558,6 +558,29 @@
   .pet-splash.quick .ps-go, .pet-splash.quick .ps-tip { display: none; }
   @keyframes psRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { .pet-splash *, .pet-splash *::before, .pet-splash { animation: none !important; } }
+  /* ===== Профиль: вкладки «Медиа · Файлы · Ссылки» ===== */
+  .p-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.06); margin-bottom: 10px; }
+  .p-tabs button { flex: 1; padding: 7px 6px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); transition: background .25s, color .25s; }
+  .p-tabs button.on { background: rgba(143,180,255,.2); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.2); }
+  .p-tabs small { opacity: .7; }
+  .p-mediac .pm { display: none; }
+  .p-mediac[data-t="m"] .pm-m, .p-mediac[data-t="f"] .pm-f, .p-mediac[data-t="l"] .pm-l { display: block; animation: psRise .35s var(--out); }
+  .pm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .pm-ph { aspect-ratio: 1; border-radius: 12px; display: grid; place-items: center; font-size: 28px; box-shadow: var(--rim); }
+  .pm-file { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(170,200,255,.08); font-size: 14px; font-weight: 600; }
+  .pm-file svg { color: var(--light); flex-shrink: 0; }
+  .pm-file span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .pm-file small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .pm-empty { color: var(--muted); font-size: 13px; padding: 10px 0; }
+  .p-chat { margin-left: auto; padding: 7px; border-radius: 50%; }
+  /* ===== Канал «Расписание» ===== */
+  .sched { display: grid; gap: 6px; margin-top: 6px; }
+  .sched .sr { display: grid; grid-template-columns: 78px 1fr; gap: 8px; padding: 7px 9px; border-radius: 10px; background: rgba(255,255,255,.06); font-size: 14px; }
+  .sched .sr b { color: var(--light); font-weight: 700; }
+  .sched i { color: var(--muted); font-style: normal; font-size: 12.5px; }
+  /* ===== Режим «Только пилот» ===== */
+  .demo-badge.pilot { color: #9fe0b8; border-color: rgba(52,199,123,.5); background: rgba(52,199,123,.12); }
+  .demo-menu .pilot-tgl small { display: block; font-weight: 400; font-size: 11.5px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -571,9 +594,8 @@
 <div id="app">
   <aside class="side" data-tab="chats">
     <div class="side-top">
-      <div class="brand"><span id="logo-sm"></span><div><b>Киприда</b><small>РГУП им. В.М. Лебедева</small></div></div>
+      <div class="brand"><button class="me-btn" id="meBtn" data-act="nav" data-nav="profile" aria-label="Мой профиль"></button><div><b>Киприда</b><small>РГУП им. В.М. Лебедева</small></div></div>
       <button class="demo-badge" id="demoBtn" data-act="demo-roles" aria-haspopup="menu" title="Для показа: посмотреть глазами разных людей">ДЕМО</button>
-      <button class="me-btn" id="meBtn" data-act="nav" data-nav="profile" aria-label="Мой профиль"></button>
     </div>
     <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.6" y2="16.6"/></svg><input id="search" placeholder="Поиск по чатам" autocomplete="off"></div>
     <div class="folders" id="folders" role="tablist" aria-label="Папки"></div>
@@ -645,9 +667,11 @@
     users: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>`,
     user: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
     game: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="13" r="1" fill="currentColor"/><circle cx="18" cy="11" r="1" fill="currentColor"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 5 19c1 0 2-.5 2.6-1.4L9 16h6l1.4 1.6A3 3 0 0 0 22 15.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
+    cal: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    media: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    link: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`,
     reply: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>`,
   };
-  $("#logo-sm").innerHTML = MASCOT(36);
   $("#logo-big").innerHTML = MASCOT(72);
   const EMPTY = $("#main").innerHTML;
 
@@ -684,6 +708,7 @@
     { id: "friend", folder: "personal", peer: "friend", type: "chat", sec: "Личные", title: "Сергей Белов", sub: () => "Обычная переписка", av: () => avatar("friend") },
     { id: "dean", folder: "uni", uni: true, type: "channel", owner: "dean", sec: "Факультет", title: "Деканат", sub: () => "Объявления для студентов и сотрудников", av: () => `<div class="av dean">${SCALES(22)}</div>` },
     { id: "spec", folder: "uni", peer: "spec", uni: true, type: "chat", sec: "Факультет", title: "Учебный офис", sub: () => "Кузнецова М.А. · каб. 104 · пн–пт 10–17", av: () => avatar("spec"), unread: 1, reply: "<p>Спасибо, получила. Отвечу в часы работы учебного офиса.</p>" },
+    { id: "sched", folder: "uni", uni: true, type: "channel", owner: "spec", sec: "Факультет", title: "Расписание", sub: () => role === "teacher" ? "Учебный офис · ваши занятия" : "Учебный офис · группа ЮР-201", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f8f9a,#175a6e)">${I.cal}</div>`, unread: 1 },
     { id: "news", folder: "uni", type: "channel", owner: "dean", sec: "Открыто для всех", title: "РГУП · новости", sub: () => "Публичный канал факультета", av: () => `<div class="av dean" style="background:linear-gradient(135deg,#2b6a8f,#173d5e)">${MASCOT(28)}</div>` },
     { id: "zoo", folder: "uni", type: "channel", owner: "dean", sec: "Открыто для всех", title: "Киприда в зоопарке", sub: () => "Новости о нашей подопечной", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#16348a)">${MASCOT(30)}</div>` },
     { id: "clinic", folder: "uni", type: "clinic", sec: "Открыто для всех", title: "Юридическая клиника", sub: () => role === "guest" ? "Бесплатная консультация от студентов-юристов" : "Вопросы граждан · ответы под контролем преподавателя", av: () => `<div class="av ch" style="background:linear-gradient(135deg,#2f6fe4,#5a46a8)">${SCALES(22)}</div>`, unread: 1 },
@@ -723,6 +748,13 @@
       { day: "Сегодня" },
       { from: "spec", to: "student", time: "10:15", html: "<p>Анна, здравствуйте! Справка об обучении готова — заберите в каб. 104, пн–пт с 10:00 до 17:00 (обед 13:00–14:00).</p>" },
       { from: "spec", to: "teacher", time: "10:20", html: "<p>Елена Викторовна, добрый день! Напоминаю: ведомость по группе ЮР-201 нужно сдать до пятницы, каб. 104.</p>" },
+    ],
+    sched: [
+      { day: "Понедельник" },
+      { from: "spec", to: "student", time: "08:00", html: `<p><b>Расписание на неделю · ЮР-201</b></p><div class="sched"><div class="sr"><b>Пн 10:30</b><span>Гражданское право · лекция<br><i>ауд. 210 · Иванова Е.В.</i></span></div><div class="sr"><b>Пн 12:20</b><span>Уголовное право · лекция<br><i>ауд. 221 · Петров А.С.</i></span></div><div class="sr"><b>Ср 10:30</b><span>Гражданское право · семинар<br><i>ауд. 412 · Иванова Е.В.</i></span></div><div class="sr"><b>Чт 12:20</b><span>Уголовное право · семинар<br><i>ауд. 305 · Петров А.С.</i></span></div><div class="sr"><b>Пт 09:00</b><span>Контрольная: деликты<br><i>ауд. 412 · Иванова Е.В.</i></span></div></div>` },
+      { from: "spec", to: "teacher", time: "08:00", html: `<p><b>Ваши занятия на неделю</b></p><div class="sched"><div class="sr"><b>Пн 10:30</b><span>ЮР-201 · лекция<br><i>ауд. 210</i></span></div><div class="sr"><b>Вт 14:00</b><span>Часы приёма<br><i>каб. 318</i></span></div><div class="sr"><b>Ср 10:30</b><span>ЮР-201 · семинар<br><i>ауд. 412</i></span></div><div class="sr"><b>Пт 09:00</b><span>ЮР-201 · контрольная<br><i>ауд. 412</i></span></div></div>` },
+      { day: "Сегодня" },
+      { from: "spec", time: "09:30", cls: "announce", html: "<p><b>Изменение</b></p><p>Семинар по гражданскому праву в среду — в ауд. 412 (вместо 305).</p>" },
     ],
     friend: [
       { day: "Вчера" },
@@ -790,7 +822,8 @@
   let currentId = null;
   function renderMe() {
     $("#meBtn").innerHTML = avatar(role, "sm");
-    $("#demoBtn").innerHTML = `<span class="dm-l">ДЕМО · </span>${{ guest: "Без статуса", student: "Студент", teacher: "Препод." }[role]} ▾`;
+    $("#demoBtn").classList.toggle("pilot", pilot);
+    $("#demoBtn").innerHTML = `<span class="dm-l">${pilot ? "ПИЛОТ" : "ДЕМО"} · </span>${{ guest: "Без статуса", student: "Студент", teacher: "Препод." }[role]} ▾`;
   }
   function lastText(c) {
     if (c.id === "ai") return MSGS.ai.length ? strip(MSGS.ai[MSGS.ai.length - 1].html) : c.sub();
@@ -816,7 +849,7 @@
     const fs = visFolders(); if (!fs.includes(folder)) folder = fs[0];
     renderFolders();
     // каждый чат лежит ровно в одной папке; поиск ищет сразу во всех
-    const vis = chats.filter(c => !c.hidden && !(c.uni && !verified()) && (q ? (titleOf(c) + " " + c.sub()).toLowerCase().includes(q) : folderOf(c) === folder));
+    const vis = chats.filter(c => shown(c) && (q ? (titleOf(c) + " " + c.sub()).toLowerCase().includes(q) : folderOf(c) === folder));
     const pinned = vis.filter(c => c.pinned);
     if (pinned.length) { html += `<div class="sec">Закреплено</div>` + pinned.map(itemHtml).join(""); sec = "📌"; }
     vis.filter(c => !c.pinned).forEach(c => { if (c.sec !== sec) { sec = c.sec; html += `<div class="sec">${esc(sec)}</div>`; } html += itemHtml(c); });
@@ -831,7 +864,7 @@
     const box = $("#folders");
     const vis = FOLDERS.filter(([k]) => k !== "study" || verified());
     box.innerHTML = `<i class="fthumb"></i>` + vis.map(([k, n]) => {
-      const cnt = chats.filter(c => !c.hidden && !(c.uni && !verified()) && !c.muted && folderOf(c) === k).reduce((a, c) => a + (c.unread || 0), 0);
+      const cnt = chats.filter(c => shown(c) && !c.muted && folderOf(c) === k).reduce((a, c) => a + (c.unread || 0), 0);
       return `<button role="tab" data-folder="${k}" class="${k === folder ? "on" : ""}" aria-selected="${k === folder}">${n}${cnt ? `<span class="fb">${cnt}</span>` : ""}</button>`; }).join("");
     requestAnimationFrame(() => { const b = box.querySelector("button.on"), t = box.querySelector(".fthumb"); if (!b || !t) return;
       t.style.setProperty("--fx", b.offsetLeft + "px"); t.style.setProperty("--fw", b.offsetWidth + "px"); });
@@ -839,14 +872,18 @@
 
   // ===== Нижняя панель: Чаты · Контакты · Кипа · Слонёнок · Профиль =====
   let sideTab = "chats", navOn = "chats";
+  // «Только пилот» — ровно то, что входит в пилот по документу преподавателя: без ИИ, игры, друзей, открытой части и свободной регистрации
+  let pilot = false;
+  const shown = c => !c.hidden && !(c.uni && !verified()) && !(pilot && !c.uni);
   function renderTabbar() {
     if ((navOn === "ai" || navOn === "pet") && currentId !== navOn) navOn = sideTab;
-    const unread = chats.filter(c => !c.hidden && !c.muted && !(c.uni && !verified())).reduce((a, c) => a + (c.unread || 0), 0);
-    const TABS = [["chats", "Чаты", I.chats], ["contacts", "Контакты", I.users], ["ai", "Кипа", MASCOT(26)], ["pet", "Слонёнок", I.game], ["profile", "Профиль", I.user]];
+    const unread = chats.filter(c => shown(c) && !c.muted).reduce((a, c) => a + (c.unread || 0), 0);
+    const TABS = [["chats", "Чаты", I.chats], ["contacts", "Контакты", I.users], ["ai", "Кипа", MASCOT(26)], ["pet", "Слонёнок", I.game], ["profile", "Профиль", I.user]].filter(([k]) => !pilot || (k !== "ai" && k !== "pet"));
     $("#tabbar").innerHTML = TABS.map(([k, n, ic]) => `<button data-act="nav" data-nav="${k}" class="${k === navOn ? "on" : ""}" aria-label="${n}"${k === navOn ? ' aria-current="page"' : ""}><span class="tb-ic">${ic}</span>${n}${k === "chats" && unread ? `<span class="tb-badge">${unread}</span>` : ""}${(k === "ai" || k === "pet") && !verified() ? `<span class="tb-lock">${I.lock}</span>` : ""}</button>`).join("");
   }
   function nav(k) {
     if (k === "ai" || k === "pet") {
+      if (pilot) return;
       if (!verified()) { toast("Кипа и слонёнок — после подтверждения статуса"); $("#onb").hidden = false; onbRole(true); return; }
       navOn = k; return openChat(k);
     }
@@ -872,13 +909,14 @@
   }
   function renderContacts() {
     const q = $("#search").value.trim().toLowerCase(), fr = [...FRIENDS[role]].filter(k => !BLOCKED[role].has(k));
+    if (pilot) fr.length = 0;   // в пилоте друзей нет — только участники по спискам
     const secs = role === "student" ? [["Друзья", fr], ["Преподаватели", ["teacher", "petrov"]], ["Специалисты", ["spec"]], ["Моя группа · ЮР-201", ["max", "dasha", "ilya"]]]
       : role === "teacher" ? [["Друзья", fr], ["Коллеги", ["petrov"]], ["Специалисты", ["spec"]], ["Студенты · ЮР-201", ["student", "max", "dasha", "ilya"]]]
       : [["Друзья", fr]];
     let html = role === "guest" && !q ? `<div class="lock-card"><b>${I.lock} Преподаватели и однокурсники</b><p>Списки преподавателей, специалистов и вашей группы откроются после подтверждения статуса.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>` : "";
     const hit = k => !q || (PEOPLE[k].name + " " + personLine(k)).toLowerCase().includes(q);
     secs.forEach(([t, ks]) => { ks = ks.filter(k => k !== role && hit(k)); if (ks.length) html += `<div class="sec">${t}</div>` + ks.map(cItem).join(""); });
-    const os = Object.keys(ORGS).filter(k => !q || ORGS[k].name.toLowerCase().includes(q));
+    const os = Object.keys(ORGS).filter(k => !(pilot && k === "clinic") && (!q || ORGS[k].name.toLowerCase().includes(q)));
     if (os.length) html += `<div class="sec">Общие контакты вуза</div>` + os.map(k => `<div class="c-item" data-act="org" data-o="${k}" role="button" tabindex="0"><div class="av ch">${ORGS[k].ic()}</div><div class="c-body"><div class="c-name"><span>${esc(ORGS[k].name)}</span></div><div class="c-sub">${esc(ORGS[k].room + " · " + ORGS[k].hours)}</div></div></div>`).join("")
       + `<p class="pet-note" style="margin:8px 10px 14px">Кабинеты и часы в демо условные.</p>`;
     $("#list").innerHTML = html || `<div class="empty" style="padding:20px">Никого не найдено</div>`;
@@ -908,11 +946,28 @@
     const p = PEOPLE[k], fr = FRIENDS[role].has(k), bl = BLOCKED[role].has(k); currentId = "prof:" + k;
     const tick = p.kind !== "user" ? TICK(p.kind === "student" ? "#2f6fe4" : "#6a7cff", 20) : "";
     profShell("Профиль", p.short || p.name, `<div class="p-hero">${avatar(k, "xl")}<div class="p-name">${esc(p.name)} ${tick}</div><div class="p-sub">${esc(personLine(k))}</div></div>
-      <div class="p-acts"><button class="btn primary" data-act="dm-with" data-p="${k}">${I.chats.replace('width="22" height="22"', 'width="16" height="16"')} Написать</button>
-        <button class="btn ghost${fr ? " on" : ""}" data-act="friend-tgl" data-p="${k}">${fr ? "✓ В друзьях" : "+ В друзья"}</button>
-        ${canBlock(k) ? `<button class="btn ghost danger" data-act="block-tgl" data-p="${k}">${bl ? "Разблокировать" : "В чёрный список"}</button>` : ""}</div>
-      <div class="p-card">${rowsHtml(infoRows(k))}</div><p class="pet-note p-note">${I.eye} ${seeNote(k)}</p>
-      ${canBlock(k) ? "" : `<p class="pet-note p-note">${I.lock} ${p.kind === "student" ? "Студентов вуза заблокировать нельзя — при нарушениях обращайтесь в деканат." : "Преподавателей и сотрудников вуза заблокировать нельзя. Чтобы не отвлекаться, выключите уведомления: удерживайте чат в списке."}</p>`}`);
+      <div class="p-acts"><button class="btn primary" data-act="dm-with" data-p="${k}">${I.chats.replace('width="22" height="22"', 'width="16" height="16"')} Чат</button>
+        <button class="btn ghost" data-act="p-media">${I.media} Медиа</button>
+        ${pilot ? "" : `<button class="btn ghost${fr ? " on" : ""}" data-act="friend-tgl" data-p="${k}">${fr ? "✓ В друзьях" : "+ В друзья"}</button>`}
+        ${!pilot && canBlock(k) ? `<button class="btn ghost danger" data-act="block-tgl" data-p="${k}">${bl ? "Разблокировать" : "В чёрный список"}</button>` : ""}</div>
+      <div class="p-card">${rowsHtml(infoRows(k))}</div>${mediaCard(k)}<p class="pet-note p-note">${I.eye} ${seeNote(k)}</p>
+      ${canBlock(k) || pilot ? "" : `<p class="pet-note p-note">${I.lock} ${p.kind === "student" ? "Студентов вуза заблокировать нельзя — при нарушениях обращайтесь в деканат." : "Преподавателей и сотрудников вуза заблокировать нельзя. Чтобы не отвлекаться, выключите уведомления: удерживайте чат в списке."}</p>`}`);
+  }
+  // Общие медиа, файлы и ссылки из переписки с человеком (в демо — примеры)
+  const MEDIA = k => { const p = PEOPLE[k];
+    if (k === "friend") return { photos: [["🎳", "#2f6fe4", "#6a7cff"], ["🍕", "#5a46a8", "#2f6fe4"], ["🎉", "#2b6a8f", "#6a7cff"], ["📍", "#1c48b0", "#2b8fd6"]], files: [], links: [["Место встречи — на карте", "maps.yandex.ru"]] };
+    if (p.kind === "teacher") return { photos: [["📋", "#1d3f9a", "#2f6fe4"], ["⚖️", "#3b4f96", "#6a7cff"]], files: k === "petrov" ? [["Пленум_ВС_29_хищения.pdf", "310 КБ", "вчера"], ["Вопросы_к_семинару.pdf", "120 КБ", "14 окт"]] : [["Задание_казус3.docx", "48 КБ", "18 окт"], ["Вопросы_деликты.pdf", "210 КБ", "15 окт"]], links: [["ГК РФ и УК РФ — официальные тексты", "pravo.gov.ru"]] };
+    if (p.kind === "spec") return { photos: [], files: [["Справка_об_обучении.pdf", "120 КБ", "сегодня"], ["Расписание_ЮР-201.pdf", "90 КБ", "пн"]], links: [] };
+    return { photos: [["📝", "#2f6fe4", "#1c48b0"], ["📚", "#6a4bb5", "#2f6fe4"], ["🖊️", "#2b6a8f", "#2f6fe4"]], files: [["Конспект_ст1064.docx", "36 КБ", "вчера"]], links: [["Статья 1064 ГК РФ", "pravo.gov.ru"]] };
+  };
+  function mediaCard(k) {
+    const m = MEDIA(k), none = t => `<div class="pm-empty">${t}</div>`;
+    const tabs = [["m", "Медиа", m.photos.length], ["f", "Файлы", m.files.length], ["l", "Ссылки", m.links.length]];
+    return `<div class="p-card p-mediac" id="pmedia" data-t="m"><div class="p-tabs" role="tablist">${tabs.map(([t, n, c]) => `<button role="tab" data-act="p-tab" data-t="${t}" class="${t === "m" ? "on" : ""}">${n} <small>${c}</small></button>`).join("")}</div>
+      <div class="pm pm-m">${m.photos.length ? `<div class="pm-grid">${m.photos.map(([e, c1, c2]) => `<div class="pm-ph" style="background:linear-gradient(135deg,${c1},${c2})">${e}</div>`).join("")}</div>` : none("Общих фото пока нет")}</div>
+      <div class="pm pm-f">${m.files.length ? m.files.map(([n, sz, d]) => `<div class="pm-file">${I.file}<span>${esc(n)}<small>${sz} · ${d}</small></span></div>`).join("") : none("Общих файлов пока нет")}</div>
+      <div class="pm pm-l">${m.links.length ? m.links.map(([t, u]) => `<div class="pm-file">${I.link}<span>${esc(t)}<small>${u}</small></span></div>`).join("") : none("Общих ссылок пока нет")}</div>
+      <p class="pet-note" style="margin:8px 0 0">Демо: примеры общих файлов из переписки.</p></div>`;
   }
   function openOrg(k) {
     const o = ORGS[k], c = chats.find(x => x.id === o.chat), ok = c && !(c.uni && !verified()); currentId = "org:" + k;
@@ -939,17 +994,17 @@
   const tgl = (k, t, d) => `<label class="tgl"><span>${t}${d ? `<small>${d}</small>` : ""}</span><input type="checkbox" data-set="${k}"${SETTINGS[k] ? " checked" : ""}><i></i></label>`;
   function renderProfile() {
     const p = PEOPLE[role], fr = [...FRIENDS[role]].filter(k => !BLOCKED[role].has(k)), bl = [...BLOCKED[role]];
-    const mini = k => `<div class="p-mini" data-act="prof" data-p="${k}" role="button">${avatar(k, "sm")}<span>${esc(PEOPLE[k].name)}<small>${esc(personLine(k))}</small></span></div>`;
+    const mini = k => `<div class="p-mini" data-act="prof" data-p="${k}" role="button">${avatar(k, "sm")}<span>${esc(PEOPLE[k].name)}<small>${esc(personLine(k))}</small></span><button class="btn ghost p-chat" data-act="dm-with" data-p="${k}" aria-label="Написать ${esc(PEOPLE[k].name)}" title="Открыть чат">${I.chats.replace('width="22" height="22"', 'width="16" height="16"')}</button></div>`;
     let html = `<div class="p-me"><div class="p-hero">${avatar(role, "xl")}<div class="p-name">${esc(p.name)} ${verified() ? TICK(role === "teacher" ? "#6a7cff" : "#2f6fe4", 20) : ""}</div><div class="p-sub">${esc(p.sub)}</div></div></div>`;
     if (!verified()) html += `<div class="lock-card"><b>${I.lock} Статус не подтверждён</b><p>Подтвердите статус студента или сотрудника — откроются курсы, «Кипа» и слонёнок.</p><button class="btn primary" data-act="verify">Подтвердить статус</button></div>`;
     else {
       const my = role === "teacher" ? [["Должность", p.position], ["Учёная степень", p.degree], ["Часы приёма", p.hours], ["Кабинет", p.room]] : [["Группа", p.group], ["Курс", p.course], ["Направление", p.program], ["Форма обучения", p.form]];
       html += `<div class="p-card"><b class="p-h">Мои данные</b>${rowsHtml(my)}${role === "teacher" ? `<button class="btn soft sm p-edit" data-act="edit-hours">Изменить часы и кабинет</button>` : ""}
         <p class="pet-note p-note" style="margin:10px 0 2px">${I.eye} ${role === "teacher" ? "Студенты видят вашу должность, степень, часы приёма и кабинет." : "Другие студенты видят только имя, фамилию, группу и курс."}</p></div>`;
-      html += `<div class="p-card p-pet" data-act="nav" data-nav="pet" role="button">${MASCOT(46)}<div class="pp-b"><b>Мой слонёнок · уровень ${petLevel()}</b><span>${PET_RANKS[Math.min(petLevel(), PET_RANKS.length) - 1]} · 🔥 серия ${PET.streak} дня</span><div class="pet-bar"><i style="width:${PET.xp % 100}%"></i></div></div><span class="chev">${I.back}</span></div>`;
+      // слонёнок живёт в нижней панели — в профиле его больше нет
     }
-    html += `<div class="p-card"><b class="p-h">Друзья · ${fr.length}</b>${fr.length ? fr.map(mini).join("") : `<p class="pet-note">Пока никого — добавляйте из «Контактов».</p>`}</div>`;
-    html += `<div class="p-card"><b class="p-h">Чёрный список · ${bl.length}</b>${bl.length ? bl.map(k => `<div class="p-mini">${avatar(k, "sm")}<span>${esc(PEOPLE[k].name)}</span><button class="btn ghost sm" data-act="unblock" data-p="${k}">Разблокировать</button></div>`).join("") : `<p class="pet-note">Пусто.</p>`}<p class="pet-note">Заблокированные не могут вам писать и не видят ваш профиль.</p></div>`;
+    if (!pilot) html += `<div class="p-card"><b class="p-h">Друзья · ${fr.length}</b>${fr.length ? fr.map(mini).join("") : `<p class="pet-note">Пока никого — добавляйте из «Контактов».</p>`}</div>`;
+    if (!pilot) html += `<div class="p-card"><b class="p-h">Чёрный список · ${bl.length}</b>${bl.length ? bl.map(k => `<div class="p-mini">${avatar(k, "sm")}<span>${esc(PEOPLE[k].name)}</span><button class="btn ghost sm" data-act="unblock" data-p="${k}">Разблокировать</button></div>`).join("") : `<p class="pet-note">Пусто.</p>`}<p class="pet-note">Заблокированные не могут вам писать и не видят ваш профиль.</p></div>`;
     html += `<div class="p-card"><b class="p-h">Настройки</b>${tgl("notif", "Уведомления", "Сообщения, задания и объявления")}${tgl("online", "Показывать «в сети»", "")}${tgl("lite", "Облегчённый режим", "Без стеклянных эффектов, живого фона и 3D — для слабых компьютеров и телефонов")}
       <label class="p-sel"><span>Кто может мне писать</span><select data-set="who">${[["all", "Все"], ["uni", "Вуз и друзья"], ["friends", "Только друзья"]].map(([v, t]) => `<option value="${v}"${SETTINGS.who === v ? " selected" : ""}>${t}</option>`).join("")}</select></label></div>`;
     html += `<button class="btn ghost p-out" data-act="restart">Выйти · начать демо заново</button>`;
@@ -1002,7 +1057,7 @@
   function taskHtml() {
     const pct = Math.round(state.submittedCount / TOTAL * 100);
     const acts = role === "student"
-      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `<button class="btn soft" data-act="explain">${SCALES(15)} Разобрать с Кипой</button>`
+      ? (state.submitted ? `<span class="btn done">${I.check.replace('stroke="#fff"', 'stroke="currentColor"')} Сдано: Казус3_Смирнова.docx</span>` : `<button class="btn primary" data-act="submit">${I.file} Сдать решение</button>`) + `${pilot ? "" : `<button class="btn soft" data-act="explain">${SCALES(15)} Разобрать с Кипой</button>`}`
       : `<button class="btn ghost" data-act="list">Кто сдал (${state.submittedCount})</button><button class="btn ghost" data-act="remind">Напомнить несдавшим</button>`;
     return `<div class="task"><div class="t-head">${I.file} Казус №3: договор ссуды <span class="due">до 22 октября</span></div>
       <div class="t-body">Петров бесплатно дал соседу велосипед на неделю, сосед вернул его со сломанной рамой. Квалифицируйте отношения и определите, что может требовать Петров.</div>
@@ -1240,7 +1295,7 @@
     document.getElementById("app").classList.add("chat-open");
     if (c.type === "pet") return openPet(c);
     let headExtra = "";
-    if (c.type === "group") headExtra = `<button class="head-btn" data-act="summary">${SCALES(15)} Конспект</button>`;
+    if (c.type === "group" && !pilot) headExtra = `<button class="head-btn" data-act="summary">${SCALES(15)} Конспект</button>`;
     const t = titleOf(c);
     const tick = c.type === "dm" ? TICK(role === "student" ? "#6a7cff" : "#2f6fe4", 15) : c.id === "dean" ? TICK("#6a7cff", 15) : "";
     const status = c.type === "ai" ? "ИИ-помощник · отвечает со ссылками на нормы права" : c.type === "channel" ? (c.owner === role ? `Вы ведёте этот канал · ${TOTAL} студентов` : c.owner === "dean" ? c.sub() : "Пишет только преподаватель") : c.sub();
@@ -1250,7 +1305,7 @@
     const pr = peerOf(c);
     if (pr && BLOCKED[role].has(pr)) foot = `<div class="readonly">${I.lock}<span>Пользователь в вашем чёрном списке</span><button class="btn ghost" data-act="block-tgl" data-p="${pr}">Разблокировать</button></div>`;
     else if (canWrite) foot = `<div class="composer"><textarea id="input" rows="1" placeholder="${ph}"></textarea><button class="send" id="send" aria-label="Отправить">${I.send}</button></div>`;
-    else foot = `<div class="readonly">${I.lock}<span>В канал пишет только ${c.owner === "dean" ? "деканат" : "преподаватель"}</span>${c.owner === "teacher" ? `<button class="btn ghost" data-act="ask">Задать вопрос лично</button>` : ""}</div>`;
+    else foot = `<div class="readonly">${I.lock}<span>В канал пишет только ${c.owner === "dean" ? "деканат" : c.owner === "spec" ? "учебный офис" : "преподаватель"}</span>${c.owner === "teacher" ? `<button class="btn ghost" data-act="ask">Задать вопрос лично</button>` : ""}</div>`;
     const chips = c.type === "ai" ? `<div class="chips">${AI.filter(a => !(a.studentOnly && role !== "student") && !(a.teacherOnly && role !== "teacher")).map(a => `<button class="chip" data-q="${esc(a.chip)}">${esc(a.chip)}</button>`).join("")}</div>` : "";
     $("#main").innerHTML = `${wallHtml(c)}<div class="chat-head"><button class="back" id="back" aria-label="Назад">${I.back}</button>${c.av()}<div class="ch-title"${peerOf(c) ? ` data-act="prof" data-p="${peerOf(c)}" role="button" title="Открыть профиль" style="cursor:pointer"` : ""}><b><span>${esc(t)}</span>${tick}</b><small>${esc(status)}</small></div>${headExtra}<button class="head-btn icon" data-act="wp" aria-label="Фон чата" title="Фон чата">${I.palette}</button></div>
       <div class="msgs" id="msgs"></div><div class="dock" id="dock"><div id="replyBar"></div>${chips}${foot}</div>`;
@@ -1406,8 +1461,8 @@
   function demoMenu(btn) {
     closeMenu(); const side = $(".side"), r = btn.getBoundingClientRect(), sr = side.getBoundingClientRect(), el = document.createElement("div");
     el.className = "ci-menu demo-menu"; el.setAttribute("role", "menu");
-    el.innerHTML = `<small class="dm-h">Смотреть как (для показа)</small>` + [["guest", "Без статуса", I.lock], ["student", "Студент", I.student.replace('width="30" height="30"', 'width="18" height="18"')], ["teacher", "Преподаватель", SCALES(18)]]
-      .map(([k, n, ic]) => `<button data-act="set-role" data-r="${k}"${k === role ? ' class="cur"' : ""}>${ic}${n}${k === role ? " ✓" : ""}</button>`).join("") + `<button data-act="restart">${I.back}Начать демо заново</button>`;
+    el.innerHTML = `<small class="dm-h">Смотреть как (для показа)</small>` + [...(pilot ? [] : [["guest", "Без статуса", I.lock]]), ["student", "Студент", I.student.replace('width="30" height="30"', 'width="18" height="18"')], ["teacher", "Преподаватель", SCALES(18)]]
+      .map(([k, n, ic]) => `<button data-act="set-role" data-r="${k}"${k === role ? ' class="cur"' : ""}>${ic}${n}${k === role ? " ✓" : ""}</button>`).join("") + `<button class="pilot-tgl" data-act="pilot-tgl">${I.check.replace('stroke="#fff"', `stroke="${pilot ? "#34c77b" : "rgba(255,255,255,.25)"}"`)}<span>Только пилот<small>${pilot ? "Включено: видно то, что войдёт в пилот" : "Скрыть всё, чего нет в документе пилота"}</small></span></button><button data-act="restart">${I.back}Начать демо заново</button>`;
     side.appendChild(el); el.style.top = r.bottom - sr.top + 6 + "px"; buzz(8);
   }
   $("#list").addEventListener("contextmenu", e => { const item = e.target.closest(".chat-item"); if (!item) return; e.preventDefault(); chatMenu(item); });
@@ -1544,6 +1599,16 @@
       case "edit-hours": toast("В полной версии часы и кабинет меняются здесь — студенты сразу видят обновление"); break;
       case "demo-roles": demoMenu(a); break;
       case "set-role": closeMenu(); setRole(a.dataset.r); toast(role === "teacher" ? "Теперь вы видите приложение глазами преподавателя" : role === "student" ? "Теперь вы видите приложение глазами студента" : "Обычный аккаунт: университетский раздел закрыт"); break;
+      case "pilot-tgl": {
+        closeMenu(); pilot = !pilot; buzz(10);
+        if (pilot && role === "guest") { role = "student"; }
+        const c = chats.find(x => x.id === currentId), pr = currentId && currentId.startsWith("prof:") ? PEOPLE[currentId.slice(5)] : null;
+        if (pilot && ((c && (!c.uni || c.hidden)) || (pr && pr.kind === "user"))) { currentId = null; $("#main").innerHTML = EMPTY; APP.classList.remove("chat-open"); }
+        renderMe(); setRole(role);
+        toast(pilot ? "Режим «Только пилот»: каналы, группы, задания, расписание, контакты — без ИИ, игры и открытой части" : "Полное демо: видно и то, что планируем на второй этап");
+        break; }
+      case "p-tab": { const card = a.closest(".p-mediac"); card.dataset.t = a.dataset.t; card.querySelectorAll(".p-tabs button").forEach(b => b.classList.toggle("on", b === a)); break; }
+      case "p-media": { const m = $("#pmedia"); if (m) m.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" }); break; }
       case "restart": closeMenu(); $("#onb").hidden = false; onbWelcome(); break;
       case "wp-x": closeWp(true); break;
       case "wp-set": setWp(a.dataset.k); break;
@@ -1589,7 +1654,7 @@
   function onbRole(verifyOnly = false) {
     onbV = verifyOnly; stopSlides();
     card.innerHTML = `${ONB_BACK(verifyOnly ? "close" : "welcome")}${ONB_STEP(1)}${MASCOT(56)}<h1>${verifyOnly ? "Подтвердить статус" : "Как будете пользоваться?"}</h1><p class="lead">${verifyOnly ? "Откроются каналы курсов, беседа группы, преподаватели и «Кипа»" : "Обычный мессенджер доступен всем. Статус студента или сотрудника открывает университетский раздел — его можно подтвердить и позже"}</p>
-      <div class="role-pick">${verifyOnly ? "" : `<button class="wide" data-onb="guest">${I.lock.replace('width="16" height="16"', 'width="26" height="26"')}<span>Просто общаться<small>регистрация по почте, без статуса</small></span></button>`}<button data-onb="form" data-r="student">${I.student}Студент<small>по студбилету</small></button><button data-onb="form" data-r="teacher">${I.teacher}Преподаватель<small>по документу сотрудника</small></button></div>`;
+      <div class="role-pick">${verifyOnly || pilot ? "" : `<button class="wide" data-onb="guest">${I.lock.replace('width="16" height="16"', 'width="26" height="26"')}<span>Просто общаться<small>регистрация по почте, без статуса</small></span></button>`}<button data-onb="form" data-r="student">${I.student}Студент<small>по студбилету</small></button><button data-onb="form" data-r="teacher">${I.teacher}Преподаватель<small>по документу сотрудника</small></button></div>`;
   }
   function onbForm(r) {
     role = r;
