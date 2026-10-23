@@ -1834,7 +1834,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.97</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.98</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3375,6 +3375,28 @@
               await setDoc(doc(db, "users", uid), { name: newName, nameLower: key, ...extra }, { merge: true });
           }
           return newName;
+      }
+      // Первый вход после подтверждения почты: создаём профиль и занимаем ник (до этого в базе нет ничего публичного —
+      // правила тоже не пускают создать профиль или ник без подтверждённой почты). Ник ждал в displayName аккаунта
+      async function createProfileAfterVerify(user) {
+          if (!user.displayName || (await getDoc(doc(db, "users", user.uid))).exists()) return;
+          const extra = { uid: user.uid, followersCount: 0, followingCount: 0, bio: "", createdAt: new Date(user.metadata && user.metadata.creationTime || Date.now()) };
+          let name = user.displayName;
+          for (let tries = 0; ; tries++) {
+              try { name = await claimNickname(user.uid, name, extra); break; }
+              catch (e) {
+                  if (e.code !== "nick-taken" || tries > 5) throw e;
+                  // ник успели занять, пока человек подтверждал почту — просим другой (отмена = ник с цифрами)
+                  const fallback = normalizeNick(name).slice(0, 18) + Math.floor(100 + Math.random() * 900);
+                  let next = prompt(t("Никнейм «{name}» уже занят, выберите другой", { name }), fallback);
+                  next = normalizeNick(next || fallback);
+                  const err = validateNick(next);
+                  if (err) { alert(t("Никнейм: {error}", { error: t(err) })); continue; }
+                  name = next;
+              }
+          }
+          if (name !== user.displayName) await updateProfile(user, { displayName: name }).catch(() => {});
+          try { const inv = localStorage.getItem("owl-invite"); if (inv) { await setDoc(doc(db, "users_private", user.uid), { uid: user.uid, invitedByNick: inv }, { merge: true }); localStorage.removeItem("owl-invite"); } } catch (_) {}
       }
       // Для старых аккаунтов: занимаем их текущий ник и проставляем дату регистрации
       async function ensureProfileMigrated(user) {
@@ -4946,16 +4968,11 @@
               if (!vj.success) { btn.innerText = origText; btn.disabled = false; try { window.turnstile && window.turnstile.reset(); } catch (_) {} return showToast(t("Проверка Cloudflare не пройдена, попробуйте ещё раз"), "shield"); }
             }
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
-            try {
-              let invitedByNick = null; try { invitedByNick = localStorage.getItem("owl-invite"); localStorage.removeItem("owl-invite"); } catch (_) {}
-              await claimNickname(userCred.user.uid, name, { uid: userCred.user.uid, followersCount: 0, followingCount: 0, bio: "", createdAt: new Date() });
-              if (invitedByNick) await setDoc(doc(db, "users_private", userCred.user.uid), { uid: userCred.user.uid, invitedByNick }, { merge: true }).catch(e => console.log("invitedByNick:", e.code));
-              await updateProfile(userCred.user, { displayName: name });
-            } catch (profileErr) {
-              await deleteDoc(doc(db, "users", userCred.user.uid)).catch(() => {});
-              await deleteUser(userCred.user).catch(() => {}); // откат: не оставляем аккаунт без профиля
-              throw profileErr;
-            }
+            // До подтверждения почты в базе НЕТ ничего публичного: ник запоминаем только в самом аккаунте входа (displayName),
+            // а профиль создаётся и ник занимается после ввода кода из письма (createProfileAfterVerify). Так неверная почта
+            // не оставляет «мёртвых» профилей и занятых ников
+            try { await updateProfile(userCred.user, { displayName: name }); }
+            catch (profileErr) { await deleteUser(userCred.user).catch(() => {}); throw profileErr; }
             // Код подтверждения почты отправит экран «Подтвердите почту» после перезагрузки
             location.reload(); 
           }
@@ -5105,6 +5122,7 @@
           // Новые аккаунты сначала подтверждают почту кодом из письма
           if (needsEmailCode(user)) { showVerifyScreen(user); return; }
 
+          try { await createProfileAfterVerify(user); } catch (e) { console.log("Профиль после подтверждения почты:", e.code || e); }
           let safeName = user.displayName || "Загрузка...";
           // Ник пишем, только если он уже есть (при регистрации он появится чуть позже — его занимает claimNickname)
           // Email храним в закрытой users_private (видят только сам человек и админ). В публичном профиле он
