@@ -1288,6 +1288,12 @@
         .modal-screen[style*="flex"] > .modal-box { animation: lgBoxInM .5s var(--lg-ease); }
         .modal-box { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: color-mix(in srgb, var(--bg-panel) 93%, transparent); }
         .modal-screen { -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%); }
+        /* Окна на телефоне подогнаны по краям: ширина считается вместе с отступами (раньше окно было шире экрана
+           на ~28 px и рамка обрезалась), ровные поля 12 px с учётом «чёлки» и полоски «Домой», а верх окна —
+           ниже крестика, закреплённого в углу экрана (раньше крестик садился на рамку). Уведомления — на весь экран, их не трогаем */
+        .modal-screen:not(#notifs-screen) { box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 12px) calc(env(safe-area-inset-bottom, 0px) + 12px) calc(env(safe-area-inset-left, 0px) + 12px); }
+        .modal-screen:not(#notifs-screen):has(> .modal-box > .icon-btn:first-child) { padding-top: calc(env(safe-area-inset-top, 0px) + 72px); }
+        .modal-screen:not(#notifs-screen) > .modal-box { box-sizing: border-box; width: 100% !important; max-width: 460px !important; max-height: 100% !important; padding: 24px 20px; border-radius: 26px; }
       }
       @keyframes lgBoxIn { 0% { opacity: 0; transform: translateY(22px) scale(.84, .76); filter: blur(6px); } 55% { opacity: 1; transform: translateY(-2px) scale(1.025, .985); filter: blur(0); } 78% { transform: scale(.996, 1.008); } 100% { transform: none; } }
       @keyframes lgBoxOut { to { opacity: 0; transform: translateY(10px) scale(.92, .88); filter: blur(4px); } }
@@ -1327,7 +1333,14 @@
       .tabs-container.lg-tabs { position: relative; }
       .tabs-container.lg-tabs .tab { position: relative; z-index: 1; }
       .tabs-container.lg-tabs .tab.active { background: transparent; }
-      .lg-ind { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 20px; background: var(--tab-active-bg); box-shadow: var(--lg-shine), 0 4px 12px rgba(4,2,14,.18); pointer-events: none; z-index: 0; transition: transform .5s var(--lg-spring), width .5s var(--lg-spring), height .3s; }
+      /* только внутренняя кромка: внешнюю тень обрезал бы прокручиваемый контейнер вкладок (серый прямоугольник под «Все») */
+      .lg-ind { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 20px; background: var(--tab-active-bg); box-shadow: var(--lg-shine); pointer-events: none; z-index: 0; transition: transform .5s var(--lg-spring), width .5s var(--lg-spring), height .3s; }
+      /* свайпы: вертикальную прокрутку ведёт браузер, горизонтальный жест — наш код */
+      #chat-list, #chat-box { touch-action: pan-y; }
+      @media (max-width: 768px) {
+        #app-container.chat-swiping #sidebar { display: flex; will-change: transform, filter; }
+        #app-container.chat-swiping #main-chat { display: flex; position: absolute; inset: 0; z-index: 30; box-shadow: -10px 0 30px rgba(0,0,0,.35); will-change: transform; }
+      }
       .lg-ind.stretch { animation: lgStretch .5s var(--lg-ease); }
       @keyframes lgStretch { 35% { scale: 1.16 .82; } 70% { scale: .97 1.05; } }
 
@@ -2097,7 +2110,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.100</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.101</div>
       </div>
       
       <!-- ЧАТ -->
@@ -7807,42 +7820,100 @@
           } catch (err) { console.error(err); e.target.checked = !hide; showToast(t("Не удалось сохранить"), "error"); }
       });
 
-      // Свайп по списку чатов — переключение «Все» ⇄ «Подписки»
+      // ===== СВАЙПЫ (телефон) =====
+      // Общее: направление решает первый сдвиг пальца (8 px), дальше экран едет за пальцем без задержки.
+      // Срабатывает и длинный медленный жест, и короткий быстрый рывок (скорость считаем по последним точкам)
+      const swipeSpeed = (pts) => { const a = pts[0], b = pts[pts.length - 1]; return a && b && b[1] > a[1] ? (b[0] - a[0]) / (b[1] - a[1]) : 0; }; // px/мс
+      const SWIPE_EASE = "cubic-bezier(.2,.9,.25,1)";
+
+      // Список чатов: свайп влево/вправо — «Все» ⇄ «Подписки». Список и стеклянная капля вкладки едут за пальцем
       (function () {
-          const list = document.getElementById("chat-list"); let x0 = null, y0 = 0, t0 = 0;
-          list.addEventListener("touchstart", e => { if (e.touches.length !== 1) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now(); }, { passive: true });
-          list.addEventListener("touchend", e => {
-              if (x0 === null) return;
-              const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
-              if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - t0 > 700) return;
-              const to = dx < 0 ? "friends" : "all"; if (to === currentFilter) return;
-              document.getElementById(to === "all" ? "tab-all" : "tab-friends").click();
-              list.classList.remove("swipe-in-left", "swipe-in-right"); void list.offsetWidth; list.classList.add(dx < 0 ? "swipe-in-left" : "swipe-in-right");
+          const list = document.getElementById("chat-list");
+          let sx = 0, sy = 0, dx = 0, on = false, locked = false, pts = [], from = null, to = null;
+          const tabEl = (f) => document.getElementById(f === "all" ? "tab-all" : "tab-friends");
+          const ind = () => document.querySelector(".lg-ind");
+          const indAt = (a, b, p) => { const i = ind(); if (!i || !a) return; b = b || a; i.style.transition = "none";
+              i.style.width = (a.offsetWidth + (b.offsetWidth - a.offsetWidth) * p) + "px";
+              i.style.transform = `translate(${a.offsetLeft + (b.offsetLeft - a.offsetLeft) * p}px, ${a.offsetTop}px)`; };
+          list.addEventListener("touchstart", e => {
+              if (e.touches.length !== 1) return;
+              sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; on = true; locked = false; pts = [[sx, e.timeStamp]];
           }, { passive: true });
-      })();
-      // Свайп вправо от левого края в открытом чате — назад к списку (телефон)
-      (function () {
-          const main = document.getElementById("main-chat"), app = document.getElementById("app-container");
-          let x0 = null, y0 = 0, dx = 0, active = false;
-          main.addEventListener("touchstart", e => {
-              if (!app.classList.contains("chat-active") || window.innerWidth > 768 || e.touches.length !== 1) return;
-              const t = e.touches[0]; if (t.clientX > 28) return;
-              x0 = t.clientX; y0 = t.clientY; dx = 0; active = false;
-          }, { passive: true });
-          main.addEventListener("touchmove", e => {
-              if (x0 === null) return;
-              const t = e.touches[0]; dx = t.clientX - x0; const dy = t.clientY - y0;
-              if (!active) { if (Math.abs(dy) > 12 && Math.abs(dy) > dx) { x0 = null; return; } if (dx > 10) active = true; else return; }
-              main.style.transition = "none"; main.style.transform = `translateX(${Math.max(0, dx)}px)`;
+          list.addEventListener("touchmove", e => {
+              if (!on) return;
+              const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
+              if (!locked) {
+                  if (Math.abs(x) < 8 && Math.abs(y) < 8) return;
+                  if (Math.abs(x) > Math.abs(y) * 1.2) { locked = true; list.style.transition = "none"; from = currentFilter; }
+                  else { on = false; return; }
+              }
+              to = x < 0 ? "friends" : "all";
+              const can = to !== from, w = list.clientWidth || window.innerWidth;
+              dx = can ? x : x * .22; // в сторону, где вкладки нет, — тугая «резинка»
+              list.style.transform = `translate3d(${dx}px,0,0)`; list.style.opacity = String(1 - Math.min(.5, Math.abs(dx) / w * .7));
+              if (!reduceMotion()) indAt(tabEl(from), can ? tabEl(to) : null, can ? Math.min(1, Math.abs(x) / (w * .5)) : 0);
+              pts.push([t.clientX, e.timeStamp]); if (pts.length > 5) pts.shift();
           }, { passive: true });
           const end = () => {
-              if (x0 === null) return; x0 = null;
-              main.style.transition = "transform .2s ease";
-              if (active && dx > Math.min(110, window.innerWidth * .3)) {
-                  main.style.transform = `translateX(${window.innerWidth}px)`;
-                  setTimeout(() => { document.getElementById("mobile-back-btn").click(); main.style.transition = "none"; main.style.transform = ""; }, 180);
-              } else main.style.transform = "";
-              active = false;
+              if (!on) return; on = false; if (!locked) return;
+              const w = list.clientWidth || window.innerWidth, v = swipeSpeed(pts);
+              const go = to !== from && (Math.abs(dx) > w * .25 || (Math.abs(v) > .35 && Math.abs(dx) > 24 && Math.sign(v) === Math.sign(dx)));
+              const i = ind(); if (i) i.style.transition = "";
+              if (!go) {
+                  list.style.transition = `transform .3s ${SWIPE_EASE}, opacity .3s`; list.style.transform = ""; list.style.opacity = "";
+                  indAt(tabEl(from), null, 0); if (i) requestAnimationFrame(() => { i.style.transition = ""; });
+                  return;
+              }
+              // старый список уезжает, новый въезжает с другой стороны
+              const dir = Math.sign(dx);
+              list.style.transition = `transform .14s ease-in, opacity .14s`; list.style.transform = `translate3d(${dir * w * .45}px,0,0)`; list.style.opacity = "0";
+              setTimeout(() => {
+                  tabEl(to).click(); // перерисует список и передвинет каплю
+                  list.style.transition = "none"; list.style.transform = `translate3d(${-dir * w * .3}px,0,0)`; void list.offsetWidth;
+                  list.style.transition = `transform .32s ${SWIPE_EASE}, opacity .25s`; list.style.transform = ""; list.style.opacity = "";
+              }, 140);
+          };
+          list.addEventListener("touchend", end); list.addEventListener("touchcancel", end);
+      })();
+
+      // Открытый чат: свайп вправо из любого места — назад к списку. Чат едет за пальцем, под ним виден список
+      // (чуть притенённый и сдвинутый, как в iOS). Отпустили дальше трети экрана или рывком — чат уезжает, иначе пружинит назад.
+      // Влево по сообщению — «ответить» (отдельный обработчик ниже): направления не пересекаются
+      (function () {
+          const main = document.getElementById("main-chat"), app = document.getElementById("app-container"), side = document.getElementById("sidebar");
+          let sx = 0, sy = 0, dx = 0, on = false, locked = false, pts = [];
+          const ok = () => window.innerWidth <= 768 && app.classList.contains("chat-active") && !app.classList.contains("chat-opening") && !app.classList.contains("chat-closing");
+          const paint = (x) => { const p = Math.min(1, x / window.innerWidth); main.style.transform = `translate3d(${x}px,0,0)`; side.style.transform = `translate3d(${-22 * (1 - p)}%,0,0)`; side.style.filter = `brightness(${(.7 + .3 * p).toFixed(3)})`; };
+          const clear = () => { app.classList.remove("chat-swiping"); [main, side].forEach(el => { el.style.transition = ""; el.style.transform = ""; el.style.filter = ""; }); };
+          main.addEventListener("touchstart", e => {
+              if (!ok() || e.touches.length !== 1 || e.target.closest("input, textarea, select, [contenteditable], audio, #rec-bar, #attach-menu, #sticker-panel, .modal-screen")) return;
+              sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; on = true; locked = false; pts = [[sx, e.timeStamp]];
+          }, { passive: true });
+          main.addEventListener("touchmove", e => {
+              if (!on) return;
+              const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
+              if (!locked) {
+                  if (Math.abs(x) < 8 && Math.abs(y) < 8) return;
+                  if (x > 0 && x > Math.abs(y) * 1.2) { locked = true; app.classList.add("chat-swiping"); main.style.transition = side.style.transition = "none"; }
+                  else { on = false; return; }
+              }
+              dx = Math.max(0, x); paint(dx);
+              pts.push([t.clientX, e.timeStamp]); if (pts.length > 5) pts.shift();
+          }, { passive: true });
+          const end = () => {
+              if (!on) return; on = false; if (!locked) return;
+              const w = window.innerWidth, v = swipeSpeed(pts);
+              const go = dx > w * .33 || (v > .35 && dx > 24);
+              const ms = Math.round(Math.max(150, Math.min(320, (go ? w - dx : dx) / Math.max(.9, Math.abs(v)))));
+              main.style.transition = side.style.transition = `transform ${ms}ms ${SWIPE_EASE}, filter ${ms}ms`;
+              if (go) {
+                  paint(w);
+                  // кнопка «назад» видит сдвинутый чат и закрывает его без своей анимации — без «прыжка»
+                  setTimeout(() => { document.getElementById("mobile-back-btn").click(); clear(); }, ms);
+              } else {
+                  main.style.transform = ""; side.style.transform = "translate3d(-22%,0,0)"; side.style.filter = "brightness(.7)";
+                  setTimeout(clear, ms);
+              }
           };
           main.addEventListener("touchend", end); main.addEventListener("touchcancel", end);
       })();
@@ -7984,31 +8055,6 @@
           const open = [...document.querySelectorAll(".modal-screen")].filter(s => getComputedStyle(s).display !== "none" && s.querySelector(CLOSE));
           if (open.length) open[open.length - 1].style.display = "none";
         });
-        // Свайп вправо — выйти из чата (телефон)
-        const app = $("app-container"), chat = $("main-chat");
-        let sx = 0, sy = 0, dx = 0, on = false, locked = false;
-        const active = () => matchMedia("(max-width:768px)").matches && app.classList.contains("chat-active");
-        const reset = () => { chat.style.transition = "transform .2s ease"; chat.style.transform = ""; setTimeout(() => { chat.style.transition = ""; }, 220); };
-        chat.addEventListener("touchstart", e => {
-          if (!active() || e.touches.length !== 1 || e.target.closest("input,textarea,select,[contenteditable]")) return;
-          sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; on = true; locked = false; chat.style.transition = "none";
-        }, { passive: true });
-        chat.addEventListener("touchmove", e => {
-          if (!on) return; const x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
-          if (!locked) {
-            if (Math.abs(y) > 12 && Math.abs(y) > Math.abs(x)) { on = false; reset(); return; }
-            if (x > 12 && x > Math.abs(y) * 1.5) locked = true; else return;
-          }
-          dx = Math.max(0, x); chat.style.transform = "translateX(" + dx + "px)";
-        }, { passive: true });
-        chat.addEventListener("touchend", () => {
-          if (!on) return; on = false;
-          if (locked && dx > Math.min(110, innerWidth * 0.3)) {
-            chat.style.transition = "transform .18s ease"; chat.style.transform = "translateX(100%)";
-            setTimeout(() => { $("mobile-back-btn").click(); chat.style.transition = "none"; chat.style.transform = ""; setTimeout(() => { chat.style.transition = ""; }, 50); }, 180);
-          } else reset();
-        });
-        chat.addEventListener("touchcancel", () => { if (on) { on = false; reset(); } });
       })();
     </script>
     <script>
