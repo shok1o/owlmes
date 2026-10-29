@@ -694,5 +694,18 @@ export default {
 "Срок продлён до {time}": "Frist verlängert bis {time}",
 "Таймер уже не идёт": "Der Timer läuft nicht mehr",
 "Не получилось продлить — попробуйте ещё раз": "Verlängern hat nicht geklappt — versuch es noch einmal",
-"Всё в порядке": "Alles in Ordnung"
+"Всё в порядке": "Alles in Ordnung",
+"Из буфера обмена": "Aus der Zwischenablage",
+"Отпустите, чтобы отправить фото": "Loslassen, um das Foto zu senden",
+"Отправить фото": "Foto senden",
+"Подпись (необязательно)": "Bildunterschrift (optional)",
+"Отправить": "Senden",
+"Не получилось открыть картинку": "Bild konnte nicht geöffnet werden",
+"Картинка слишком большая": "Das Bild ist zu groß",
+"Чат сменился — фото не отправлено": "Du hast den Chat gewechselt — das Foto wurde nicht gesendet",
+"В буфере обмена нет картинки. Скопируйте фото и попробуйте снова": "In der Zwischenablage ist kein Bild. Kopiere ein Foto und versuch es noch einmal",
+"Нет доступа к буферу обмена — разрешите его в браузере или вставьте фото через Cmd/Ctrl+V": "Kein Zugriff auf die Zwischenablage — erlaube ihn im Browser oder füge das Foto mit Cmd/Strg+V ein",
+"Не получилось прочитать буфер обмена": "Zwischenablage konnte nicht gelesen werden",
+"Можно перетащить только картинку": "Hier kannst du nur ein Bild ablegen",
+"Я в порядке — сообщить близким": "Mir geht’s gut — Bescheid geben"
 };

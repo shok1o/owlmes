@@ -694,5 +694,18 @@ export default {
 "Срок продлён до {time}": "Deadline extended to {time}",
 "Таймер уже не идёт": "The timer isn't running anymore",
 "Не получилось продлить — попробуйте ещё раз": "Couldn't extend — try again",
-"Всё в порядке": "All good"
+"Всё в порядке": "All good",
+"Из буфера обмена": "From clipboard",
+"Отпустите, чтобы отправить фото": "Drop to send the photo",
+"Отправить фото": "Send photo",
+"Подпись (необязательно)": "Caption (optional)",
+"Отправить": "Send",
+"Не получилось открыть картинку": "Couldn't open the image",
+"Картинка слишком большая": "The image is too large",
+"Чат сменился — фото не отправлено": "You switched chats — the photo wasn't sent",
+"В буфере обмена нет картинки. Скопируйте фото и попробуйте снова": "There's no image in the clipboard. Copy a photo and try again",
+"Нет доступа к буферу обмена — разрешите его в браузере или вставьте фото через Cmd/Ctrl+V": "No clipboard access — allow it in your browser or paste the photo with Cmd/Ctrl+V",
+"Не получилось прочитать буфер обмена": "Couldn't read the clipboard",
+"Можно перетащить только картинку": "You can only drop an image here",
+"Я в порядке — сообщить близким": "I'm OK — tell my people"
 };
