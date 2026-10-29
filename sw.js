@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v65';
+const CACHE = 'owl-shell-v66';
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -74,14 +74,16 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const chatId = event.notification.data && event.notification.data.chatId;
+    const guard = !!(event.notification.data && event.notification.data.open === 'guard'); // «Сова на страже»
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
             const client = list.find((c) => new URL(c.url).origin === self.location.origin);
             if (client) {
-                if (chatId) client.postMessage({ type: 'open-chat', chatId: chatId });
+                if (guard) client.postMessage({ type: 'open-guard' });
+                else if (chatId) client.postMessage({ type: 'open-chat', chatId: chatId });
                 return client.focus();
             }
-            return clients.openWindow(chatId ? '/?chat=' + encodeURIComponent(chatId) : '/');
+            return clients.openWindow(guard ? '/?guard=1' : chatId ? '/?chat=' + encodeURIComponent(chatId) : '/');
         })
     );
 });
@@ -95,13 +97,15 @@ self.addEventListener('push', (event) => {
         body: d.body || 'Новое сообщение',
         icon: '/icon-192.png', badge: '/icon-192.png',
         tag: tag, renotify: true,
-        data: { chatId: d.chatId || null }
+        data: { chatId: d.chatId || null, open: d.open || null }
     };
+    // «Сова на страже»: тревога и напоминания — громко, с вибрацией и не исчезают сами
+    if (d.loud) { opts.requireInteraction = true; opts.silent = false; opts.vibrate = [400, 150, 400, 150, 800]; }
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
             // Owl открыт на экране — уведомление покажет само приложение.
             // Safari требует показывать уведомление на каждый push, поэтому показываем и сразу убираем.
-            const inApp = list.some((c) => c.visibilityState === 'visible' && c.focused);
+            const inApp = !d.loud && list.some((c) => c.visibilityState === 'visible' && c.focused);
             return self.registration.showNotification(d.title || 'Owl Messenger', opts).then(() => {
                 if (inApp) return self.registration.getNotifications({ tag: tag }).then((ns) => ns.forEach((n) => n.close()));
             });

@@ -251,6 +251,74 @@
       .night-how { margin: 14px 0 2px; padding: 0; list-style: none; font-size: 13px; color: var(--text-muted); line-height: 1.45; }
       .night-how li { display: flex; gap: 10px; padding: 7px 0; }
       .night-how li b { color: var(--text-main); font-weight: 600; }
+      /* «Сова на страже»: таймер безопасности */
+      #guard-screen .modal-box { max-width: 420px; width: calc(100% - 32px); max-height: min(800px, 92vh); overflow-y: auto; text-align: left; }
+      #guard-screen .eye-hero h2 { margin-top: 4px; }
+      #guard-screen .st-sec { margin-top: 16px; }
+      #guard-screen input[type="text"] { margin: 0; }
+      .guard-art { overflow: visible; filter: drop-shadow(0 8px 22px color-mix(in srgb, var(--accent) 45%, transparent)); }
+      .guard-art .ga-c1 { stop-color: var(--accent); }
+      .guard-art .ga-glow { fill: var(--accent); opacity: .22; }
+      .guard-art .ga-eyes { transform-box: fill-box; transform-origin: center; animation: gaBlink 5s infinite; }
+      .guard-art .ga-pupils { animation: gaScan 4s ease-in-out infinite; }
+      .guard-art .ga-spark { fill: #ffd65a; transform-box: fill-box; transform-origin: center; animation: gaTwinkle 2.4s ease-in-out infinite; }
+      .guard-art .ga-spark:nth-of-type(2) { animation-delay: .8s; fill: #7df9ff; }
+      .guard-art .ga-spark:nth-of-type(3) { animation-delay: 1.6s; fill: #ff8ad8; }
+      .guard-art .ga-badge { display: none; transform-box: fill-box; transform-origin: center; }
+      .guard-art.on .ga-badge-ok, .guard-art.fired .ga-badge-sos { display: inline; animation: gaPop .45s cubic-bezier(.3,1.6,.5,1); }
+      .guard-art.fired .ga-c1 { stop-color: #ff453a; }
+      .guard-art.fired .ga-c2 { stop-color: #ff9f0a; }
+      @keyframes gaBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+      @keyframes gaScan { 0%, 20%, 100% { transform: translateX(0); } 35%, 50% { transform: translateX(-3.5px); } 65%, 80% { transform: translateX(3.5px); } }
+      @keyframes gaTwinkle { 0%, 100% { transform: scale(.4) rotate(0); opacity: .3; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
+      @keyframes gaPop { from { transform: scale(0); } to { transform: scale(1); } }
+      #guard-btn.on .gd-pupils { animation: gdScan 3s ease-in-out infinite; }
+      @keyframes gdScan { 0%, 25%, 100% { transform: translateX(0); } 40%, 55% { transform: translateX(-1.2px); } 70%, 85% { transform: translateX(1.2px); } }
+      .guard-how li { align-items: flex-start; gap: 12px; }
+      .gh-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; margin-top: 1px; box-shadow: 0 4px 14px var(--gh-sh), inset 0 1px 0 rgba(255,255,255,.35); transition: transform .2s; }
+      .guard-how li:hover .gh-ico { transform: rotate(-8deg) scale(1.08); }
+      .gh-time { background: linear-gradient(135deg, #8b5cf6, #5b8cff); --gh-sh: rgba(110,110,255,.35); }
+      .gh-bell { background: linear-gradient(135deg, #ffb340, #ff6a3d); --gh-sh: rgba(255,130,60,.35); }
+      .gh-alarm { background: linear-gradient(135deg, #ff4d6d, #ff2e93); --gh-sh: rgba(255,60,120,.35); }
+      .gh-lock { background: linear-gradient(135deg, #2fd38a, #14b8a6); --gh-sh: rgba(30,200,150,.35); }
+      #guard-bar .gb-ico { flex-shrink: 0; display: flex; color: var(--accent); }
+      #guard-bar.late .gb-ico { color: #ff453a; }
+      .guard-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .guard-chip { border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); border-radius: 18px; padding: 8px 14px; font: inherit; font-size: 14px; cursor: pointer; transition: .15s; }
+      .guard-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+      #guard-time { margin-top: 10px; }
+      #guard-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; min-height: 16px; }
+      .guard-friends { display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; background: var(--input-bg); border-radius: 14px; padding: 4px; }
+      .guard-friend { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; cursor: pointer; color: var(--text-main); font-size: 15px; }
+      .guard-friend:hover { background: color-mix(in srgb, var(--text-main) 6%, transparent); }
+      .guard-friend img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+      .guard-friend span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .guard-friend input { accent-color: var(--accent); width: 19px; height: 19px; flex-shrink: 0; }
+      .guard-friend.dis { opacity: .45; cursor: default; }
+      .guard-empty { padding: 12px; font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+      #guard-start { margin-top: 16px; }
+      #guard-start:disabled, #guard-ok:disabled, .guard-ext button:disabled { opacity: .5; cursor: default; }
+      .guard-clock { font-size: 46px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: 1px; margin: 10px 0 2px; color: var(--text-main); }
+      .guard-clock.late { color: #ff453a; }
+      .guard-what { text-align: center; font-size: 16px; font-weight: 600; color: var(--text-main); margin-top: 4px; overflow-wrap: anywhere; }
+      .guard-sub { text-align: center; color: var(--text-muted); font-size: 13px; line-height: 1.45; margin-top: 4px; }
+      .guard-fired { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #ff453a 14%, transparent); color: var(--text-main); font-size: 13px; line-height: 1.45; text-align: center; }
+      #guard-ok { background: #2fb36d; font-size: 17px; padding: 16px; margin-top: 14px; }
+      .guard-ext { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+      .guard-ext button { flex: 1; }
+      .guard-ext[hidden], #guard-screen [hidden] { display: none !important; }
+      #guard-bar { display: none; align-items: center; gap: 10px; margin: 2px 12px 6px; padding: 8px 8px 8px 12px; background: color-mix(in srgb, var(--accent) 14%, var(--bg-panel)); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 14px; font-size: 13px; color: var(--text-main); cursor: pointer; }
+      #guard-bar.on { display: flex; }
+      #guard-bar.late { background: color-mix(in srgb, #ff453a 16%, var(--bg-panel)); border-color: #ff453a; }
+      #guard-bar .gb-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #guard-bar b { font-variant-numeric: tabular-nums; }
+      #guard-bar button { flex-shrink: 0; border: 0; background: #2fb36d; color: #fff; border-radius: 11px; padding: 7px 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+      #guard-btn { position: relative; }
+      #guard-btn.on::after { content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: #3ee08a; box-shadow: 0 0 0 2px rgba(0,0,0,.25); animation: gbPulse 1.6s ease-in-out infinite; }
+      @keyframes gbPulse { 50% { transform: scale(1.35); opacity: .6; } }
+      .message-row.guard-msg .message-content { box-shadow: inset 0 0 0 2px #ff9f0a; }
+      .message-row.guard-ok-msg .message-content { box-shadow: inset 0 0 0 2px #2fb36d; }
+      @media (prefers-reduced-motion: reduce) { .guard-art .ga-eyes, .guard-art .ga-pupils, .guard-art .ga-spark, .guard-art .ga-badge, #guard-btn.on .gd-pupils, #guard-btn.on::after { animation: none !important; } }
       /* Сова на экране «Сова не будит»: выключено — не спит (оглядывается, моргает), включено — закрывает глаза, надевает колпак и посапывает */
       #night-art .na-ring { fill: #f6f3ff; stroke: var(--accent); stroke-width: 3; }
       #night-art .na-pupil { fill: #1b1630; }
@@ -1594,6 +1662,64 @@
         </ul>
       </div>
     </div>
+    <div id="guard-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box">
+        <button class="icon-btn" id="guard-close" style="position: absolute; top: 12px; right: 12px;" title="Закрыть"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <div class="eye-hero">
+          <svg class="guard-art" id="guard-art" viewBox="0 0 120 110" width="118" height="108" aria-hidden="true">
+            <defs><linearGradient id="ga-grad" x1="0" y1="0" x2="1" y2="1"><stop class="ga-c1" offset="0"/><stop class="ga-c2" offset="1" stop-color="#ff5fa2"/></linearGradient></defs>
+            <circle class="ga-glow" cx="60" cy="58" r="50"/>
+            <path class="ga-spark" d="M14 26l2.2 5.8 5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8-5.8-2.2 5.8-2.2z"/>
+            <path class="ga-spark" d="M108 34l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z"/>
+            <path class="ga-spark" d="M16 82l1.4 3.6 3.6 1.4-3.6 1.4-1.4 3.6-1.4-3.6-3.6-1.4 3.6-1.4z"/>
+            <path d="M24 12l17 11q19-8 38 0l17-11v40c0 25-16 42-36 50-20-8-36-25-36-50z" fill="url(#ga-grad)" stroke="#fff" stroke-opacity=".25" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M33 34l17 6M87 34l-17 6" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+            <g class="ga-eyes"><circle cx="46" cy="53" r="12" fill="#fff"/><circle cx="74" cy="53" r="12" fill="#fff"/>
+              <g class="ga-pupils"><circle cx="46" cy="54" r="6.2" fill="#1a1430"/><circle cx="74" cy="54" r="6.2" fill="#1a1430"/><circle cx="48.2" cy="51.6" r="2" fill="#fff"/><circle cx="76.2" cy="51.6" r="2" fill="#fff"/></g></g>
+            <path d="M55 68h10l-5 8z" fill="#f5b942"/>
+            <g class="ga-badge ga-badge-ok"><circle cx="96" cy="92" r="13" fill="#2fb36d" stroke="var(--bg-panel)" stroke-width="4"/><path d="M90 92l4 4 8-8" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+            <g class="ga-badge ga-badge-sos"><circle cx="96" cy="92" r="13" fill="#ff453a" stroke="var(--bg-panel)" stroke-width="4"/><path d="M96 85v8" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><circle cx="96" cy="99" r="2" fill="#fff"/></g>
+          </svg>
+          <h2>Сова на страже</h2>
+          <p>Присмотрит за вами по дороге домой</p>
+        </div>
+        <div id="guard-form">
+          <div class="st-sec">Куда иду</div>
+          <input type="text" id="guard-text" maxlength="140" placeholder="Например: иду домой от метро" autocomplete="off">
+          <div class="st-sec">Отмечусь через</div>
+          <div class="guard-chips" id="guard-chips">
+            <button type="button" class="guard-chip" data-min="15">15 мин</button>
+            <button type="button" class="guard-chip" data-min="30">30 мин</button>
+            <button type="button" class="guard-chip" data-min="60">1 час</button>
+            <button type="button" class="guard-chip" data-min="120">2 часа</button>
+            <button type="button" class="guard-chip" id="guard-custom">Своё время</button>
+          </div>
+          <input type="time" id="guard-time" class="st-time" hidden>
+          <div id="guard-hint"></div>
+          <div class="st-sec">Кого предупредить (до 3)</div>
+          <div class="guard-friends" id="guard-friends"></div>
+          <button type="button" class="modal-btn" id="guard-start">Сова, присмотри</button>
+        </div>
+        <div id="guard-active" hidden>
+          <div class="guard-clock" id="guard-clock">00:00</div>
+          <div class="guard-what" id="guard-what"></div>
+          <div class="guard-sub" id="guard-who"></div>
+          <div class="guard-fired" id="guard-fired" hidden></div>
+          <button type="button" class="modal-btn" id="guard-ok">✅ Я в порядке</button>
+          <div class="guard-ext" id="guard-ext">
+            <button type="button" class="ob-mini-btn" data-ext="15">+15 мин</button>
+            <button type="button" class="ob-mini-btn" data-ext="30">+30 мин</button>
+            <button type="button" class="ob-mini-btn" data-ext="60">+1 час</button>
+          </div>
+        </div>
+        <ul class="night-how guard-how">
+          <li><span class="gh-ico gh-time" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 10v3.8l2.4 1.6M9.5 2.5h5M19 5.5l1.5 1.5"/></svg></span><span><b>Ставите срок.</b> Пишете, куда идёте, и выбираете 1–3 близких из тех, с кем есть переписка.</span></li>
+          <li><span class="gh-ico gh-bell" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 21h4M2.5 9.5a9 9 0 0 1 2.5-5M21.5 9.5a9 9 0 0 0-2.5-5"/></svg></span><span><b>Сова напомнит.</b> За 10, 5 и 1 минуту до срока придёт напоминание отметиться.</span></li>
+          <li><span class="gh-ico gh-alarm" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 10.5v3l4 .5 9 5V5l-9 5z"/><path d="M7.5 14l1 5h2.5l-.8-4.6M20 9.5v5"/></svg></span><span><b>Не отметились — Сова предупредит.</b> Близким придёт сообщение в личку и громкое уведомление, даже ночью.</span></li>
+          <li><span class="gh-ico gh-lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3M12 14.5v2.5"/></svg></span><span><b>Без слежки.</b> Геолокация не нужна. Текст хранится на сервере только до срока и удаляется после отметки.</span></li>
+        </ul>
+      </div>
+    </div>
     <div id="qr-screen" class="modal-screen" style="display: none;">
       <div class="modal-box">
         <button class="icon-btn" id="qr-close" style="position: absolute; top: 12px; right: 12px;" title="Закрыть"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -1788,6 +1914,11 @@
                     <svg class="mini-eyes" viewBox="0 0 32 26" width="28" height="23" aria-hidden="true"><g class="owl-feather"><path class="owl-feather-q" d="M16 10.5 L16 4"/><path class="owl-feather-v" d="M16 1 C19 3 19.5 7 16 10 C12.5 7 13 3 16 1 Z"/></g><g class="me-eyes"><circle cx="9.5" cy="17" r="6.5" class="me-ring"/><circle cx="22.5" cy="17" r="6.5" class="me-ring"/><g class="me-pupils"><circle cx="9.5" cy="17" r="2.6"/><circle cx="22.5" cy="17" r="2.6"/></g></g></svg>
                 </button>
 
+                <!-- «СОВА НА СТРАЖЕ»: таймер безопасности -->
+                <button id="guard-btn" class="icon-btn" style="color: white;" title="Сова на страже — присмотрит по дороге" aria-label="Сова на страже">
+                    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4.5 3.5 8 5.8Q12 4.4 16 5.8l3.5-2.3V11c0 4.9-3.2 8.6-7.5 10.5C7.7 19.6 4.5 15.9 4.5 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 9.2l3.6 1.3M17 9.2l-3.6 1.3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><g class="gd-pupils"><circle cx="9.3" cy="12.4" r="1.75" fill="currentColor"/><circle cx="14.7" cy="12.4" r="1.75" fill="currentColor"/></g><path d="M11 15.2h2L12 16.8z" fill="currentColor"/></svg>
+                </button>
+
                 <!-- «СОВА НЕ БУДИТ»: тихие ночи -->
                 <button id="night-btn" class="icon-btn" style="color: white;" title="Сова не будит — тихие ночи" aria-label="Сова не будит">
                     <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M16.5 14A7 7 0 1 1 10 4.5a5.5 5.5 0 0 0 6.5 9.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><text class="nb-z" x="16" y="9" font-size="7" font-weight="800" fill="currentColor">z</text><text class="nb-z nb-z2" x="19" y="5" font-size="5.5" font-weight="800" fill="currentColor">z</text></svg>
@@ -1828,13 +1959,14 @@
           </div>
         </div>
         
+        <div id="guard-bar" role="button" tabindex="0"><span class="gb-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M4.5 3.5 8 5.8Q12 4.4 16 5.8l3.5-2.3V11c0 4.9-3.2 8.6-7.5 10.5C7.7 19.6 4.5 15.9 4.5 11z" fill="currentColor"/><circle cx="9.3" cy="12" r="2.3" fill="#fff"/><circle cx="14.7" cy="12" r="2.3" fill="#fff"/><circle cx="9.5" cy="12.2" r="1.1" fill="#1a1430"/><circle cx="14.9" cy="12.2" r="1.1" fill="#1a1430"/></svg></span><span class="gb-text" id="guard-bar-text"></span><button type="button" id="guard-bar-ok">Я в порядке</button></div>
         <div id="group-invites"></div>
         <div class="chat-list" id="chat-list"></div>
         <!-- Новая беседа: плавающая кнопка над списком чатов -->
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.98</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.99</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2203,7 +2335,7 @@
       // В базе превью хранятся с эмодзи-префиксом (📷/🎤/✏️) — при показе меняем его на иконку
       const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"], ["🦉 ", "sticker"]];
       // Превью в базе хранятся по-русски («📷 Фотография») — переводим служебные слова при показе
-      const PREVIEW_WORDS = [["📷 ", "Фотография"], ["🎤 ", "Голосовое сообщение"], ["🦉 ", "Стикер"], ["📊 ", "Опрос:"]];
+      const PREVIEW_WORDS = [["📷 ", "Фотография"], ["🎤 ", "Голосовое сообщение"], ["🦉 ", "Стикер"], ["📊 ", "Опрос:"], ["⚠️ ", "Сова на страже"], ["✅ ", "Всё в порядке"]];
       function trPreview(text) {
           if (LANG === "ru") return text;
           for (const [emoji, w] of PREVIEW_WORDS) text = text.split(emoji + w).join(emoji + t(w));
@@ -3093,6 +3225,197 @@
           signOut(auth);
       }
 
+      // ===== «СОВА НА СТРАЖЕ»: таймер безопасности (сервер — guard* в push-server/worker.js) =====
+      // Пишете, куда идёте, ставите срок и 1–3 близких. Не нажали «Я в порядке» к сроку — сервер напишет близким в личку
+      // и пришлёт им громкий push (в обход «Сова не будит»). Таймер живёт на сервере — сработает, даже если телефон сел.
+      // Геолокации нет. Напоминания за 10, 5 и 1 минуту присылает сервер; пока Owl открыт — ещё и само приложение
+      const GUARD_REMIND = [10, 5, 1];
+      const GUARD_MIN = 15, GUARD_MAX = 12 * 60, GUARD_FRIENDS = 3;
+      let guard = null;                 // { due, text, friends, fired } — как ответил сервер
+      let guardMin = 30, guardCustom = false, guardBusy = false, guardPick = null, guardFor = "", guardSyncAt = 0;
+      let guardReminded = new Set(), guardLateCheck = 0;
+      const guardDm = (uid) => currentUser.uid < uid ? currentUser.uid + "_" + uid : uid + "_" + currentUser.uid;
+      const guardHm = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      function guardMsgText(msg) {
+          const g = msg.guard || {}, name = String(g.name || msg.sender || ""), text = String(g.text || "");
+          if (g.kind === "ok") return t("✅ {name} отметился(ась): всё в порядке", { name });
+          const due = Number(g.due);
+          return t("⚠️ {name} не отметился(ась): „{text}“, срок был {time}", { name, text, time: Number.isFinite(due) ? guardHm(due) : "" }) + "\n" +
+              t("Это автоматическое сообщение «Совы на страже»: срок вышел, а отметки «Я в порядке» нет. Попробуйте связаться.");
+      }
+      function guardSet(g) {
+          guard = g && Number.isFinite(g.due) && typeof g.text === "string" && Array.isArray(g.friends) ? g : null;
+          try { if (guard) localStorage.setItem("owl-guard", JSON.stringify({ uid: currentUser.uid, g: guard })); else localStorage.removeItem("owl-guard"); } catch (_) {}
+          renderGuard();
+      }
+      async function guardCall(path, data = {}) {
+          const r = await pushPost(path, data);
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { info: j });
+          return j;
+      }
+      async function guardSync() {
+          if (!currentUser) return;
+          guardSyncAt = Date.now();
+          try { const j = await guardCall("/guard/status"); guardSet(j.guard); } catch (e) { console.log("Сова на страже:", e.message); }
+      }
+      // При входе: показываем таймер из памяти устройства и сверяемся с сервером (таймер могли поставить с другого устройства)
+      function guardInit() {
+          if (!currentUser || guardFor === currentUser.uid) return;
+          guardFor = currentUser.uid; guardPick = null;
+          let saved = null; try { const x = JSON.parse(localStorage.getItem("owl-guard") || "null"); if (x && x.uid === currentUser.uid) saved = x.g; } catch (_) {}
+          guard = null; guardSet(saved); guardSync();
+          if (window.__pendingGuard) { window.__pendingGuard = false; openGuard(); }
+      }
+      // Выбрать можно тех, с кем есть переписка, — сервер проверяет то же самое
+      function guardContacts() {
+          const ts = (u) => getTime(chatsMetaCache[guardDm(u.uid)]?.timestamp);
+          return Object.values(usersCache).filter(u => u && u.uid && u.name && u.uid !== currentUser.uid && !bansCache[u.uid] && !iBlocked(u.uid) && chatsMetaCache[guardDm(u.uid)])
+              .sort((a, b) => ts(b) - ts(a));
+      }
+      function guardMinutes() {
+          if (!guardCustom) return guardMin;
+          const v = document.getElementById("guard-time").value;
+          if (!/^\d\d:\d\d$/.test(v)) return null;
+          const [h, m] = v.split(":").map(Number), now = new Date(), at = new Date(now);
+          at.setHours(h, m, 0, 0);
+          if (at <= now) at.setDate(at.getDate() + 1); // время уже прошло — значит, завтра
+          return Math.ceil((at - now) / 60000);
+      }
+      function guardFormState() {
+          const min = guardMinutes(), text = document.getElementById("guard-text").value.trim();
+          const okMin = min !== null && min >= GUARD_MIN && min <= GUARD_MAX;
+          document.getElementById("guard-hint").textContent = min === null ? "" : okMin ? t("Отметиться нужно до {time}", { time: guardHm(Math.ceil((Date.now() + min * 60000) / 60000) * 60000) }) : t("Срок — от 15 минут до 12 часов");
+          document.getElementById("guard-start").disabled = guardBusy || !text || !guardPick.size || !okMin;
+      }
+      function renderGuardForm() {
+          const people = guardContacts();
+          if (!guardPick) { let saved = []; try { saved = JSON.parse(localStorage.getItem("owl-guard-friends") || "[]"); } catch (_) {} guardPick = new Set(Array.isArray(saved) ? saved : []); }
+          for (const id of [...guardPick]) if (!people.some(u => u.uid === id)) guardPick.delete(id);
+          const full = guardPick.size >= GUARD_FRIENDS;
+          document.getElementById("guard-friends").innerHTML = people.length ? people.map(u => {
+              const on = guardPick.has(u.uid), dis = full && !on;
+              return `<label class="guard-friend${dis ? " dis" : ""}"><img src="${getAvatar(u.uid, u.name)}" alt=""><span>${escapeHTML(u.name)}</span><input type="checkbox" data-gf="${escapeHTML(u.uid)}"${on ? " checked" : ""}${dis ? " disabled" : ""}></label>`;
+          }).join("") : `<div class="guard-empty">${t("Здесь появятся люди, с которыми у вас есть переписка. Сначала напишите близкому человеку в личку.")}</div>`;
+          document.querySelectorAll("#guard-chips [data-min]").forEach(b => b.classList.toggle("on", !guardCustom && +b.dataset.min === guardMin));
+          document.getElementById("guard-custom").classList.toggle("on", guardCustom);
+          document.getElementById("guard-time").hidden = !guardCustom;
+          guardFormState();
+      }
+      const guardLeft = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60, p = (n) => String(n).padStart(2, "0"); return (h ? h + ":" + p(m) : p(m)) + ":" + p(x); };
+      function renderGuard() {
+          const on = !!guard, scr = document.getElementById("guard-screen");
+          document.getElementById("guard-btn").classList.toggle("on", on);
+          const art = document.getElementById("guard-art"); art.classList.toggle("on", on && !guard.fired); art.classList.toggle("fired", on && !!guard.fired);
+          document.getElementById("guard-bar").classList.toggle("on", on);
+          document.getElementById("guard-form").hidden = on;
+          document.getElementById("guard-active").hidden = !on;
+          if (!on) { if (scr.style.display !== "none" && currentUser) renderGuardForm(); return; }
+          const names = guard.friends.map(id => usersCache[id]?.name || "…").join(", ");
+          document.getElementById("guard-what").textContent = "„" + guard.text + "“";
+          document.getElementById("guard-who").textContent = t("Срок — {time}. Предупредим: {names}", { time: guardHm(guard.due), names });
+          const fired = document.getElementById("guard-fired");
+          fired.hidden = !guard.fired;
+          if (guard.fired) fired.textContent = t("Срок вышел — Сова предупредила близких. Если вы в порядке, нажмите кнопку: они получат сообщение, что всё хорошо.");
+          document.getElementById("guard-ok").textContent = guard.fired ? t("✅ Я в порядке — сообщить близким") : t("✅ Я в порядке");
+          document.getElementById("guard-ok").disabled = guardBusy;
+          document.getElementById("guard-ext").hidden = !!guard.fired;
+          document.querySelectorAll("#guard-ext button").forEach(b => { b.disabled = guardBusy; });
+          guardTickUi();
+      }
+      // Раз в секунду: обратный отсчёт, плашка над чатами и напоминания, пока Owl открыт
+      function guardTickUi() {
+          if (!guard) return;
+          const left = guard.due - Date.now(), late = !!guard.fired || left <= 10 * 60000;
+          const clock = document.getElementById("guard-clock");
+          clock.textContent = guard.fired ? "00:00" : guardLeft(left); clock.classList.toggle("late", late);
+          document.getElementById("guard-bar").classList.toggle("late", late);
+          document.getElementById("guard-bar-text").innerHTML = guard.fired ? `<b>${t("Близкие предупреждены")}</b>` : `${t("Сова на страже")} · <b>${guardLeft(left)}</b>`;
+          if (guard.fired) return;
+          for (const m of GUARD_REMIND) {
+              if (left > m * 60000 || left <= (m - 1) * 60000 || guardReminded.has(guard.due + ":" + m)) continue;
+              guardReminded.add(guard.due + ":" + m);
+              showToast(t("До срока {n} мин. Вы в порядке? Нажмите «Я в порядке»", { n: m }), "shield", { onClick: openGuard });
+              playNotifySound(); try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (_) {}
+          }
+          // Срок прошёл — через минуту-другую сервер пошлёт тревогу; узнаём об этом
+          if (left < -75000 && Date.now() - guardLateCheck > 60000) { guardLateCheck = Date.now(); guardSync(); }
+      }
+      setInterval(() => { if (guard && document.visibilityState === "visible") guardTickUi(); }, 1000);
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && guard && currentUser && Date.now() - guardSyncAt > 30000) guardSync(); });
+      function guardErr(e) {
+          const i = e.info || {}, who = i.uid && usersCache[i.uid]?.name;
+          if (i.error === "not contact") return t("С {name} нет переписки — Сова не сможет предупредить. Сначала напишите в личку", { name: who || "…" });
+          if (i.error === "blocked") return t("{name} не сможет получить предупреждение — выберите другого человека", { name: who || "…" });
+          if (i.error === "too many") return t("Слишком часто. Попробуйте чуть позже");
+          if (i.error === "email not verified") return t("Сначала подтвердите почту");
+          return t("Нет связи с сервером — таймер не поставлен. Попробуйте ещё раз");
+      }
+      async function guardStart() {
+          const min = guardMinutes(), text = document.getElementById("guard-text").value.trim();
+          if (guardBusy || !text || !guardPick.size || !(min >= GUARD_MIN && min <= GUARD_MAX)) return;
+          guardBusy = true; guardFormState();
+          try {
+              const j = await guardCall("/guard/start", { text, minutes: min, friends: [...guardPick], tz: tzOffset() });
+              try { localStorage.setItem("owl-guard-friends", JSON.stringify([...guardPick])); } catch (_) {}
+              guardBusy = false; guardSet(j.guard);
+              document.getElementById("guard-text").value = "";
+              showToast(t("Сова на страже до {time}", { time: guardHm(j.guard.due) }), "shield");
+              if (!pushEnabled()) setTimeout(() => showToast(t("Уведомления выключены — напоминания придут, только пока Owl открыт. Включите их в настройках"), "bell"), 1200);
+          } catch (e) { showToast(guardErr(e), "error"); }
+          guardBusy = false; renderGuard();
+      }
+      async function guardOk() {
+          if (!guard || guardBusy) return;
+          const wasFired = !!guard.fired;
+          guardBusy = true; renderGuard();
+          try { await guardCall("/guard/cancel"); guardBusy = false; guardSet(null); showToast(wasFired ? t("Близким отправлено, что вы в порядке") : t("Отлично! Сова снята с поста"), "check"); }
+          catch (e) { showToast(t("Не получилось связаться с сервером — таймер всё ещё идёт. Попробуйте ещё раз"), "error"); }
+          guardBusy = false; renderGuard();
+      }
+      async function guardExtend(min) {
+          if (!guard || guardBusy) return;
+          guardBusy = true; renderGuard();
+          try { const j = await guardCall("/guard/extend", { minutes: min }); guardBusy = false; guardSet(j.guard); showToast(t("Срок продлён до {time}", { time: guardHm(j.guard.due) }), "clock"); }
+          catch (e) { showToast(e.info && e.info.error === "no timer" ? t("Таймер уже не идёт") : t("Не получилось продлить — попробуйте ещё раз"), "error"); if (e.info && e.info.error === "no timer") guardSync(); }
+          guardBusy = false; renderGuard();
+      }
+      function openGuard() {
+          if (!currentUser) return;
+          const scr = document.getElementById("guard-screen");
+          scr.style.display = "flex"; renderGuard();
+          if (!guard) setTimeout(() => { if (scr.style.display !== "none" && !reduceMotion()) document.getElementById("guard-text").focus({ preventScroll: true }); }, 50);
+          if (Date.now() - guardSyncAt > 15000) guardSync();
+      }
+      document.getElementById("guard-btn").addEventListener("click", (e) => { e.stopPropagation(); openGuard(); });
+      document.getElementById("guard-close").addEventListener("click", () => { document.getElementById("guard-screen").style.display = "none"; });
+      document.getElementById("guard-screen").addEventListener("click", (e) => { if (e.target.id === "guard-screen") e.target.style.display = "none"; });
+      document.getElementById("guard-bar").addEventListener("click", (e) => { if (!e.target.closest("#guard-bar-ok")) openGuard(); });
+      document.getElementById("guard-bar").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "guard-bar") openGuard(); });
+      document.getElementById("guard-bar-ok").addEventListener("click", guardOk);
+      document.getElementById("guard-ok").addEventListener("click", guardOk);
+      document.getElementById("guard-start").addEventListener("click", guardStart);
+      document.getElementById("guard-text").addEventListener("input", guardFormState);
+      document.getElementById("guard-text").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); guardStart(); } });
+      document.getElementById("guard-time").addEventListener("input", guardFormState);
+      document.getElementById("guard-chips").addEventListener("click", (e) => {
+          const b = e.target.closest(".guard-chip"); if (!b) return;
+          if (b.id === "guard-custom") {
+              guardCustom = true;
+              const tm = document.getElementById("guard-time");
+              if (!tm.value) { const d = new Date(Date.now() + 60 * 60000); tm.value = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+          } else { guardCustom = false; guardMin = +b.dataset.min; }
+          renderGuardForm();
+      });
+      document.getElementById("guard-friends").addEventListener("change", (e) => {
+          const id = e.target.dataset && e.target.dataset.gf; if (!id) return;
+          if (e.target.checked && guardPick.size < GUARD_FRIENDS) guardPick.add(id); else guardPick.delete(id);
+          renderGuardForm();
+      });
+      document.getElementById("guard-ext").addEventListener("click", (e) => { const b = e.target.closest("[data-ext]"); if (b) guardExtend(+b.dataset.ext); });
+      if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open-guard") openGuard(); });
+      try { if (new URLSearchParams(location.search).get("guard")) window.__pendingGuard = true; } catch (_) {}
+
       document.getElementById("push-toggle").addEventListener("change", async (e) => {
           const hint = document.getElementById("push-hint");
           if (!("Notification" in window)) { e.target.checked = false; hint.innerText = t("Этот браузер не поддерживает уведомления. На iPhone добавьте Owl на экран «Домой» (iOS 16.4+)."); return; }
@@ -3802,7 +4125,7 @@
           const uid = currentUser.uid;
           const changed = () => {
               const me = usersCache[uid];
-              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); migrateMyRestricted(); renderMyStats(); renderNightSettings(); syncNight(); nightIntro(); syncLang(); }
+              if (me) { overlayMe(me); renderQuickReactionSetting(); migrateMyPrivate(); healFollowingCount(); migrateMyRestricted(); renderMyStats(); renderNightSettings(); syncNight(); nightIntro(); syncLang(); guardInit(); }
               Object.values(usersCache).forEach(ensureRestrictedWatch);
               watchContacts(); usersChanged();
           };
@@ -6480,7 +6803,7 @@
                     let contentHtml = `<div class="message-content">`;
 
                     let actionsHtml = `<div class="msg-actions"><button class="msg-action-btn reply-btn" data-id="${msg.id}" title="${t("Ответить")}">${replyIconSVG}</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '👍')">👍</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '❤')">❤️</button><button class="msg-action-btn" onclick="addReaction('${msg.id}', '😂')">😂</button>`;
-                    if (isMe || (chPost && authorIsMe)) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" data-text="${escapeHTML(msg.text || '')}" title="${t("Редактировать")}">${editIconSVG}</button>`;
+                    if ((isMe || (chPost && authorIsMe)) && !msg.guard) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" data-text="${escapeHTML(msg.text || '')}" title="${t("Редактировать")}">${editIconSVG}</button>`;
                     if (isMe || isAdmin) actionsHtml += `<button class="msg-action-btn delete-btn" data-id="${msg.id}" title="${t("Удалить")}">${deleteIconSVG}</button>`;
                     if (!isMe && !isAdmin) actionsHtml += `<button class="msg-action-btn report-btn" data-id="${msg.id}" title="${t("Пожаловаться")}">${icon("flag", 16)}</button>`;
                     actionsHtml += `</div>`; contentHtml += actionsHtml;
@@ -6498,7 +6821,8 @@
 
                     if (msg.forwardedFrom && msg.forwardedFrom.name) contentHtml += `<div class="fwd-label">${icon("forward", 13)}<span>${t("Переслано от {name}", { name: `<b>${escapeHTML(usersCache[msg.forwardedFrom.uid]?.name || msg.forwardedFrom.name)}</b>` })}</span></div>`;
                     if (msg.replyTo && msg.replyTo.id) contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(msg.replyTo.sender || '')}</b><span>${iconizePreview(escapeHTML(msg.replyTo.text || ''))}</span></div>`;
-                    if (msg.text) { const shown = chPost ? newsText(msg) : msg.text; contentHtml += `<span class="msg-text-content" data-raw="${escapeHTML(shown)}">${highlightMentions(linkify(shown), msg)}</span>`; }
+                    if (msg.guard) messageRow.classList.add(msg.guard.kind === "ok" ? "guard-ok-msg" : "guard-msg");
+                    if (msg.text) { const shown = chPost ? newsText(msg) : msg.guard ? guardMsgText(msg) : msg.text; contentHtml += `<span class="msg-text-content" data-raw="${escapeHTML(shown)}">${highlightMentions(linkify(shown), msg)}</span>`; }
                     if (chPost && LANG !== "ru" && msg.i18n && msg.i18n[LANG]) contentHtml += `<button type="button" class="tr-note" data-tr="${escapeHTML(msg.id)}">🌐 ${t(newsOrig.has(msg.id) ? "Показать перевод" : "Переведено автоматически · оригинал")}</button>`;
                     if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
                     if (msg.imageUrl) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
