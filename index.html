@@ -1330,19 +1330,24 @@
       .modal-btn { border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 8px 20px -8px color-mix(in srgb, var(--accent) 70%, transparent); background-image: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 60%); }
 
       /* --- вкладки «Все / Подписки»: стеклянная капля перетекает к выбранной --- */
-      .tabs-container.lg-tabs { position: relative; }
+      .tabs-container.lg-tabs { position: relative; overflow: visible; } /* две вкладки помещаются всегда — не обрезаем каплю по краю */
       .tabs-container.lg-tabs .tab { position: relative; z-index: 1; }
       .tabs-container.lg-tabs .tab.active { background: transparent; }
       /* только внутренняя кромка: внешнюю тень обрезал бы прокручиваемый контейнер вкладок (серый прямоугольник под «Все») */
-      .lg-ind { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 20px; background: var(--tab-active-bg); box-shadow: var(--lg-shine); pointer-events: none; z-index: 0; transition: transform .5s var(--lg-spring), width .5s var(--lg-spring), height .3s; }
+      .lg-ind { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: 20px; background: var(--tab-active-bg); box-shadow: var(--lg-shine); pointer-events: none; z-index: 0; will-change: transform, width; transition: transform .45s cubic-bezier(.22,1,.36,1), width .45s cubic-bezier(.22,1,.36,1), height .3s; }
+      /* iPhone, Owl на экране «Домой»: полосу с часами и батареей iOS 27 красит сама (#0B0A12), и перекрасить её нельзя —
+         режим «прозрачной» полосы на iOS 27 оставляет внизу мёртвую полосу 62 pt (проверено на телефоне 06.10 и в симуляторе 30.10).
+         Поэтому верх приложения плавно начинается с того же цвета — шва между полосой и шапкой не видно */
+      @media (display-mode: standalone) and (max-width: 768px) {
+        body:not([data-theme="light"]) .sidebar-profile-header { background-image: linear-gradient(180deg, #0b0a12 0, rgba(11,10,18,0) calc(env(safe-area-inset-top, 0px) + 64px)); }
+        body:not([data-theme="light"]) #main-chat .chat-header { background-image: linear-gradient(180deg, #0b0a12 0, rgba(11,10,18,0) 64px), var(--lg-gloss) !important; }
+      }
       /* свайпы: вертикальную прокрутку ведёт браузер, горизонтальный жест — наш код */
       #chat-list, #chat-box { touch-action: pan-y; }
       @media (max-width: 768px) {
         #app-container.chat-swiping #sidebar { display: flex; will-change: transform, filter; }
         #app-container.chat-swiping #main-chat { display: flex; position: absolute; inset: 0; z-index: 30; box-shadow: -10px 0 30px rgba(0,0,0,.35); will-change: transform; }
       }
-      .lg-ind.stretch { animation: lgStretch .5s var(--lg-ease); }
-      @keyframes lgStretch { 35% { scale: 1.16 .82; } 70% { scale: .97 1.05; } }
 
       /* --- упругое нажатие --- */
       .modal-btn, .ob-mini-btn, .guard-chip, .tab, #attach-menu button, .st-seg button, #guard-bar button { transition: transform .5s var(--lg-spring), background .2s, opacity .2s, box-shadow .2s, color .2s; }
@@ -2110,7 +2115,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.101</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.102</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3408,6 +3413,8 @@
           signOut(auth);
       }
 
+      // Капля под вкладками «Все / Подписки» — её ведёт и код стекла (по смене вкладки), и свайп по списку (hold — пока палец на экране)
+      const lgTabs = { hold: false, place: () => {}, ind: null };
       // ===== LIQUID GLASS (Owl v2): стили — в конце <style>. Здесь — фильтр преломления, блик за курсором, капля вкладок =====
       (() => {
           const root = document.documentElement;
@@ -3444,17 +3451,21 @@
           if (box) {
               box.classList.add("lg-tabs");
               const ind = document.createElement("i"); ind.className = "lg-ind"; ind.setAttribute("aria-hidden", "true"); box.prepend(ind);
-              let last = null;
-              const place = () => {
+              // Место и размер пересчитываем при смене вкладки И при любом изменении её ширины: догрузился шрифт,
+              // на значке стало «36» вместо «0» (раньше капля оставалась старого размера — шире или уже вкладки)
+              const place = (instant) => {
+                  if (lgTabs.hold) return;
                   const a = box.querySelector(".tab.active"); if (!a || !a.offsetWidth) return;
+                  if (instant === true) ind.style.transition = "none";
                   ind.style.width = a.offsetWidth + "px"; ind.style.height = a.offsetHeight + "px";
                   ind.style.transform = `translate(${a.offsetLeft}px, ${a.offsetTop}px)`;
-                  if (last && last !== a && !reduceMotion()) { ind.classList.remove("stretch"); void ind.offsetWidth; ind.classList.add("stretch"); }
-                  last = a;
+                  if (instant === true) { void ind.offsetWidth; ind.style.transition = ""; }
               };
-              new MutationObserver(place).observe(box, { attributes: true, subtree: true, attributeFilter: ["class"] });
-              if (window.ResizeObserver) new ResizeObserver(place).observe(box);
-              requestAnimationFrame(place);
+              lgTabs.place = place; lgTabs.ind = ind;
+              new MutationObserver(() => place()).observe(box, { attributes: true, subtree: true, attributeFilter: ["class"] });
+              if (window.ResizeObserver) { const ro = new ResizeObserver(() => place()); ro.observe(box); box.querySelectorAll(".tab").forEach(t => ro.observe(t)); }
+              if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => place(true));
+              requestAnimationFrame(() => place(true));
           }
       })();
 
@@ -7826,54 +7837,90 @@
       const swipeSpeed = (pts) => { const a = pts[0], b = pts[pts.length - 1]; return a && b && b[1] > a[1] ? (b[0] - a[0]) / (b[1] - a[1]) : 0; }; // px/мс
       const SWIPE_EASE = "cubic-bezier(.2,.9,.25,1)";
 
-      // Список чатов: свайп влево/вправо — «Все» ⇄ «Подписки». Список и стеклянная капля вкладки едут за пальцем
+      // Список чатов: свайп влево/вправо — «Все» ⇄ «Подписки», как карусель. Как только жест стал горизонтальным,
+      // старый список заменяется снимком, а настоящий сразу рисует новую вкладку и въезжает сбоку вместе с пальцем —
+      // никакой задержки после отпускания. Капля под вкладками перетекает синхронно с пальцем.
+      // Отпустили дальше 30 % или рывком — докатывается, иначе плавно возвращается (скорость доводки — от скорости пальца)
       (function () {
-          const list = document.getElementById("chat-list");
-          let sx = 0, sy = 0, dx = 0, on = false, locked = false, pts = [], from = null, to = null;
+          const list = document.getElementById("chat-list"), host = list.parentElement;
+          const EASE = "cubic-bezier(.22,1,.36,1)";
+          let sx = 0, sy = 0, d = 0, w = 0, st = 0, on = false, locked = false, busy = false, pts = [], from = null, to = null, ghost = null, raf = 0;
           const tabEl = (f) => document.getElementById(f === "all" ? "tab-all" : "tab-friends");
-          const ind = () => document.querySelector(".lg-ind");
-          const indAt = (a, b, p) => { const i = ind(); if (!i || !a) return; b = b || a; i.style.transition = "none";
+          const can = () => !!ghost;
+          const dirOf = () => (to === "friends" ? -1 : 1); // «Подписки» правее: новый список приходит справа, старый уходит влево
+          const indAt = (p) => { const i = lgTabs.ind, a = tabEl(from), b = tabEl(to); if (!i || !a || !b) return;
               i.style.width = (a.offsetWidth + (b.offsetWidth - a.offsetWidth) * p) + "px";
               i.style.transform = `translate(${a.offsetLeft + (b.offsetLeft - a.offsetLeft) * p}px, ${a.offsetTop}px)`; };
+          const paint = () => {
+              raf = 0;
+              if (!can()) { list.style.transform = `translate3d(${d}px,0,0)`; return; }
+              ghost.style.transform = `translate3d(${d}px,0,0)`;
+              list.style.transform = `translate3d(${d - dirOf() * w}px,0,0)`;
+              if (!reduceMotion()) indAt(Math.min(1, Math.abs(d) / w));
+          };
+          const startCarousel = () => {
+              const r = list.getBoundingClientRect(), hr = host.getBoundingClientRect();
+              st = list.scrollTop;
+              ghost = list.cloneNode(true); ghost.removeAttribute("id"); ghost.setAttribute("aria-hidden", "true");
+              ghost.style.cssText = `position:absolute;left:${r.left - hr.left}px;top:${r.top - hr.top}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:2;pointer-events:none;overflow:hidden;will-change:transform;background:inherit`;
+              host.appendChild(ghost); ghost.scrollTop = st;
+              lgTabs.hold = true; if (lgTabs.ind) lgTabs.ind.style.transition = "none";
+              tabEl(to).click(); list.scrollTop = 0; // настоящий список уже показывает новую вкладку
+          };
+          const cleanup = () => {
+              if (ghost) { ghost.remove(); ghost = null; }
+              list.style.transition = list.style.transform = list.style.willChange = "";
+              lgTabs.hold = false; if (lgTabs.ind) lgTabs.ind.style.transition = ""; lgTabs.place();
+              busy = false;
+          };
           list.addEventListener("touchstart", e => {
-              if (e.touches.length !== 1) return;
-              sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; on = true; locked = false; pts = [[sx, e.timeStamp]];
+              if (busy || e.touches.length !== 1) { on = false; return; }
+              sx = e.touches[0].clientX; sy = e.touches[0].clientY; d = 0; on = true; locked = false; pts = [[sx, e.timeStamp]];
           }, { passive: true });
           list.addEventListener("touchmove", e => {
               if (!on) return;
               const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
               if (!locked) {
-                  if (Math.abs(x) < 8 && Math.abs(y) < 8) return;
-                  if (Math.abs(x) > Math.abs(y) * 1.2) { locked = true; list.style.transition = "none"; from = currentFilter; }
-                  else { on = false; return; }
+                  if (Math.abs(x) < 6 && Math.abs(y) < 6) return;
+                  if (Math.abs(x) <= Math.abs(y) * 1.15) { on = false; return; } // это прокрутка списка
+                  locked = true; busy = true; from = currentFilter; to = x < 0 ? "friends" : "all"; w = list.clientWidth || window.innerWidth;
+                  list.style.transition = "none"; list.style.willChange = "transform";
+                  if (to !== from) startCarousel();
               }
-              to = x < 0 ? "friends" : "all";
-              const can = to !== from, w = list.clientWidth || window.innerWidth;
-              dx = can ? x : x * .22; // в сторону, где вкладки нет, — тугая «резинка»
-              list.style.transform = `translate3d(${dx}px,0,0)`; list.style.opacity = String(1 - Math.min(.5, Math.abs(dx) / w * .7));
-              if (!reduceMotion()) indAt(tabEl(from), can ? tabEl(to) : null, can ? Math.min(1, Math.abs(x) / (w * .5)) : 0);
-              pts.push([t.clientX, e.timeStamp]); if (pts.length > 5) pts.shift();
+              if (can()) d = dirOf() < 0 ? Math.max(-w, Math.min(0, x)) : Math.min(w, Math.max(0, x));
+              else d = x * .25 / (1 + Math.abs(x) / w); // за краем вкладок — тугая резинка
+              pts.push([t.clientX, e.timeStamp]); if (pts.length > 6) pts.shift();
+              if (!raf) raf = requestAnimationFrame(paint);
           }, { passive: true });
           const end = () => {
               if (!on) return; on = false; if (!locked) return;
-              const w = list.clientWidth || window.innerWidth, v = swipeSpeed(pts);
-              const go = to !== from && (Math.abs(dx) > w * .25 || (Math.abs(v) > .35 && Math.abs(dx) > 24 && Math.sign(v) === Math.sign(dx)));
-              const i = ind(); if (i) i.style.transition = "";
-              if (!go) {
-                  list.style.transition = `transform .3s ${SWIPE_EASE}, opacity .3s`; list.style.transform = ""; list.style.opacity = "";
-                  indAt(tabEl(from), null, 0); if (i) requestAnimationFrame(() => { i.style.transition = ""; });
-                  return;
-              }
-              // старый список уезжает, новый въезжает с другой стороны
-              const dir = Math.sign(dx);
-              list.style.transition = `transform .14s ease-in, opacity .14s`; list.style.transform = `translate3d(${dir * w * .45}px,0,0)`; list.style.opacity = "0";
+              if (raf) { cancelAnimationFrame(raf); paint(); }
+              const v = swipeSpeed(pts);
+              if (!can()) { list.style.transition = `transform .38s ${EASE}`; list.style.transform = ""; setTimeout(cleanup, 400); return; }
+              const dir = dirOf(), p = Math.abs(d) / w, vd = v * dir; // vd > 0 — палец летит в сторону новой вкладки
+              const go = p > .3 || (vd > .25 && p > .03);
+              const remain = (go ? 1 - p : p) * w;
+              const ms = Math.round(Math.max(200, Math.min(420, remain / Math.max(.55, Math.abs(v)) * 1.8)));
+              const tr = `transform ${ms}ms ${EASE}`;
+              ghost.style.transition = list.style.transition = tr;
+              if (lgTabs.ind) lgTabs.ind.style.transition = `transform ${ms}ms ${EASE}, width ${ms}ms ${EASE}`;
+              requestAnimationFrame(() => {
+                  if (!ghost) return;
+                  if (go) { ghost.style.transform = `translate3d(${dir * w}px,0,0)`; list.style.transform = "translate3d(0,0,0)"; indAt(1); }
+                  else { ghost.style.transform = "translate3d(0,0,0)"; list.style.transform = `translate3d(${-dir * w}px,0,0)`; indAt(0); }
+              });
               setTimeout(() => {
-                  tabEl(to).click(); // перерисует список и передвинет каплю
-                  list.style.transition = "none"; list.style.transform = `translate3d(${-dir * w * .3}px,0,0)`; void list.offsetWidth;
-                  list.style.transition = `transform .32s ${SWIPE_EASE}, opacity .25s`; list.style.transform = ""; list.style.opacity = "";
-              }, 140);
+                  if (!go) { lgTabs.hold = true; tabEl(from).click(); list.scrollTop = st; } // вернули исходную вкладку под снимком — без мигания
+                  cleanup();
+              }, ms + 30);
           };
           list.addEventListener("touchend", end); list.addEventListener("touchcancel", end);
+          // Нажатие на вкладку пальцем/мышью: новый список мягко «въезжает» с нужной стороны (капля перетекает сама)
+          ["tab-all", "tab-friends"].forEach(id => document.getElementById(id).addEventListener("click", (e) => {
+              if (!e.isTrusted || lgTabs.hold || reduceMotion() || !list.animate) return;
+              const dir = id === "tab-friends" ? 1 : -1;
+              list.animate([{ transform: `translate3d(${dir * 28}px,0,0)`, opacity: .35 }, { transform: "none", opacity: 1 }], { duration: 300, easing: EASE });
+          }));
       })();
 
       // Открытый чат: свайп вправо из любого места — назад к списку. Чат едет за пальцем, под ним виден список
