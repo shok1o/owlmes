@@ -1343,7 +1343,14 @@
         body:not([data-theme="light"]) #main-chat .chat-header { background-image: linear-gradient(180deg, #0b0a12 0, rgba(11,10,18,0) 64px), var(--lg-gloss) !important; }
       }
       /* свайпы: вертикальную прокрутку ведёт браузер, горизонтальный жест — наш код */
-      #chat-list, #chat-box { touch-action: pan-y; }
+      #chat-pager, #chat-list, #chat-box, #main-chat { touch-action: pan-y; }
+      body.swiping { -webkit-user-select: none; user-select: none; }
+      /* лента вкладок: текущий список и соседний (сбоку, только во время свайпа) */
+      #chat-pager { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+      #chat-track { position: absolute; inset: 0; will-change: transform; }
+      #chat-track > .chat-list { position: absolute; top: 0; bottom: 0; left: 0; width: 100%; box-sizing: border-box; }
+      #chat-list-peek { display: none; pointer-events: none; }
+      #chat-pager.peeking #chat-list-peek { display: block; }
       @media (max-width: 768px) {
         #app-container.chat-swiping #sidebar { display: flex; will-change: transform, filter; }
         #app-container.chat-swiping #main-chat { display: flex; position: absolute; inset: 0; z-index: 30; box-shadow: -10px 0 30px rgba(0,0,0,.35); will-change: transform; }
@@ -2110,12 +2117,12 @@
         
         <div id="guard-bar" role="button" tabindex="0"><span class="gb-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M4.5 3.5 8 5.8Q12 4.4 16 5.8l3.5-2.3V11c0 4.9-3.2 8.6-7.5 10.5C7.7 19.6 4.5 15.9 4.5 11z" fill="currentColor"/><circle cx="9.3" cy="12" r="2.3" fill="#fff"/><circle cx="14.7" cy="12" r="2.3" fill="#fff"/><circle cx="9.5" cy="12.2" r="1.1" fill="#1a1430"/><circle cx="14.9" cy="12.2" r="1.1" fill="#1a1430"/></svg></span><span class="gb-text" id="guard-bar-text"></span><button type="button" id="guard-bar-ok">Я в порядке</button></div>
         <div id="group-invites"></div>
-        <div class="chat-list" id="chat-list"></div>
+        <div id="chat-pager"><div id="chat-track"><div class="chat-list" id="chat-list"></div><div class="chat-list" id="chat-list-peek" aria-hidden="true"></div></div></div>
         <!-- Новая беседа: плавающая кнопка над списком чатов -->
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.103</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.104</div>
       </div>
       
       <!-- ЧАТ -->
@@ -5223,11 +5230,12 @@
           const who = (meta.lastMessageSenderUid && usersCache[meta.lastMessageSenderUid]?.name) || meta.lastMessageSender; // имя из профиля, а не из превью
           return iconizePreview(escapeHTML(who + ": " + meta.lastMessageText));
       }
-      function renderChatList(searchQuery = "") {
+      // filter/list — для ленты вкладок: соседнюю вкладку рисуем в #chat-list-peek, не трогая основной список
+      function renderChatList(searchQuery = "", filter = currentFilter, list = document.getElementById("chat-list")) {
         if (!currentUser) return; 
         try {
             let val = String(searchQuery).toLowerCase().trim(); let isSearching = val.length > 0;
-            let list = document.getElementById("chat-list"); let html = "";
+            let html = "";
             let allCount = 1; let friendCount = 0; let myFollowing = usersCache[currentUser.uid]?.following || [];
             let myPinned = usersCache[currentUser.uid]?.pinnedChats || [];
 
@@ -5242,7 +5250,7 @@
             let globalPreview = globalMeta && globalMeta.lastMessageText ? sharedPreview(globalMeta) : "Закрыт — архив виден только админу";
             let globalTime = globalMeta && globalMeta.timestamp ? getTime(globalMeta.timestamp) : 0;
             
-            if (currentFilter === 'all' && isAdmin) {
+            if (filter === 'all' && isAdmin) {
                 chatItemsArray.push({
                     id: 'global', targetUid: 'global', isGroup: false, name: t('Глобальный чат'), subtext: globalPreview,
                     avatarHtml: `<div style="background: var(--accent); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; color: white;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></div>`,
@@ -5251,7 +5259,7 @@
             }
 
             // «Гнездо» — всегда первым во вкладке «Все» (в поиске — если ищут по его названию)
-            if (currentFilter === 'all' && (!isSearching || t("Гнездо").toLowerCase().includes(val) || "гнездо".includes(val))) {
+            if (filter === 'all' && (!isSearching || t("Гнездо").toLowerCase().includes(val) || "гнездо".includes(val))) {
                 const nm = chatsMetaCache[nestId()];
                 chatItemsArray.push({
                     id: nestId(), targetUid: 'nest', isGroup: false, isNest: true, name: t("Гнездо"),
@@ -5262,7 +5270,7 @@
             }
 
             // Канал «Новости Owl» — вторым, сразу после «Гнезда»; точка — если вышел пост, который вы ещё не видели
-            if (currentFilter === 'all' && (!isSearching || t("Новости Owl").toLowerCase().includes(val) || "новости owl".includes(val))) {
+            if (filter === 'all' && (!isSearching || t("Новости Owl").toLowerCase().includes(val) || "новости owl".includes(val))) {
                 if (currentChatId === NEWS_ID) markNewsSeen(); // пост вышел, пока канал открыт, — он уже увиден
                 const nm = chatsMetaCache[NEWS_ID], nt = nm && nm.timestamp ? getTime(nm.timestamp) : 0;
                 chatItemsArray.push({
@@ -5295,7 +5303,7 @@
               let meta = chatsMetaCache[chatId];
               let hasChatHistory = !!meta; 
 
-              if (currentFilter === 'friends') { 
+              if (filter === 'friends') { 
                   if (!isFriend) return; 
                   if (isSearching && !String(u.name).toLowerCase().includes(val)) return; 
               } else { 
@@ -5354,12 +5362,12 @@
             const realChats = chatItemsArray.filter(i => i.id !== 'global').length;
             const inviteBtn = `<br><button class="ob-mini-btn" data-invite>${icon("users", 16)}${t("Пригласить друга")}</button>`;
             if (isSearching && !realChats) html += `<div class="empty-hint"><b>${t("Никого не нашли")}</b>${t("Ник ищется по первым буквам — проверьте, как он пишется.")}${inviteBtn}</div>`;
-            else if (!isSearching && !isAdmin && !realChats) html += currentFilter === 'friends'
+            else if (!isSearching && !isAdmin && !realChats) html += filter === 'friends'
                 ? `<div class="empty-hint"><b>${t("Вы пока ни на кого не подписаны")}</b>${t("Найдите друга по нику в поиске сверху и подпишитесь — он появится здесь.")}${inviteBtn}</div>`
                 : `<div class="empty-hint"><b>${t("Здесь появятся ваши чаты")}</b>${t("Найдите друга по нику в поиске сверху или пригласите его в Owl.")}${inviteBtn}</div>`;
             // Плавные перестановки (FLIP): запоминаем, где были чаты, и после перерисовки «доезжаем» до новых мест.
             // Новый чат проявляется, счётчик непрочитанных подпрыгивает, когда растёт. Во время поиска — без анимации
-            const animList = !isSearching && !reduceMotion() && list.offsetParent !== null;
+            const animList = list.id === "chat-list" && !isSearching && !reduceMotion() && list.offsetParent !== null;
             const prevTop = {}, prevUnread = {};
             if (animList) list.querySelectorAll(".chat-item[data-chat-id]").forEach(el => { prevTop[el.dataset.chatId] = el.getBoundingClientRect().top; const b = el.querySelector(".ci-badge"); prevUnread[el.dataset.chatId] = b ? +b.dataset.n : 0; });
             const hadItems = Object.keys(prevTop).length > 0;
@@ -7831,203 +7839,193 @@
           } catch (err) { console.error(err); e.target.checked = !hide; showToast(t("Не удалось сохранить"), "error"); }
       });
 
-      // ===== СВАЙПЫ (телефон) =====
-      // Общее: направление решает первый сдвиг пальца (8 px), дальше экран едет за пальцем без задержки.
-      // Срабатывает и длинный медленный жест, и короткий быстрый рывок (скорость считаем по последним точкам)
-      const swipeSpeed = (pts) => { const a = pts[0], b = pts[pts.length - 1]; return a && b && b[1] > a[1] ? (b[0] - a[0]) / (b[1] - a[1]) : 0; }; // px/мс
-      const SWIPE_EASE = "cubic-bezier(.2,.9,.25,1)";
+      // ===== ЖЕСТЫ (по системе свайпов из другого приложения владельца: «Система свайпов — описание для ИИ-помощника.md») =====
+      // Pointer Events: один код для пальца, мыши и стилуса. Движения слушаем на всём окне, а не на элементе —
+      // поэтому жест доходит до конца, даже если строку под пальцем перерисовали (так зависал свайп в v1.102).
+      // Направление решается в первые 10 px; вертикально — это прокрутка, жест отпускается. Обновление — не чаще кадра
+      const rub = (d, max) => max * d / (d + max); // «резинка»: чем дальше тянешь, тем туже
+      const buzz = (ms = 8) => { try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate(ms); } catch (_) {} };
+      // После жеста отпускание пальца не должно считаться нажатием (не открывать чат под пальцем)
+      let justDragged = false;
+      // только настоящие нажатия: программные .click() из самих жестов (кнопка «назад», вкладка) должны проходить
+      document.addEventListener("click", e => { if (justDragged && e.isTrusted) { e.stopPropagation(); e.preventDefault(); justDragged = false; } }, true);
+      const swallowClick = () => { justDragged = true; setTimeout(() => { justDragged = false; }, 350); };
+      const SWIPE_EASE = "cubic-bezier(.22,1,.36,1)";
+      // root — где слушаем, sel — на каком элементе начинается жест.
+      // h = { dir: 1 (только вправо) | -1 (только влево) | 0, ok(t, e), start(s), move(s), end(s, cancelled) }
+      // s = { t: элемент, dx, dy, v: скорость px/мс, on }
+      function gesture(root, sel, h) {
+          root.addEventListener("pointerdown", e => {
+              if (e.button) return;
+              const t = e.target.closest(sel); if (!t || (h.ok && !h.ok(t, e))) return;
+              const s = { t, x: e.clientX, y: e.clientY, dx: 0, dy: 0, on: false, v: 0, lx: e.clientX, lt: performance.now(), raf: 0 };
+              const move = ev => {
+                  if (ev.pointerId !== e.pointerId) return;
+                  s.dx = ev.clientX - s.x; s.dy = ev.clientY - s.y;
+                  const now = performance.now(); // скорость — по последнему отрезку
+                  if (now > s.lt + 4) { s.v = (ev.clientX - s.lx) / (now - s.lt); s.lx = ev.clientX; s.lt = now; }
+                  if (!s.on) {
+                      if (Math.abs(s.dy) > 10 && Math.abs(s.dy) > Math.abs(s.dx)) return stop(); // вертикально — прокрутка
+                      if (Math.abs(s.dx) < 10) return;                                           // ещё не понятно
+                      if (h.dir && Math.sign(s.dx) !== h.dir) return stop();                     // не то направление
+                      s.on = true; document.body.classList.add("swiping"); h.start && h.start(s);
+                  }
+                  if (!s.raf) s.raf = requestAnimationFrame(() => { s.raf = 0; if (s.on) h.move(s); });
+              };
+              const end = ev => {
+                  if (ev.pointerId !== e.pointerId) return;
+                  stop();
+                  if (!s.on) return;
+                  cancelAnimationFrame(s.raf); s.raf = 0; h.move(s);
+                  document.body.classList.remove("swiping"); swallowClick();
+                  // палец давно стоит на месте — скорости уже нет (иначе медленный жест засчитался бы как рывок)
+                  if (performance.now() - s.lt > 90) s.v = 0;
+                  h.end(s, ev.type === "pointercancel");
+              };
+              const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", end); removeEventListener("pointercancel", end); };
+              addEventListener("pointermove", move); addEventListener("pointerup", end); addEventListener("pointercancel", end);
+          });
+      }
 
-      // Список чатов: свайп влево/вправо — «Все» ⇄ «Подписки», как карусель. Как только жест стал горизонтальным,
-      // старый список заменяется снимком, а настоящий сразу рисует новую вкладку и въезжает сбоку вместе с пальцем —
-      // никакой задержки после отпускания. Капля под вкладками перетекает синхронно с пальцем.
-      // Отпустили дальше 30 % или рывком — докатывается, иначе плавно возвращается (скорость доводки — от скорости пальца)
+      // Вкладки «Все» ⇄ «Подписки» — лента. Текущая вкладка — #chat-list, соседняя рисуется сбоку в #chat-list-peek
+      // в момент, когда жест пошёл в её сторону; лента едет за пальцем, капля под вкладками перетекает вместе с ней.
+      // Отпустили дальше 22 % ширины или рывком — лента докатывается, иначе пружинит назад. У края — резинка
       (function () {
-          const list = document.getElementById("chat-list"), host = list.parentElement;
-          const EASE = "cubic-bezier(.22,1,.36,1)";
-          let sx = 0, sy = 0, d = 0, w = 0, st = 0, on = false, locked = false, busy = false, busyAt = 0, pts = [], from = null, to = null, ghost = null, raf = 0, tgt = null;
+          const pager = document.getElementById("chat-pager"), track = document.getElementById("chat-track");
+          const list = document.getElementById("chat-list"), peek = document.getElementById("chat-list-peek");
+          const KEYS = ["all", "friends"];
           const tabEl = (f) => document.getElementById(f === "all" ? "tab-all" : "tab-friends");
-          const can = () => !!ghost;
-          const dirOf = () => (to === "friends" ? -1 : 1); // «Подписки» правее: новый список приходит справа, старый уходит влево
-          const indAt = (p) => { const i = lgTabs.ind, a = tabEl(from), b = tabEl(to); if (!i || !a || !b) return;
+          const searchVal = () => document.getElementById("search-input").value;
+          let settling = false;
+          const indAt = (a, b, p) => { const i = lgTabs.ind; if (!i || !a) return; b = b || a;
               i.style.width = (a.offsetWidth + (b.offsetWidth - a.offsetWidth) * p) + "px";
               i.style.transform = `translate(${a.offsetLeft + (b.offsetLeft - a.offsetLeft) * p}px, ${a.offsetTop}px)`; };
-          const paint = () => {
-              raf = 0;
-              if (!can()) { list.style.transform = `translate3d(${d}px,0,0)`; return; }
-              ghost.style.transform = `translate3d(${d}px,0,0)`;
-              list.style.transform = `translate3d(${d - dirOf() * w}px,0,0)`;
-              if (!reduceMotion()) indAt(Math.min(1, Math.abs(d) / w));
-          };
-          const startCarousel = () => {
-              const r = list.getBoundingClientRect(), hr = host.getBoundingClientRect();
-              st = list.scrollTop;
-              ghost = list.cloneNode(true); ghost.removeAttribute("id"); ghost.setAttribute("aria-hidden", "true");
-              ghost.style.cssText = `position:absolute;left:${r.left - hr.left}px;top:${r.top - hr.top}px;width:${r.width}px;height:${r.height}px;margin:0;z-index:2;pointer-events:none;overflow:hidden;will-change:transform;background:inherit`;
-              host.appendChild(ghost); ghost.scrollTop = st;
-              lgTabs.hold = true; if (lgTabs.ind) lgTabs.ind.style.transition = "none";
-              tabEl(to).click(); list.scrollTop = 0; // настоящий список уже показывает новую вкладку
-          };
-          const cleanup = () => {
-              if (ghost) { ghost.remove(); ghost = null; }
-              list.style.transition = list.style.transform = list.style.willChange = "";
-              lgTabs.hold = false; if (lgTabs.ind) lgTabs.ind.style.transition = ""; lgTabs.place();
-              busy = false; on = false; locked = false;
-          };
-          // Палец касается строки чата, а карусель сразу перерисовывает список — строка удаляется со страницы.
-          // iOS продолжает слать движения пальца этой (уже удалённой) строке, и до #chat-list они не доходят.
-          // Поэтому слушаем движения на самой строке, которой коснулись, — так они приходят всегда
-          const unbind = () => { if (!tgt) return; tgt.removeEventListener("touchmove", move); tgt.removeEventListener("touchend", end); tgt.removeEventListener("touchcancel", end); tgt = null; };
-          list.addEventListener("touchstart", e => {
-              if (busy && Date.now() - busyAt > 1200) cleanup(); // страховка: жест почему-то не завершился — возвращаем всё как было
-              if (busy || e.touches.length !== 1) { on = false; return; }
-              sx = e.touches[0].clientX; sy = e.touches[0].clientY; d = 0; on = true; locked = false; pts = [[sx, e.timeStamp]];
-              unbind(); tgt = e.target;
-              tgt.addEventListener("touchmove", move, { passive: true }); tgt.addEventListener("touchend", end); tgt.addEventListener("touchcancel", end);
-          }, { passive: true });
-          function move(e) {
-              if (!on) return;
-              const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
-              if (!locked) {
-                  if (Math.abs(x) < 6 && Math.abs(y) < 6) return;
-                  if (Math.abs(x) <= Math.abs(y) * 1.15) { on = false; return; } // это прокрутка списка
-                  locked = true; busy = true; busyAt = Date.now(); from = currentFilter; to = x < 0 ? "friends" : "all"; w = list.clientWidth || window.innerWidth;
-                  list.style.transition = "none"; list.style.willChange = "transform";
-                  if (to !== from) startCarousel();
+          gesture(pager, "#chat-pager", {
+              ok: (t, e) => !settling && e.pointerType !== "mouse" && !e.target.closest("input, textarea, [data-invite]"),
+              start(s) {
+                  s.i = KEYS.indexOf(currentFilter); s.w = pager.offsetWidth || window.innerWidth;
+                  s.next = KEYS[s.i + 1]; s.prev = KEYS[s.i - 1]; s.peekFor = null;
+                  track.style.transition = "none"; lgTabs.hold = true; if (lgTabs.ind) lgTabs.ind.style.transition = "none";
+              },
+              move(s) {
+                  const to = s.dx < 0 ? s.next : s.prev;
+                  let x = s.dx;
+                  if (!to) x = s.dx < 0 ? -rub(-s.dx, 70) : rub(s.dx, 70);
+                  else if (s.peekFor !== to) { // соседний список — один раз на направление
+                      renderChatList(searchVal(), to, peek); peek.scrollTop = 0;
+                      peek.style.left = (s.dx < 0 ? 100 : -100) + "%"; pager.classList.add("peeking"); s.peekFor = to;
+                  }
+                  if (to) x = Math.max(-s.w, Math.min(s.w, x));
+                  track.style.transform = `translate3d(${x}px,0,0)`;
+                  if (!reduceMotion()) indAt(tabEl(KEYS[s.i]), to ? tabEl(to) : null, to ? Math.min(1, Math.abs(x) / s.w) : 0);
+                  const arm = !!to && Math.abs(x) > s.w * .22; if (arm !== !!s.arm) { s.arm = arm; if (arm) buzz(); }
+              },
+              end(s, cancel) {
+                  const to = s.dx < 0 ? s.next : s.prev, dir = s.dx < 0 ? -1 : 1;
+                  const go = !cancel && !!to && (Math.abs(s.dx) > s.w * .22 || (Math.abs(s.v) > .35 && Math.sign(s.v) === dir));
+                  const ms = reduceMotion() ? 0 : 380;
+                  settling = true;
+                  track.style.transition = ms ? `transform ${ms}ms ${SWIPE_EASE}` : "none";
+                  if (lgTabs.ind) lgTabs.ind.style.transition = ms ? `transform ${ms}ms ${SWIPE_EASE}, width ${ms}ms ${SWIPE_EASE}` : "none";
+                  track.style.transform = go ? `translate3d(${dir * s.w}px,0,0)` : "translate3d(0,0,0)";
+                  indAt(tabEl(KEYS[s.i]), go ? tabEl(to) : null, go ? 1 : 0);
+                  setTimeout(() => {
+                      track.style.transition = "none";
+                      if (go) { tabEl(to).click(); list.scrollTop = 0; } // основной список теперь сам показывает новую вкладку
+                      track.style.transform = ""; pager.classList.remove("peeking"); peek.innerHTML = "";
+                      lgTabs.hold = false; if (lgTabs.ind) lgTabs.ind.style.transition = ""; lgTabs.place();
+                      settling = false;
+                  }, ms + 20);
               }
-              if (can()) d = dirOf() < 0 ? Math.max(-w, Math.min(0, x)) : Math.min(w, Math.max(0, x));
-              else d = x * .25 / (1 + Math.abs(x) / w); // за краем вкладок — тугая резинка
-              pts.push([t.clientX, e.timeStamp]); if (pts.length > 6) pts.shift();
-              if (!raf) raf = requestAnimationFrame(paint);
-          }
-          function end() {
-              unbind();
-              if (!on) return; on = false; if (!locked) return;
-              busyAt = Date.now();
-              if (raf) { cancelAnimationFrame(raf); paint(); }
-              const v = swipeSpeed(pts);
-              if (!can()) { list.style.transition = `transform .38s ${EASE}`; list.style.transform = ""; setTimeout(cleanup, 400); return; }
-              const dir = dirOf(), p = Math.abs(d) / w, vd = v * dir; // vd > 0 — палец летит в сторону новой вкладки
-              const go = p > .3 || (vd > .25 && p > .03);
-              const remain = (go ? 1 - p : p) * w;
-              const ms = Math.round(Math.max(200, Math.min(420, remain / Math.max(.55, Math.abs(v)) * 1.8)));
-              const tr = `transform ${ms}ms ${EASE}`;
-              ghost.style.transition = list.style.transition = tr;
-              if (lgTabs.ind) lgTabs.ind.style.transition = `transform ${ms}ms ${EASE}, width ${ms}ms ${EASE}`;
-              requestAnimationFrame(() => {
-                  if (!ghost) return;
-                  if (go) { ghost.style.transform = `translate3d(${dir * w}px,0,0)`; list.style.transform = "translate3d(0,0,0)"; indAt(1); }
-                  else { ghost.style.transform = "translate3d(0,0,0)"; list.style.transform = `translate3d(${-dir * w}px,0,0)`; indAt(0); }
-              });
-              setTimeout(() => {
-                  if (!go) { lgTabs.hold = true; tabEl(from).click(); list.scrollTop = st; } // вернули исходную вкладку под снимком — без мигания
-                  cleanup();
-              }, ms + 30);
-          }
-          // Нажатие на вкладку пальцем/мышью: новый список мягко «въезжает» с нужной стороны (капля перетекает сама)
+          });
+          // Нажатие на вкладку: новый список мягко «въезжает» с нужной стороны (капля перетекает сама)
           ["tab-all", "tab-friends"].forEach(id => document.getElementById(id).addEventListener("click", (e) => {
-              if (!e.isTrusted || lgTabs.hold || reduceMotion() || !list.animate) return;
+              if (!e.isTrusted || settling || reduceMotion() || !list.animate) return;
               const dir = id === "tab-friends" ? 1 : -1;
-              list.animate([{ transform: `translate3d(${dir * 28}px,0,0)`, opacity: .35 }, { transform: "none", opacity: 1 }], { duration: 300, easing: EASE });
+              list.animate([{ transform: `translate3d(${dir * 28}px,0,0)`, opacity: .35 }, { transform: "none", opacity: 1 }], { duration: 300, easing: SWIPE_EASE });
           }));
       })();
 
-      // Открытый чат: свайп вправо из любого места — назад к списку. Чат едет за пальцем, под ним виден список
-      // (чуть притенённый и сдвинутый, как в iOS). Отпустили дальше трети экрана или рывком — чат уезжает, иначе пружинит назад.
-      // Влево по сообщению — «ответить» (отдельный обработчик ниже): направления не пересекаются
+      // Открытый чат (телефон): свайп вправо из любого места — назад к списку. Чат едет за пальцем, из-под него
+      // выезжает список, светлея. Треть ширины или резкий смах — чат уезжает, иначе пружинит назад
       (function () {
           const main = document.getElementById("main-chat"), app = document.getElementById("app-container"), side = document.getElementById("sidebar");
-          let sx = 0, sy = 0, dx = 0, on = false, locked = false, pts = [];
-          const ok = () => window.innerWidth <= 768 && app.classList.contains("chat-active") && !app.classList.contains("chat-opening") && !app.classList.contains("chat-closing");
-          const paint = (x) => { const p = Math.min(1, x / window.innerWidth); main.style.transform = `translate3d(${x}px,0,0)`; side.style.transform = `translate3d(${-22 * (1 - p)}%,0,0)`; side.style.filter = `brightness(${(.7 + .3 * p).toFixed(3)})`; };
+          const paint = (x, w) => { const k = Math.min(1, x / w); main.style.transform = `translate3d(${x}px,0,0)`; side.style.transform = `translate3d(${-22 * (1 - k)}%,0,0)`; side.style.filter = `brightness(${(.7 + .3 * k).toFixed(3)})`; };
           const clear = () => { app.classList.remove("chat-swiping"); [main, side].forEach(el => { el.style.transition = ""; el.style.transform = ""; el.style.filter = ""; }); };
-          main.addEventListener("touchstart", e => {
-              if (!ok() || e.touches.length !== 1 || e.target.closest("input, textarea, select, [contenteditable], audio, #rec-bar, #attach-menu, #sticker-panel, .modal-screen")) return;
-              sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; on = true; locked = false; pts = [[sx, e.timeStamp]];
-          }, { passive: true });
-          main.addEventListener("touchmove", e => {
-              if (!on) return;
-              const t = e.touches[0], x = t.clientX - sx, y = t.clientY - sy;
-              if (!locked) {
-                  if (Math.abs(x) < 8 && Math.abs(y) < 8) return;
-                  if (x > 0 && x > Math.abs(y) * 1.2) { locked = true; app.classList.add("chat-swiping"); main.style.transition = side.style.transition = "none"; }
-                  else { on = false; return; }
+          gesture(main, "#main-chat", {
+              dir: 1,
+              ok: (t, e) => window.innerWidth <= 768 && app.classList.contains("chat-active") && !app.classList.contains("chat-opening") && !app.classList.contains("chat-closing")
+                  && !e.target.closest("input, textarea, select, [contenteditable], audio, .input-area, #attach-menu, #sticker-panel, .modal-screen, #select-bar"),
+              start(s) { s.w = window.innerWidth; app.classList.add("chat-swiping"); main.style.transition = side.style.transition = "none"; },
+              move(s) { paint(Math.max(0, s.dx), s.w); const arm = s.dx > s.w * .33; if (arm !== !!s.arm) { s.arm = arm; if (arm) buzz(); } },
+              end(s, cancel) {
+                  const go = !cancel && (s.dx > s.w * .33 || (s.v > .45 && s.dx > 24));
+                  const ms = Math.round(Math.max(160, Math.min(340, (go ? s.w - s.dx : s.dx) / Math.max(.9, Math.abs(s.v)))));
+                  main.style.transition = side.style.transition = `transform ${ms}ms ${SWIPE_EASE}, filter ${ms}ms`;
+                  if (go) {
+                      paint(s.w, s.w);
+                      // кнопка «назад» видит сдвинутый чат и закрывает его без своей анимации — без «прыжка»
+                      setTimeout(() => { document.getElementById("mobile-back-btn").click(); clear(); }, ms);
+                  } else {
+                      main.style.transform = ""; side.style.transform = "translate3d(-22%,0,0)"; side.style.filter = "brightness(.7)";
+                      setTimeout(clear, ms);
+                  }
               }
-              dx = Math.max(0, x); paint(dx);
-              pts.push([t.clientX, e.timeStamp]); if (pts.length > 5) pts.shift();
-          }, { passive: true });
-          const end = () => {
-              if (!on) return; on = false; if (!locked) return;
-              const w = window.innerWidth, v = swipeSpeed(pts);
-              const go = dx > w * .33 || (v > .35 && dx > 24);
-              const ms = Math.round(Math.max(150, Math.min(320, (go ? w - dx : dx) / Math.max(.9, Math.abs(v)))));
-              main.style.transition = side.style.transition = `transform ${ms}ms ${SWIPE_EASE}, filter ${ms}ms`;
-              if (go) {
-                  paint(w);
-                  // кнопка «назад» видит сдвинутый чат и закрывает его без своей анимации — без «прыжка»
-                  setTimeout(() => { document.getElementById("mobile-back-btn").click(); clear(); }, ms);
-              } else {
-                  main.style.transform = ""; side.style.transform = "translate3d(-22%,0,0)"; side.style.filter = "brightness(.7)";
-                  setTimeout(clear, ms);
-              }
-          };
-          main.addEventListener("touchend", end); main.addEventListener("touchcancel", end);
+          });
       })();
 
-      // Свайп влево по сообщению — ответить (телефон)
+      // Свайп влево по сообщению — ответить: пузырь едет за пальцем туго (резинка, максимум ~110 px), проявляется стрелка
+      gesture(document.getElementById("chat-box"), ".message-row[data-msg-id]", {
+          dir: -1,
+          ok: (t, e) => !selMode && e.pointerType !== "mouse" && !e.target.closest("audio, button, a, .reply-quote, .poll, input, textarea"),
+          start(s) {
+              s.b = s.t.querySelector(".message-content"); if (!s.b) return;
+              s.b.style.transition = "none";
+              s.ic = document.createElement("div"); s.ic.className = "swipe-reply-icon"; s.ic.innerHTML = replyIconSVG; s.b.appendChild(s.ic);
+          },
+          move(s) {
+              if (!s.b) return;
+              const x = rub(Math.max(0, -s.dx), 110);
+              s.b.style.transform = `translateX(${-x}px)`;
+              const p = Math.min(1, x / 44); s.ic.style.opacity = p; s.ic.style.transform = `translate(100%, -50%) scale(${.5 + p * .5})`;
+              const arm = x > 44; if (arm !== !!s.arm) { s.arm = arm; if (arm) buzz(10); }
+          },
+          end(s, cancel) {
+              if (!s.b) return;
+              const b = s.b, ic = s.ic;
+              b.style.transition = `transform .32s ${SWIPE_EASE}`; b.style.transform = ""; ic.style.opacity = "0";
+              setTimeout(() => { b.style.transition = ""; ic.remove(); }, 340);
+              if (s.arm && !cancel) startReply(s.t.getAttribute("data-msg-id"));
+          }
+      });
+
+      // Долгое нажатие на сообщение (0,45 с без движения) — меню; двойное нажатие — быстрая реакция
       (function () {
           const box = document.getElementById("chat-box");
-          let row = null, bubble = null, icon = null, sx = 0, sy = 0, dx = 0, locked = false;
-          const TRIGGER = 60;
-          const finish = () => {
-              if (bubble) { bubble.style.transition = "transform .2s ease"; bubble.style.transform = ""; let b = bubble; setTimeout(() => { b.style.transition = ""; }, 220); }
-              if (icon) { let i = icon; i.style.opacity = "0"; setTimeout(() => i.remove(), 200); }
-              row = bubble = icon = null; locked = false;
-          };
-          // Долгое нажатие (0,45 с без движения) — меню сообщения
-          let pressTimer = null, suppressClickUntil = 0;
+          let row = null, sx = 0, sy = 0, moved = false, pressTimer = null, suppressClickUntil = 0, lastTap = { id: null, t: 0 };
           const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
           box.addEventListener("click", e => { if (Date.now() < suppressClickUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
           box.addEventListener("touchstart", e => {
-              if (e.touches.length !== 1 || selMode || e.target.closest("audio,button,a,.reply-quote")) return;
+              if (e.touches.length !== 1 || selMode || e.target.closest("audio,button,a,.reply-quote")) { row = null; return; }
               row = e.target.closest(".message-row[data-msg-id]"); if (!row) return;
-              bubble = row.querySelector(".message-content"); sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; locked = false;
+              sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved = false;
               const id = row.getAttribute("data-msg-id");
               cancelPress();
-              pressTimer = setTimeout(() => { pressTimer = null; if (locked) return; suppressClickUntil = Date.now() + 600; finish(); openMsgMenu(id); }, 450);
+              pressTimer = setTimeout(() => { pressTimer = null; if (moved) return; suppressClickUntil = Date.now() + 600; openMsgMenu(id); }, 450);
           }, { passive: true });
           box.addEventListener("touchmove", e => {
-              if (pressTimer && (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8)) cancelPress();
-              if (!row) return;
-              const x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
-              if (!locked) {
-                  if (Math.abs(y) > 10 && Math.abs(y) > Math.abs(x)) { row = bubble = null; return; }
-                  if (x < -12 && -x > Math.abs(y) * 1.5) {
-                      locked = true; bubble.style.transition = "none";
-                      icon = document.createElement("div"); icon.className = "swipe-reply-icon"; icon.innerHTML = replyIconSVG; bubble.appendChild(icon);
-                  } else return;
-              }
-              dx = Math.max(-90, Math.min(0, x + 12));
-              bubble.style.transform = "translateX(" + dx + "px)";
-              const p = Math.min(1, -dx / TRIGGER);
-              icon.style.opacity = p; icon.style.transform = `translate(100%, -50%) scale(${0.5 + p * 0.5})`;
-              if (p >= 1 && !icon.dataset.buzz) { icon.dataset.buzz = "1"; if (navigator.vibrate) navigator.vibrate(10); }
+              if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) { moved = true; cancelPress(); }
           }, { passive: true });
-          let lastTap = { id: null, t: 0 };
           box.addEventListener("touchend", (e) => {
               const wasPress = !!pressTimer; cancelPress();
               // Двойное нажатие — быстрая реакция (не на фото, ссылках и кнопках)
-              if (wasPress && row && !locked && !e.target.closest("a, audio, button, img, .reply-quote")) {
+              if (wasPress && row && !moved && !e.target.closest("a, audio, button, img, .reply-quote")) {
                   const id = row.getAttribute("data-msg-id"), now = Date.now();
-                  if (lastTap.id === id && now - lastTap.t < 320) {
-                      lastTap = { id: null, t: 0 }; e.preventDefault(); finish(); quickReact(id); return;
-                  }
+                  if (lastTap.id === id && now - lastTap.t < 320) { lastTap = { id: null, t: 0 }; e.preventDefault(); quickReact(id); return; }
                   lastTap = { id, t: now };
               }
-              if (!row) return;
-              const id = row.getAttribute("data-msg-id"); const go = locked && -dx >= TRIGGER;
-              finish(); if (go) startReply(id);
           });
-          box.addEventListener("touchcancel", () => { cancelPress(); if (row) finish(); });
+          box.addEventListener("touchcancel", () => { cancelPress(); row = null; });
       })();
     </script>
     <script>

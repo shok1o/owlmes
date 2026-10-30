@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v70';
+const CACHE = 'owl-shell-v71';
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
