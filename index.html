@@ -1369,6 +1369,80 @@
         .toast, #attach-menu.on, #guard-bar.on, .lg-ind.stretch { animation: none !important; }
         .lg-ind { transition: none; }
       }
+
+      /* ===================== LIQUID GLASS, этап 2 (Owl v2): список, настройки, меню, полосы, переключатели ===================== */
+      /* «стекло на подложке» — для элементов на сплошном фоне панели: заметнее, чем просто полупрозрачность */
+      :root { --lg-chip: color-mix(in srgb, var(--input-bg) 78%, transparent); }
+      [data-theme="light"] { --lg-chip: color-mix(in srgb, var(--input-bg) 85%, #fff); }
+
+      /* --- список чатов: строки — стеклянные «ячейки», выбранный чат — стеклянная капля --- */
+      .chat-item { margin: 2px 8px; padding: 9px 10px; border-radius: 18px; transition: background-color .25s, box-shadow .25s, transform .45s var(--lg-spring); }
+      .chat-item-info { border-bottom: none; padding-bottom: 0; }
+      .chat-item:hover:not(.active) { background-color: color-mix(in srgb, var(--input-bg) 70%, transparent); box-shadow: inset 0 0 0 .5px var(--lg-edge); }
+      .chat-item:active { transform: scale(.985); transition-duration: .1s; }
+      body:not([data-theme="light"]) .chat-item.active { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 60%), var(--tab-active-bg); box-shadow: var(--lg-shine), 0 6px 18px -8px rgba(4,2,14,.6); }
+      [data-theme="light"] .chat-item.active { background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 60%), var(--accent); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 8px 20px -10px color-mix(in srgb, var(--accent) 70%, transparent); }
+
+      /* в светлой теме выбранный чат — фиолетовая капля: имя друга (оно фиолетовое) делаем белым, иначе его не видно */
+      [data-theme="light"] .chat-item.active .chat-item-name { color: #fff !important; }
+      /* --- поиск --- */
+      .search-wrapper input { background: var(--lg-chip); box-shadow: var(--lg-shine); border: 1px solid var(--lg-edge); transition: box-shadow .25s, background .25s; }
+      .search-wrapper input:focus { box-shadow: var(--lg-shine), 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+      /* --- карточки настроек, подсказки, выпадающие списки --- */
+      .st-card, .empty-hint, .settings-select { background-color: var(--lg-chip); background-image: var(--lg-gloss); border: 1px solid var(--lg-edge); box-shadow: var(--lg-shine); }
+      .st-card { border-radius: 18px; }
+      .eye-entry { transition: transform .45s var(--lg-spring), box-shadow .25s; }
+      .eye-entry:active { transform: scale(.975); transition-duration: .1s; }
+
+      /* --- переключатели: «жидкая» ручка — при нажатии растягивается, как в iOS, и пружинит --- */
+      .st-toggle span { background: color-mix(in srgb, var(--text-muted) 30%, transparent); box-shadow: inset 0 1px 3px rgba(0,0,0,.28), inset 0 0 0 .5px rgba(255,255,255,.08); transition: background .3s; }
+      .st-toggle span::after { background: linear-gradient(180deg, #fff, #f1eeff); box-shadow: 0 2px 6px rgba(0,0,0,.32), inset 0 -1px 1px rgba(0,0,0,.06); transition: transform .45s var(--lg-spring), width .22s var(--lg-ease); }
+      .st-toggle input:checked + span { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent)); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 0 12px -2px color-mix(in srgb, var(--accent) 60%, transparent); }
+      .st-toggle input:active + span::after { width: 26px; }
+      .st-toggle input:checked:active + span::after { transform: translateX(14px); }
+
+      /* --- кнопки второго плана и чипы --- */
+      .ob-mini-btn { background-color: var(--lg-chip); background-image: var(--lg-gloss); box-shadow: var(--lg-shine); border: 1px solid var(--lg-edge); }
+      .reaction-badge { background: color-mix(in srgb, var(--lg-chip) 80%, transparent); box-shadow: inset 0 0 0 .5px var(--lg-edge); transition: transform .4s var(--lg-spring); }
+      .reaction-badge:active { transform: scale(.9); }
+
+      /* --- меню сообщения: стеклянная карточка, на телефоне — шторка --- */
+      .mm-sheet { background-color: var(--lg-fill-strong); background-image: var(--lg-gloss); border-color: var(--lg-edge) !important; box-shadow: var(--lg-shadow), var(--lg-shine); -webkit-backdrop-filter: var(--lg-blur); backdrop-filter: var(--lg-blur); }
+      @media (pointer: fine) { .mm-sheet { border-radius: 20px; animation: lgPop .38s var(--lg-ease) !important; } }
+      .mm-reacts button { transition: transform .4s var(--lg-spring), background .2s; }
+      .mm-reacts button:hover, .mm-reacts button:active { background: color-mix(in srgb, var(--text-main) 8%, transparent); transform: scale(1.22); }
+      .mm-actions button { transition: background .2s, transform .4s var(--lg-spring); }
+      .mm-actions button:active { transform: scale(.97); }
+
+      /* --- полосы над полем ввода (ответ, «у собеседника ночь», канал, блокировка) — стеклянные капсулы, как само поле --- */
+      .reply-bar, #night-bar { margin: 0 10px 6px; border: 1px solid var(--lg-edge); border-radius: 18px; background-color: var(--lg-fill-strong); background-image: var(--lg-gloss); box-shadow: var(--lg-shine), 0 8px 22px -12px rgba(4,2,14,.5); -webkit-backdrop-filter: var(--lg-blur); backdrop-filter: var(--lg-blur); }
+      .reply-bar[style*="flex"], .reply-bar.on, #night-bar.on { animation: lgPop .42s var(--lg-ease); transform-origin: 50% 100%; }
+      #channel-bar, #block-bar { margin: 0 10px max(10px, env(safe-area-inset-bottom)); border: 1px solid var(--lg-edge); border-radius: 22px; background-color: var(--lg-fill-strong); background-image: var(--lg-gloss); box-shadow: var(--lg-shine), var(--lg-shadow); -webkit-backdrop-filter: var(--lg-blur); backdrop-filter: var(--lg-blur); padding-bottom: 12px; }
+      #channel-bar button { background: var(--lg-chip); border-color: var(--lg-edge); box-shadow: var(--lg-shine); }
+
+      /* --- всплывающие панели: упоминания, стикеры, язык, «к последним» --- */
+      #mention-box, #sticker-panel, .lang-menu { border-color: var(--lg-edge) !important; box-shadow: var(--lg-shadow), var(--lg-shine) !important; }
+      #mention-box.on, #sticker-panel[style*="flex"], #sticker-panel.on { animation: lgPop .4s var(--lg-ease); transform-origin: 50% 100%; }
+      #to-bottom-btn { border-color: var(--lg-edge); box-shadow: var(--lg-shine), 0 8px 20px -8px rgba(4,2,14,.55); transition: transform .45s var(--lg-spring), opacity .25s; }
+      #to-bottom-btn:active { transform: scale(.9); }
+      .day-sep { box-shadow: var(--lg-shine); border: 1px solid var(--lg-edge); }
+
+      /* --- переход между чатами на компьютере: переписка мягко проявляется (класс ставит код при открытии чата) --- */
+      #chat-box.lg-enter { animation: lgChatIn .42s var(--lg-ease); }
+      @keyframes lgChatIn { from { opacity: 0; transform: translateY(10px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+      .chat-header.lg-enter .header-title-block { animation: lgTitleIn .38s var(--lg-ease); }
+      @keyframes lgTitleIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+      /* открытие чата на телефоне — та же «жидкая» кривая, что у свайпа назад */
+      @media (max-width: 768px) {
+        #app-container.chat-opening #main-chat { animation: chatIn .42s var(--lg-ease) both; }
+        #app-container.chat-opening #sidebar { animation: sideAway .42s var(--lg-ease) both; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .chat-item, .st-toggle span::after, .reaction-badge, .mm-reacts button, #to-bottom-btn, .eye-entry { transition: none !important; }
+        .reply-bar, #night-bar, #mention-box, #sticker-panel, #chat-box.lg-enter, .chat-header.lg-enter .header-title-block { animation: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -2122,7 +2196,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.104</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.105</div>
       </div>
       
       <!-- ЧАТ -->
@@ -6961,6 +7035,12 @@
             }
 
             document.getElementById("chat-box").innerHTML = ""; loadedMsgs = {}; newBelow = 0; updateToBottom();
+            // Liquid Glass: на компьютере переписка и заголовок нового чата мягко проявляются
+            if (window.innerWidth > 768 && !reduceMotion()) ["chat-box", "main-chat"].forEach(id => {
+                const el = id === "chat-box" ? document.getElementById(id) : document.querySelector("#main-chat .chat-header");
+                if (!el) return; el.classList.remove("lg-enter"); void el.offsetWidth; el.classList.add("lg-enter");
+                setTimeout(() => el.classList.remove("lg-enter"), 500);
+            });
             const isPrivateChat = !!dmPeer(chatId);
             watchPeerBlock(isPrivateChat ? dmPeer(chatId) : null);
             applyBlockState();
