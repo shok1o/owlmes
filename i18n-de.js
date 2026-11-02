@@ -745,5 +745,7 @@ export default {
 "Отклонённый звонок": "Abgelehnter Anruf",
 "Звонок не удался": "Anruf fehlgeschlagen",
 "Позвонить снова": "Zurückrufen",
-"Звонок": "Anruf"
+"Звонок": "Anruf",
+"У собеседника сейчас ночной режим — звонок его не разбудит": "Dein Gegenüber ist im Nachtmodus – der Anruf weckt die Person nicht",
+"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "Die Benachrichtigung kam nicht an: Bei deinem Gegenüber sind Benachrichtigungen aus. Der Anruf ist nur sichtbar, wenn Owl geöffnet ist"
 };

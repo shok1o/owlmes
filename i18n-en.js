@@ -745,5 +745,7 @@ export default {
 "Отклонённый звонок": "Declined call",
 "Звонок не удался": "Call failed",
 "Позвонить снова": "Call back",
-"Звонок": "Call"
+"Звонок": "Call",
+"У собеседника сейчас ночной режим — звонок его не разбудит": "The other person is in night mode — the call won't wake them",
+"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "The notification didn't go through: the other person has notifications off. They'll only see the call if Owl is open"
 };

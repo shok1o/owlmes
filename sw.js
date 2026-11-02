@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v75';
+const CACHE = 'owl-shell-v76';
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -43,6 +43,8 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(req.url);
     // Firebase, Cloudflare и прочие внешние запросы не трогаем
     if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+    // Проверка новой версии приложения (index.html читает sw.js) — всегда из сети, мимо кэша
+    if (url.pathname === '/sw.js') return;
 
     if (req.mode === 'navigate') {
         // Страницы: сначала сеть, при ошибке — кэш, затем заглушка.
