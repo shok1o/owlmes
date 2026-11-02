@@ -753,5 +753,7 @@ export default {
 "У собеседника не получилось ответить": "Dein Gegenüber konnte nicht annehmen",
 "Нет связи с интернетом — звонок не начался": "Keine Internetverbindung – der Anruf wurde nicht gestartet",
 "Чтобы позвонить, сначала напишите этому человеку": "Schreib dieser Person zuerst eine Nachricht, um anzurufen",
-"Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Schalte Benachrichtigungen ein, damit du keine Anrufe und Nachrichten verpasst – tippe hier"
+"Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Schalte Benachrichtigungen ein, damit du keine Anrufe und Nachrichten verpasst – tippe hier",
+"Упрощённый режим": "Vereinfachter Modus",
+"Без лишних анимаций, звёздочек и эффекта стекла — спокойнее и быстрее на слабых телефонах": "Ohne zusätzliche Animationen, Sterne und Glaseffekt – ruhiger und schneller auf älteren Handys"
 };
