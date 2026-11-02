@@ -24,7 +24,7 @@
 <body>
 <div id="status">Начни с кнопки «0. Проверка звука»</div>
 <h1>Тест: «у уха» или «громко»</h1>
-<p>Делай по шагам. После каждого нажатия в шаге 3 поднеси телефон к уху и отодвинь: у уха — звук только из верхней щели и почти не слышен на вытянутой руке; громко — из нижней решётки, слышно издалека. Громкость — кнопками сбоку, наушники и AirPods отключи.</p>
+<p>Делай по шагам. После каждого нажатия в шаге 3 поднеси телефон к уху и отодвинь: у уха — звук только из верхней щели и почти не слышен на вытянутой руке; громко — из нижней решётки, слышно издалека. Громкость — кнопками сбоку, наушники, AirPods и <b>VPN</b> отключи.</p>
 
 <h2>0. Проверка звука</h2>
 <button id="beep">0. Проверка: пропищать обычным звуком (без микрофона)</button>
@@ -143,19 +143,39 @@ function toneTrack(silent) {
   return dst.stream.getAudioTracks()[0];
 }
 // Два RTCPeerConnection в одной странице: звук уходит «в сеть» и возвращается настоящей удалённой WebRTC-дорожкой
+// Как в Owl: адреса собираем целиком, потом обмениваемся описаниями (без «просачивания» кандидатов —
+// на быстром iPhone они приходили раньше описания и терялись, связь не замыкалась)
+function gathered(pc) {
+  return new Promise((res) => {
+    if (pc.iceGatheringState === "complete") return res();
+    const f = () => { if (pc.iceGatheringState === "complete") { pc.removeEventListener("icegatheringstatechange", f); res(); } };
+    pc.addEventListener("icegatheringstatechange", f); setTimeout(res, 3000);
+  });
+}
 async function loopback(tracks) {
   const a = new RTCPeerConnection(), b = new RTCPeerConnection();
   pcs.push(a, b);
-  a.onicecandidate = (e) => { if (e.candidate) b.addIceCandidate(e.candidate).catch(() => {}); };
-  b.onicecandidate = (e) => { if (e.candidate) a.addIceCandidate(e.candidate).catch(() => {}); };
+  b.onconnectionstatechange = () => log("связь внутри страницы:", b.connectionState);
   const got = [];
-  const done = new Promise((res) => { b.ontrack = (e) => { got.push(e.track); if (got.length === tracks.length) res(got); }; });
+  b.ontrack = (e) => got.push(e.track);
   const ms = new MediaStream(tracks);
   tracks.forEach((tr) => a.addTrack(tr, ms));
-  const off = await a.createOffer(); await a.setLocalDescription(off); await b.setRemoteDescription(off);
-  const ans = await b.createAnswer(); await b.setLocalDescription(ans); await a.setRemoteDescription(ans);
-  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("нет соединения за 8 с")), 8000));
-  return Promise.race([done, timeout]);
+  await a.setLocalDescription(await a.createOffer()); await gathered(a);
+  await b.setRemoteDescription(a.localDescription);
+  await b.setLocalDescription(await b.createAnswer()); await gathered(b);
+  await a.setRemoteDescription(b.localDescription);
+  log("адресов: у отправителя " + (a.localDescription.sdp.match(/a=candidate/g) || []).length + ", у получателя " + (b.localDescription.sdp.match(/a=candidate/g) || []).length);
+  (a.localDescription.sdp.match(/a=candidate[^\r\n]*/g) || []).forEach((c) => log("   кандидат:", c.split(" ").slice(4, 8).join(" ")));
+  // Ждём, пока звук реально пойдёт: соединение установлено и дорожка «ожила»
+  const t0 = Date.now(), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  while (b.connectionState !== "connected" || got.length < tracks.length) {
+    if (b.connectionState === "failed" || Date.now() - t0 > 8000)
+      throw new Error("связь внутри страницы не установилась за 8 с (" + b.connectionState + ", дорожек " + got.length + ")");
+    await wait(100);
+  }
+  for (let i = 0; i < 30 && got.some((t) => t.muted); i++) await wait(100); // звук начинает идти чуть позже соединения
+  log("соединение за " + ((Date.now() - t0) / 1000).toFixed(1) + " с, немых дорожек: " + got.filter((t) => t.muted).length);
+  return got;
 }
 // Звук в WAV (16 кГц, 16 бит, моно): тон freq Гц или тишина (freq 0) — «якорь» и проверка из обычного файла, а не из Web Audio
 function wav(freq, sec, vol) {
@@ -205,7 +225,7 @@ function checkFlow(m) {
     const moved = els[0].currentTime > t1, muted = remote.some((t) => t.muted);
     log("проверка потока: время " + t1.toFixed(2) + "→" + els[0].currentTime.toFixed(2) + ", дорожка muted=" + muted + ", paused=" + els[0].paused);
     if (els[0].paused) status("Звук на паузе — нажми ещё раз кнопку способа " + m, "err");
-    else if (muted) status("Связь внутри страницы есть, но звук не доходит (дорожка немая). Скопируй журнал и пришли", "err");
+    else if (muted) status("Соединение есть, но звук по нему не идёт (дорожка немая). Скопируй журнал и пришли", "err");
     else status("Способ " + m + ": должно пищать «бип-бип». Теперь нажимай кнопки в шаге 3 и слушай", "ok");
   }, 1500);
 }
@@ -254,6 +274,7 @@ document.querySelectorAll("[data-mode]").forEach((btn) => btn.onclick = async ()
   } catch (e) {
     log("режим " + mode + " ОШИБКА", e.name || "", e.message);
     if (e.name === "NotAllowedError") { needPlay = true; status("Safari не дал включить звук — коснись экрана ещё раз", "err"); }
+    else if (/не установилась/.test(e.message || "")) status("Связь внутри страницы не установилась — скорее всего, мешает VPN. Выключи VPN на время теста и нажми способ " + mode + " ещё раз", "err");
     else status("Способ " + mode + " не запустился: " + (e.message || e.name) + ". Скопируй журнал и пришли", "err");
   }
 });
