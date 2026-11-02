@@ -2262,7 +2262,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.107</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.108</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3404,11 +3404,12 @@
       setAudioSession("ambient");
       // Вернуться в «фоновый» режим, когда ничего не играет и не пишется (в ambient iOS запрещает запись с микрофона!)
       function restoreAmbient() {
-          if (isRecording) return;
+          if (isRecording || call) return; // идёт звонок — микрофон нужен
           if (![...document.querySelectorAll("audio")].some(a => !a.paused)) setAudioSession("ambient");
       }
       // Голосовые сообщения — полноценное воспроизведение, на это время переключаемся в playback
-      document.addEventListener("play", (e) => { if (audioSession && e.target.tagName === "AUDIO") try { audioSession.type = "playback"; } catch (_) {} }, true);
+      // (кроме звонка: там звук собеседника идёт через <audio>, а режим должен остаться «запись + воспроизведение»)
+      document.addEventListener("play", (e) => { if (audioSession && e.target.tagName === "AUDIO" && !call) try { audioSession.type = "playback"; } catch (_) {} }, true);
       ["pause", "ended"].forEach(ev => document.addEventListener(ev, (e) => {
           if (!audioSession || e.target.tagName !== "AUDIO") return;
           restoreAmbient();
@@ -3838,6 +3839,7 @@
       // Звук мелодии перед этим выключаем полностью: на iPhone занятое аудио мешает включить микрофон
       async function getMic() {
           releaseTone();
+          setAudioSession("play-and-record"); // в режиме ambient (для звуков уведомлений) iOS не даёт микрофон — InvalidStateError
           try { return await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
           catch (e) {
               if (e.name === "NotAllowedError" || e.name === "SecurityError") throw e;
@@ -4095,6 +4097,7 @@
           try { if (c.pc) c.pc.close(); } catch (_) {}
           if (c.stream) c.stream.getTracks().forEach(tr => tr.stop());
           const a = $c("call-audio"); a.srcObject = null;
+          restoreAmbient(); // звонок закончился — звук снова «фоновый», не прерывает музыку
           closeCallNotifs(c.id);
           const dur = c.connectedAt ? Math.max(1, Math.round((Date.now() - c.connectedAt) / 1000)) : 0;
           const s = dur ? "ok" : why || (c.answered ? "fail" : "missed");
