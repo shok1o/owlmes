@@ -86,7 +86,7 @@
   <div class="eyebrow">Legal</div>
   <h1>Privacy Policy</h1>
   <p class="lead">What data Owl receives, why it's needed, who can see it and how you can control it — in plain language.</p>
-  <div class="meta"><span class="pill">Version of 9 October 2026</span><span class="pill">≈ 6 min read</span></div>
+  <div class="meta"><span class="pill">Version of 3 November 2026</span><span class="pill">≈ 6 min read</span></div>
 </div></header>
 
 <div class="tldr">
@@ -114,20 +114,24 @@
 <div class="row"><span><b>Email and password</b></span><span>To sign in and recover access. The password is stored in hashed form by the sign-in provider — we can't see it.</span><span>No</span></div>
 <div class="row"><span><b>Profile</b></span><span>Nickname, photo, bio, people you follow and your followers.</span><span>Yes (you control who sees what)</span></div>
 <div class="row"><span><b>Messages</b></span><span>Text, photos, voice messages, stickers, polls, reactions, replies, read receipts.</span><span>Only chat members</span></div>
+<div class="row"><span><b>Calls</b></span><span>Who calls whom and when, plus technical connection data (IP addresses and encryption parameters) — only for the duration of the call. Afterwards, a note such as “Call · 3:12” or “Missed call” stays in the conversation. The conversation itself is never recorded or stored.</span><span>The note — chat members</span></div>
+<div class="row"><span><b>Owl on Guard</b></span><span>Only if you start a timer yourself: your text (“where I'm going”, up to 140 characters), the deadline and the 1–3 people you choose. Your location is not shared.</span><span>Your chosen people — only if you don't check in on time</span></div>
 <div class="row"><span><b>Online status</b></span><span>When you were last online. Can be hidden in settings.</span><span>Yes, unless hidden</span></div>
 <div class="row"><span><b>Quiet hours</b></span><span>Your night hours and time-zone offset for “Owl Won't Wake You”. Contacts can see that it's night for you — this can be turned off.</span><span>Only if enabled</span></div>
 <div class="row"><span><b>Notifications</b></span><span>A technical address of your device for push delivery and your app language — only if you turn notifications on.</span><span>No</span></div>
 <div class="row"><span><b>Moderation</b></span><span>Reports, blocks, bans and ban appeals.</span><span>No</span></div>
 <div class="row"><span><b>Security data</b></span><span>Technical signals from your browser used to tell people from bots (IP address, device and browser data).</span><span>No</span></div>
 </div>
-<p style="margin-top:12px">We do <b>not</b> collect location, phone contacts or advertising IDs, and we don't use analytics services.</p>
+<p style="margin-top:12px">We do <b>not</b> collect location, phone contacts or advertising IDs, and we don't use analytics services. Owl only uses the microphone during a call or while you record a voice message — with your browser's permission.</p>
     </section>
 
     <section id="s3">
       <h2><span class="n">3</span>Purposes and legal bases</h2>
       <ul>
-<li><b>Providing the messenger</b> — sign-up, sign-in, delivering messages and notifications. Legal basis: performance of our agreement with you (Art. 6(1)(b) GDPR).</li>
+<li><b>Providing the messenger</b> — sign-up, sign-in, delivering messages, calls and notifications. Legal basis: performance of our agreement with you (Art. 6(1)(b) GDPR).</li>
+<li><b>Owl on Guard</b> — alerting the people you chose if you don't check in by the deadline. It only runs when you start a timer yourself. Legal basis: your consent (Art. 6(1)(a) GDPR); you can stop the timer at any time.</li>
 <li><b>Security and moderation</b> — protection against spam, bots, fraud and abuse, handling reports. Legal basis: our legitimate interest in a safe service (Art. 6(1)(f) GDPR).</li>
+<li><b>Call reliability</b> — if a call fails, the app sends a short technical report: which step failed and with what error, the app version and the device type. It contains no names, texts or addresses — it's impossible to tell from it who called whom. Legal basis: our legitimate interest in calls that work (Art. 6(1)(f) GDPR).</li>
 <li><b>Push notifications</b> — only after you allow them on your device. Legal basis: your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time in settings.</li>
 <li><b>Service emails</b> — confirmation codes and password resets. Legal basis: performance of the agreement.</li>
 <li><b>Legal obligations</b> — where the law requires us to act (Art. 6(1)(c) GDPR).</li>
@@ -141,6 +145,8 @@
 <li><b>Other users</b> — your profile (according to your privacy settings) and your messages in shared chats and conversations with you.</li>
 <li><b>The administrator</b> — your email and technical account information. The administrator has technical access to the database, but conversations are not read without a reason: a message is looked at only if it was reported or a rule violation is suspected.</li>
 <li><b>The person who reports</b> someone stays anonymous to the reported user.</li>
+<li><b>The person you're on a call with</b> — usually your voice goes through a relay server, and the other person can't see your IP address. If a connection through the relay fails, Owl tries to connect the devices directly — your device's IP address is then technically available to the other person.</li>
+<li><b>Your people in Owl on Guard</b> — they receive nothing while the timer is running. If you don't tap “I'm OK” by the deadline, they get your nickname, the timer text and the deadline in your private chat with them — and a message that all is well once you check in.</li>
 </ul>
 <p class="note">We don't sell your data or share it for advertising. We may disclose it to public authorities only where the law clearly requires it.</p>
     </section>
@@ -150,7 +156,7 @@
       <p>Owl uses the following providers, which process data on our behalf (processors):</p>
 <div class="grid2">
 <div class="card"><b>Google Firebase</b><span>Sign-in, storage of profiles and messages, bot protection (reCAPTCHA). The database is located in the EU (Belgium and the Netherlands).</span></div>
-<div class="card"><b>Cloudflare</b><span>Domain, bot protection (Turnstile), the push-notification server and its storage (device addresses, quiet hours, language).</span></div>
+<div class="card"><b>Cloudflare</b><span>Domain, bot protection (Turnstile), the push-notification server and its storage (device addresses, quiet hours, language, Owl on Guard timers), and relay servers for calls (they see IP addresses but can't listen to the conversation).</span></div>
 <div class="card"><b>Resend</b><span>Sending confirmation codes and password-reset emails (EU region).</span></div>
 <div class="card"><b>GitHub Pages</b><span>Hosting of the website files. Like any web server, it sees your IP address when you open the site.</span></div>
 <div class="card"><b>Apple, Google, Mozilla</b><span>Push delivery. The content is encrypted — only your device can read it.</span></div>
@@ -165,6 +171,9 @@
 <li>A deleted message is removed from the database for all chat members at once.</li>
 <li>When you delete your account, your profile, nickname, email, private conversations and notifications are erased. Messages in group chats may remain without a link to your profile.</li>
 <li>Your device's push address is deleted when you turn notifications off or sign out.</li>
+<li>The technical call record (who is calling whom and the connection data) is deleted right after the call; if a call ends abnormally, it is deleted automatically within 24 hours. The call note in the conversation is kept like a regular message.</li>
+<li>An Owl on Guard timer and its text are deleted as soon as you tap “I'm OK”. If an alert was sent — after 24 hours; in any case no later than two days after the deadline. Alerts sent to your people are kept like regular messages in your conversation.</li>
+<li>Call failure reports are kept in the server's technical log for no longer than 7 days.</li>
 <li>Email confirmation codes expire after 15 minutes; the “while you were sleeping” summary (names only, no message text) is deleted once it has been sent in the morning.</li>
 </ul>
     </section>
@@ -175,6 +184,7 @@
 <li>the connection to Owl is always encrypted (HTTPS);</li>
 <li>access is restricted by database rules: everyone can only read their own chats, and your email is stored separately and closed to others;</li>
 <li>push notifications are encrypted with your device's key;</li>
+<li>voice in calls is encrypted on the devices (DTLS-SRTP): the relay server passes it on but can't decrypt it. Calls are never recorded;</li>
 <li>sign-up is protected against bots, and nobody can send a notification in someone else's name.</li>
 </ul>
     </section>
@@ -186,6 +196,8 @@
 <div class="card"><b>Edit your data</b><span>Nickname, photo and bio — in settings.</span></div>
 <div class="card"><b>Control who sees what</b><span>Settings → Privacy, or the “Owl's Eye” button.</span></div>
 <div class="card"><b>Turn off notifications</b><span>In settings, at any time.</span></div>
+<div class="card"><b>Limit who can call you</b><span>Settings → Privacy → “Who can call me”: all, people I follow, or nobody.</span></div>
+<div class="card"><b>Stop Owl on Guard</b><span>The “I'm OK” button — the timer and its text are deleted right away.</span></div>
 <div class="card"><b>Delete your account</b><span>Settings → “Delete account forever”.</span></div>
 </div>
 <p style="margin-top:12px">For anything else — for example a copy of your data — write to <a href="mailto:privacy@owlmes.ru">privacy@owlmes.ru</a>. We answer within one month.</p>
