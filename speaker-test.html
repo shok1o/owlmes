@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Owl: тест динамика</title>
+<style>
+  :root { --bg: #0B0A12; --card: #1b1828; --btn: #2d2944; --acc: #5b4bd6; --fg: #eeeaf8; --mut: #a8a2c0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 16px 40px; background: var(--bg); color: var(--fg); font: 16px/1.4 -apple-system, system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 4px 0 6px; }
+  h2 { font-size: 14px; color: var(--mut); margin: 18px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+  p { margin: 4px 0; color: var(--mut); font-size: 14px; }
+  button { display: block; width: 100%; margin: 6px 0; padding: 13px 12px; font-size: 16px; border: 0; border-radius: 12px; background: var(--btn); color: var(--fg); text-align: left; }
+  button.on { background: var(--acc); }
+  .row { display: flex; gap: 8px; } .row button { flex: 1; text-align: center; }
+  #outs button { background: #263a2c; }
+  #log { white-space: pre-wrap; word-break: break-word; font: 12px/1.35 ui-monospace, Menlo, monospace; background: var(--card); padding: 10px; border-radius: 10px; margin-top: 12px; min-height: 80px; }
+</style>
+</head>
+<body>
+<h1>Тест: «у уха» или «громко»</h1>
+<p>Делай по шагам. После каждого нажатия в шаге 3 поднеси телефон к уху и отодвинь: у уха — звук только из верхней щели и почти не слышен на вытянутой руке; громко — из нижней решётки, слышно издалека.</p>
+
+<h2>1. Микрофон</h2>
+<button id="mic">1. Включить микрофон и показать выходы звука</button>
+
+<h2>2. Источник звука (один из шести)</h2>
+<button data-mode="A">A. Как сейчас в Owl: WebRTC → &lt;audio&gt;</button>
+<button data-mode="B">B. WebRTC → Web Audio → &lt;audio&gt;-ретранслятор</button>
+<button data-mode="C">C. WebRTC → Web Audio напрямую + тихий «якорь»</button>
+<button data-mode="D">D. Две дорожки WebRTC (вторая тихая) → &lt;audio&gt;</button>
+<button data-mode="E1">E1. Как в Owl + тихий «якорь» (Web Audio), выбор — на якоре</button>
+<button data-mode="E2">E2. Как в Owl + тихий «якорь» (файл тишины), выбор — на якоре</button>
+
+<h2>3. Куда выводить (кнопки появятся после шага 1)</h2>
+<div id="outs"></div>
+<button id="late">Проверка: выбрать первый выход через 6 с (без касания)</button>
+<button id="hiccup">Имитировать «обрыв связи» (дорожка выкл → вкл)</button>
+
+<h2>Служебное</h2>
+<div class="row"><button id="relist">Обновить выходы</button><button id="stop">Стоп</button></div>
+<button id="copy">Скопировать журнал</button>
+<div id="log"></div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const logEl = $("log");
+const t0 = performance.now();
+let lastTap = 0;
+function log(...a) {
+  const s = ((performance.now() - t0) / 1000).toFixed(1) + "s  " + a.join(" ");
+  logEl.textContent = s + "\n" + logEl.textContent;
+  console.log(s);
+}
+const short = (s) => (s ? String(s).slice(0, 8) : "-");
+const AC = window.AudioContext || window.webkitAudioContext;
+document.addEventListener("pointerdown", () => { lastTap = performance.now(); }, true);
+
+log("UA:", navigator.userAgent);
+log("Приложение с экрана «Домой»:", String(matchMedia("(display-mode: standalone)").matches || navigator.standalone === true));
+log("setSinkId есть:", String("setSinkId" in HTMLMediaElement.prototype),
+    "| selectAudioOutput:", typeof (navigator.mediaDevices && navigator.mediaDevices.selectAudioOutput),
+    "| audioSession:", navigator.audioSession ? navigator.audioSession.type : "нет");
+
+let mic = null, outs = [], mode = null, els = [], anchor = null, ctxTone = null, ctxPlay = null, pcs = [], remote = [], playStream = null;
+
+function renderOuts() {
+  const box = $("outs");
+  box.textContent = "";
+  const items = outs.map((o) => [o.deviceId, "→ " + (o.label || "(без названия)") + "  [" + short(o.deviceId) + "]"]);
+  items.push(["", "→ системный выбор (пустая строка)"]);
+  for (const [id, text] of items) {
+    const b = document.createElement("button");
+    b.textContent = text;
+    b.onclick = () => route(id, text);
+    box.appendChild(b);
+  }
+}
+async function listDevices(why) {
+  try {
+    const d = await navigator.mediaDevices.enumerateDevices();
+    outs = d.filter((x) => x.kind === "audiooutput");
+    log("— устройства (" + why + "): всего " + d.length + ", выходов " + outs.length);
+    d.forEach((x) => log("     " + x.kind + " | " + JSON.stringify(x.label) + " | id " + short(x.deviceId) + " | group " + short(x.groupId)));
+    renderOuts();
+  } catch (e) { log("enumerateDevices ОШИБКА", e.name, e.message); }
+}
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener)
+  navigator.mediaDevices.addEventListener("devicechange", () => listDevices("событие devicechange"));
+if (navigator.audioSession && navigator.audioSession.addEventListener)
+  navigator.audioSession.addEventListener("statechange", () => log("audioSession.state =", navigator.audioSession.state));
+
+$("mic").onclick = async () => {
+  try { if (navigator.audioSession) navigator.audioSession.type = "play-and-record"; log("audioSession.type =", navigator.audioSession ? navigator.audioSession.type : "нет"); }
+  catch (e) { log("audioSession.type ОШИБКА", e.name); }
+  await listDevices("до микрофона");
+  try {
+    mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    log("микрофон OK:", mic.getAudioTracks()[0].label);
+  } catch (e) { log("микрофон ОШИБКА", e.name, e.message); return; }
+  await listDevices("сразу после микрофона");
+  setTimeout(() => listDevices("через 2 с после микрофона"), 2000);
+};
+$("relist").onclick = () => listDevices("по кнопке");
+
+// «Бип-бип» 2 раза в секунду: 440 Гц, громкость качается 0..0.3 (silent=true — тишина для «второй дорожки»)
+function toneTrack(silent) {
+  if (!ctxTone) ctxTone = new AC();
+  ctxTone.resume();
+  const dst = ctxTone.createMediaStreamDestination();
+  const g = ctxTone.createGain();
+  g.gain.value = silent ? 0 : 0.15;
+  if (!silent) {
+    const osc = ctxTone.createOscillator(); osc.frequency.value = 440;
+    const lfo = ctxTone.createOscillator(); lfo.type = "square"; lfo.frequency.value = 2;
+    const depth = ctxTone.createGain(); depth.gain.value = 0.15;
+    lfo.connect(depth); depth.connect(g.gain);
+    osc.connect(g); osc.start(); lfo.start();
+  } else {
+    const osc = ctxTone.createOscillator(); osc.connect(g); osc.start();
+  }
+  g.connect(dst);
+  return dst.stream.getAudioTracks()[0];
+}
+// Два RTCPeerConnection в одной странице: звук уходит «в сеть» и возвращается настоящей удалённой WebRTC-дорожкой
+async function loopback(tracks) {
+  const a = new RTCPeerConnection(), b = new RTCPeerConnection();
+  pcs.push(a, b);
+  a.onicecandidate = (e) => { if (e.candidate) b.addIceCandidate(e.candidate).catch(() => {}); };
+  b.onicecandidate = (e) => { if (e.candidate) a.addIceCandidate(e.candidate).catch(() => {}); };
+  const got = [];
+  const done = new Promise((res) => { b.ontrack = (e) => { got.push(e.track); if (got.length === tracks.length) res(got); }; });
+  const ms = new MediaStream(tracks);
+  tracks.forEach((tr) => a.addTrack(tr, ms));
+  const off = await a.createOffer(); await a.setLocalDescription(off); await b.setRemoteDescription(off);
+  const ans = await b.createAnswer(); await b.setLocalDescription(ans); await a.setRemoteDescription(ans);
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("нет соединения за 8 с")), 8000));
+  return Promise.race([done, timeout]);
+}
+// 1 с тишины в WAV (8 кГц, 16 бит, моно) — «якорь» из обычного файла, а не из Web Audio
+let wavUrl = null;
+function silentWav() {
+  if (wavUrl) return wavUrl;
+  const n = 8000, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), s = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  s(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); s(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); s(36, "data"); v.setUint32(40, n * 2, true);
+  return (wavUrl = URL.createObjectURL(new Blob([b], { type: "audio/wav" })));
+}
+function newEl() {
+  const el = document.createElement("audio");
+  el.autoplay = true; el.setAttribute("playsinline", "");
+  document.body.appendChild(el);
+  els.push(el);
+  return el;
+}
+function stopAll() {
+  els.forEach((el) => { try { el.pause(); el.srcObject = null; el.remove(); } catch (_) {} });
+  els = []; anchor = null; playStream = null;
+  pcs.forEach((p) => { try { p.close(); } catch (_) {} }); pcs = [];
+  remote = [];
+  if (ctxPlay) { ctxPlay.close().catch(() => {}); ctxPlay = null; }
+  if (ctxTone) { ctxTone.close().catch(() => {}); ctxTone = null; }
+  document.querySelectorAll("[data-mode]").forEach((b) => b.classList.remove("on"));
+  mode = null;
+}
+$("stop").onclick = () => {
+  stopAll();
+  if (mic) { mic.getTracks().forEach((t) => t.stop()); mic = null; }
+  try { if (navigator.audioSession) navigator.audioSession.type = "auto"; } catch (_) {}
+  log("остановлено");
+};
+
+document.querySelectorAll("[data-mode]").forEach((btn) => btn.onclick = async () => {
+  if (!mic) log("ВНИМАНИЕ: микрофон не включён — сначала шаг 1 (иначе выходов не будет)");
+  stopAll();
+  mode = btn.dataset.mode; btn.classList.add("on");
+  try {
+    const tracks = mode === "D" ? [toneTrack(false), toneTrack(true)] : [toneTrack(false)];
+    remote = await loopback(tracks);
+    log("режим " + mode + ": удалённых дорожек " + remote.length);
+    if (mode === "A" || mode === "D" || mode === "E1" || mode === "E2") {
+      const el = newEl();
+      playStream = new MediaStream(remote);
+      el.srcObject = playStream;
+      await el.play();
+      // E: звонок играет как сейчас, а выход выбираем на отдельном тихом «якоре» — выбор у уха действует на всю страницу
+      if (mode === "E1") {
+        ctxPlay = new AC(); await ctxPlay.resume();
+        const dst = ctxPlay.createMediaStreamDestination();
+        const quiet = ctxPlay.createGain(); quiet.gain.value = 0;
+        const osc = ctxPlay.createOscillator(); osc.connect(quiet); quiet.connect(dst); osc.start();
+        anchor = newEl(); anchor.srcObject = dst.stream; await anchor.play();
+      } else if (mode === "E2") {
+        anchor = newEl(); anchor.loop = true; anchor.src = silentWav(); await anchor.play();
+      }
+    } else {
+      ctxPlay = new AC(); await ctxPlay.resume();
+      const src = ctxPlay.createMediaStreamSource(new MediaStream(remote));
+      if (mode === "B") {
+        const dst = ctxPlay.createMediaStreamDestination();
+        src.connect(dst);
+        const el = newEl(); el.srcObject = dst.stream; await el.play();
+      } else {
+        src.connect(ctxPlay.destination);
+        const dst = ctxPlay.createMediaStreamDestination();
+        const quiet = ctxPlay.createGain(); quiet.gain.value = 0;
+        const osc = ctxPlay.createOscillator(); osc.connect(quiet); quiet.connect(dst); osc.start();
+        anchor = newEl(); anchor.srcObject = dst.stream; await anchor.play();
+      }
+    }
+    log("режим " + mode + " играет. Сейчас звук: послушай, громко или у уха?");
+  } catch (e) { log("режим " + mode + " ОШИБКА", e.name || "", e.message); }
+});
+
+async function route(id, text) {
+  const since = ((performance.now() - lastTap) / 1000).toFixed(1);
+  if (!els.length) { log("сначала выбери источник (шаг 2)"); return; }
+  for (const el of (mode === "E1" || mode === "E2") && anchor ? [anchor] : els) {
+    try { await el.setSinkId(id); log("setSinkId OK " + text + " | el.sinkId=" + short(el.sinkId) + " | после касания " + since + " с | режим " + mode); }
+    catch (e) { log("setSinkId ОШИБКА " + text + ": " + e.name + " " + (e.message || "") + " | после касания " + since + " с"); }
+  }
+  log("→ Послушай: звук переключился? (у уха / громко)");
+}
+$("late").onclick = () => {
+  log("жду 6 с без касаний…");
+  setTimeout(() => { if (outs[0]) route(outs[0].deviceId, "(первый выход, спустя 6 с)"); else log("выходов нет"); }, 6000);
+};
+$("hiccup").onclick = () => {
+  if (!remote.length) { log("сначала выбери источник"); return; }
+  remote.forEach((t) => { t.enabled = false; });
+  setTimeout(() => { remote.forEach((t) => { t.enabled = true; }); log("дорожка снова включена — звук остался там же или прыгнул?"); }, 600);
+};
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(logEl.textContent); log("журнал скопирован"); }
+  catch (e) { log("копирование не удалось:", e.name); }
+};
+</script>
+</body>
+</html>
