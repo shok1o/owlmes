@@ -747,5 +747,11 @@ export default {
 "Позвонить снова": "Zadzwoń ponownie",
 "Звонок": "Połączenie",
 "У собеседника сейчас ночной режим — звонок его не разбудит": "Rozmówca ma teraz tryb nocny — połączenie nie obudzi tej osoby",
-"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "Powiadomienie nie dotarło: rozmówca ma wyłączone powiadomienia. Zobaczy połączenie tylko przy otwartym Owl"
+"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "Powiadomienie nie dotarło: rozmówca ma wyłączone powiadomienia. Zobaczy połączenie tylko przy otwartym Owl",
+"Динамик": "Głośnik",
+"Звук на этом устройстве выбирает система": "Na tym urządzeniu wyjście dźwięku wybiera system",
+"У собеседника не получилось ответить": "Rozmówcy nie udało się odebrać",
+"Нет связи с интернетом — звонок не начался": "Brak połączenia z internetem — połączenie się nie rozpoczęło",
+"Чтобы позвонить, сначала напишите этому человеку": "Aby zadzwonić, najpierw napisz do tej osoby",
+"Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Włącz powiadomienia, żeby nie przegapić połączeń i wiadomości — stuknij tutaj"
 };

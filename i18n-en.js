@@ -747,5 +747,11 @@ export default {
 "Позвонить снова": "Call back",
 "Звонок": "Call",
 "У собеседника сейчас ночной режим — звонок его не разбудит": "The other person is in night mode — the call won't wake them",
-"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "The notification didn't go through: the other person has notifications off. They'll only see the call if Owl is open"
+"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "The notification didn't go through: the other person has notifications off. They'll only see the call if Owl is open",
+"Динамик": "Speaker",
+"Звук на этом устройстве выбирает система": "On this device the system chooses where the sound plays",
+"У собеседника не получилось ответить": "The other person couldn't answer",
+"Нет связи с интернетом — звонок не начался": "No internet connection — the call didn't start",
+"Чтобы позвонить, сначала напишите этому человеку": "To call, first send this person a message",
+"Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Turn on notifications so you don't miss calls and messages — tap here"
 };

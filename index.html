@@ -2262,7 +2262,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.109</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.110</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3423,7 +3423,7 @@
           return notifyCtx;
       }
       // iOS разрешает звук только после касания — «разблокируем» контекст на первом жесте
-      ["pointerdown", "touchend", "keydown"].forEach(ev => document.addEventListener(ev, () => { const c = getNotifyCtx(); if (c && c.state === "suspended") c.resume().catch(() => {}); }, { passive: true }));
+      ["pointerdown", "touchend", "keydown"].forEach(ev => document.addEventListener(ev, () => { const c = getNotifyCtx(); if (c && c.state !== "running") c.resume().catch(() => {}); }, { passive: true })); // iOS бывает и «interrupted»
 
       let lastSoundAt = 0;
       function playNotifySound() {
@@ -3812,28 +3812,38 @@
       if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open-guard") openGuard(); });
       try { if (new URLSearchParams(location.search).get("guard")) window.__pendingGuard = true; } catch (_) {}
 
-      // ===== ГОЛОСОВЫЕ ЗВОНКИ (v1.106) =====
+      // ===== ГОЛОСОВЫЕ ЗВОНКИ (v1.106, надёжность — v1.110) =====
       // WebRTC, только звук и только в личке. «Рукопожатие» идёт через запись calls/{id}: звонящий кладёт описание
       // соединения (offer), собеседник отвечает (answer). Адреса соединения собираем целиком до записи (без trickle ICE) —
       // так звонок стоит базе ~10 чтений. Серверы связи (TURN Cloudflare) выдаёт owl-push: голос идёт через них
       // зашифрованным (DTLS-SRTP), а собеседник не видит наш IP. Не соединилось через сервер — один раз пробуем напрямую.
       // После звонка звонящий пишет в переписку отметку («Звонок · 3:12» / «Пропущенный звонок») и удаляет запись звонка.
-      const CALL_RING_MS = 45000, CALL_STALE_MS = 75000, CALL_GATHER_MS = 3000, CALL_CONNECT_MS = 15000, CALL_DROP_MS = 12000;
+      const CALL_RING_MS = 45000, CALL_STALE_MS = 3 * 60000, CALL_GATHER_MS = 3500, CALL_CONNECT_MS = 15000, CALL_DROP_MS = 25000;
       const STUN_ONLY = { iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }], relay: false, at: 0 };
       let call = null;          // текущий звонок (один на устройство)
       let callsListener = null; // входящие: calls где to == я и status == ringing
       let callIce = null;       // серверы связи: пароли TURN живут 4 часа, берём заново раз в час
+      let callIceReq = null;    // запрос серверов, который уже идёт (общий для «заранее» и «Принять»)
       const callsSupported = () => !!(window.RTCPeerConnection && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
       const callDur = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
       const canCallTo = (uid) => allowedBy(usersCache[uid], "canCall");
 
-      async function callIceServers() {
-          if (callIce && Date.now() - callIce.at < 3600000) return callIce;
-          try {
-              const j = await (await pushPost("/call/ice", {})).json();
-              if (j && Array.isArray(j.iceServers) && j.iceServers.length) return (callIce = { iceServers: j.iceServers, relay: !!j.relay, at: Date.now() });
-          } catch (e) { console.log("Звонок, серверы связи:", e.message); }
-          return STUN_ONLY;
+      // Серверы связи — не дольше 4 с: если сервер медленный (в России бывает), звоним без него, а не висим минуту.
+      // Запоминаем только полноценный ответ с TURN: случайный «только STUN» не должен на час открыть собеседнику наш IP
+      function callIceServers() {
+          if (callIce && Date.now() - callIce.at < 3600000) return Promise.resolve(callIce);
+          if (callIceReq) return callIceReq;
+          const req = pushPost("/call/ice", {}).then(r => r.json()).then(j => {
+              // ответ с сервером связи запоминаем, даже если он опоздал к этому звонку — пригодится следующему
+              if (j && Array.isArray(j.iceServers) && j.iceServers.length && j.relay) callIce = { iceServers: j.iceServers, relay: true, at: Date.now() };
+              return j;
+          }).catch(e => { console.log("Звонок, серверы связи:", e.message); return null; });
+          const late = new Promise(res => setTimeout(() => res(null), 4000));
+          return (callIceReq = Promise.race([req, late]).then(j => {
+              callIceReq = null;
+              if (!j || !Array.isArray(j.iceServers) || !j.iceServers.length) return STUN_ONLY;
+              return callIce && j.relay ? callIce : { iceServers: j.iceServers, relay: !!j.relay, at: Date.now() };
+          }));
       }
       // Микрофон: сначала с шумо- и эхоподавлением; если устройство не дало (не отказ человека) — ещё раз попроще.
       // Звук мелодии перед этим выключаем полностью: на iPhone занятое аудио мешает включить микрофон
@@ -3847,16 +3857,27 @@
               return navigator.mediaDevices.getUserMedia({ audio: true });
           }
       }
+      // «Микрофон выкл.» могли нажать ещё до того, как микрофон открылся — применяем к пришедшему потоку
+      const callApplyMute = (c) => { if (c.stream) c.stream.getAudioTracks().forEach(tr => { tr.enabled = !c.muted; }); };
       // Ошибка звонка для всплывашки: на каком шаге и что именно (чтобы по скриншоту было понятно, где сломалось)
-      const callErr = (c, e) => " (" + (c.step || "?") + ": " + String(e && (e.name !== "Error" && e.name || e.code || e.message) || "?").slice(0, 60) + ")";
+      const errName = (e) => String(e && (e.name !== "Error" && e.name || e.code || e.message) || "?").slice(0, 40);
+      const callErr = (c, e) => " (" + (c.step || "?") + ": " + errName(e) + ")";
+      // Тихий отчёт о сбое — только в журнал сервера: шаг, тип ошибки, версия, платформа. Без имён, текстов и адресов
+      const callOs = () => { const u = navigator.userAgent; return /iPhone|iPad/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints > 1) ? "ios" : /Android/.test(u) ? "android" : /Mac/.test(u) ? "mac" : /Win/.test(u) ? "windows" : "other"; };
+      function callReport(c, step, e) {
+          if (!currentUser) return;
+          pushPost("/call/log", { step: step || c.step || "?", err: errName(e), role: c.role, ver: "v" + OWL_SHELL + (isStandalone() ? " pwa" : ""), os: callOs(), relay: !!c.relay }).catch(() => {});
+      }
 
-      // Ждём, пока соберутся адреса: всё собрано, или есть подходящий адрес и прошло ещё 0,7 с, или 3 с в любом случае
+      // Ждём, пока соберутся адреса: всё собрано, или есть нужный адрес и прошло ещё немного, или 3,5 с в любом случае.
+      // Через сервер связи ждём 1,5 с после первого relay-адреса (медленные TCP/443 нужны там, где режут UDP);
+      // напрямую — 0,7 с после первого «внешнего» (srflx): без него собеседник из другой сети нас не найдёт
       function callGather(pc, relay) {
           return new Promise((res) => {
               let soon = null;
               const done = () => { clearTimeout(tm); clearTimeout(soon); pc.removeEventListener("icegatheringstatechange", chk); pc.removeEventListener("icecandidate", cand); res(); };
               const chk = () => { if (pc.iceGatheringState === "complete") done(); };
-              const cand = (e) => { if (e.candidate && !soon && (!relay || / typ relay/.test(e.candidate.candidate))) soon = setTimeout(done, 700); };
+              const cand = (e) => { if (e.candidate && !soon && (relay ? / typ relay/ : / typ srflx/).test(e.candidate.candidate)) soon = setTimeout(done, relay ? 1500 : 700); };
               const tm = setTimeout(done, CALL_GATHER_MS);
               pc.addEventListener("icegatheringstatechange", chk); pc.addEventListener("icecandidate", cand);
               chk();
@@ -3866,9 +3887,37 @@
           const pc = new RTCPeerConnection({ iceServers: c.ice.iceServers, iceTransportPolicy: c.relay ? "relay" : "all" });
           c.stream.getTracks().forEach(tr => pc.addTrack(tr, c.stream));
           pc.ontrack = (e) => { const a = document.getElementById("call-audio"); a.srcObject = e.streams[0] || new MediaStream([e.track]); a.play().catch(() => {}); };
+          // Одно событие, а не два: иначе на «failed» сбой обрабатывался дважды (и сразу обрывал звонок)
           const st = () => callConnState(c);
-          pc.addEventListener("connectionstatechange", st); pc.addEventListener("iceconnectionstatechange", st);
+          if ("connectionState" in pc) pc.addEventListener("connectionstatechange", st); else pc.addEventListener("iceconnectionstatechange", st);
           return pc;
+      }
+
+      // ----- громкая связь -----
+      // Safari на iPhone (iOS 18.4+) после включения микрофона показывает выходы «у уха» (Receiver) и «громкий» (Speaker)
+      // и разрешает переключать их только сразу после касания. Звонок начинаем у уха, кнопка «Динамик» — громкая связь.
+      // Где переключать нельзя (старые iOS, Android, компьютер), звук выбирает система, а кнопка честно об этом говорит
+      async function callOutputs(c) {
+          if (c.outs !== undefined) return c.outs;
+          const a = $c("call-audio");
+          c.outs = null; c.outNames = "";
+          if (callOs() !== "ios" || !a.setSinkId || !navigator.mediaDevices.enumerateDevices) return null;
+          try {
+              const outs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audiooutput" && d.deviceId && d.deviceId !== "default");
+              const rx = outs.find(d => /receiver|earpiece|handset|трубк|разговорн|hörer|słuchawka/i.test(d.label));
+              const sp = outs.find(d => d !== rx && /speaker|динамик|громк|lautsprecher|głośnik/i.test(d.label));
+              if (rx && sp) c.outs = { rx: rx.deviceId, sp: sp.deviceId };
+              // Не распознали «у уха» / «громкий»: названия покажем самому человеку (по скриншоту подстроим распознавание),
+              // а в журнал сервера — только «сколько выходов и что узнали»: в названиях Bluetooth бывают имена владельцев
+              else if (outs.length) { c.outNames = outs.map(d => d.label || "?").join(" | "); callReport(c, "outs", { name: outs.length + " rx" + (rx ? 1 : 0) + " sp" + (sp ? 1 : 0) }); }
+          } catch (_) {}
+          return c.outs;
+      }
+      async function callSetSpeaker(c, on) {
+          const outs = await callOutputs(c);
+          if (!outs) return false;
+          try { await $c("call-audio").setSinkId(on ? outs.sp : outs.rx); c.speaker = on; if (call === c) callUi(); return true; }
+          catch (e) { console.log("Динамик:", e.name, e.message); return false; }
       }
 
       // ----- звуки: гудки у звонящего и мелодия входящего (синтез, без файлов) -----
@@ -3936,6 +3985,7 @@
           hang: '<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" style="transform:rotate(135deg)"><path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6a1 1 0 0 0-1 .25l-2.2 2.2a15 15 0 0 1-6.6-6.6l2.2-2.2a1 1 0 0 0 .25-1A11.4 11.4 0 0 1 8.5 4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1 17 17 0 0 0 17 17 1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z"/></svg>',
           mic: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>',
           micOff: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.7"/><path d="M17 16.9A7 7 0 0 1 5 12v-2m14 0v2c0 .8-.1 1.5-.4 2.2M12 19v3M2 2l20 20"/></svg>',
+          speaker: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" fill-opacity=".15"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
           min: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
       };
       const $c = (id) => document.getElementById(id);
@@ -3947,7 +3997,9 @@
           scr.classList.toggle("ringing", c.role === "callee" && !c.accepting);
           const acts = c.role === "callee" && !c.accepting
               ? [["decline", "red", CALL_SVG.hang, t("Отклонить")], ["accept", "green", CALL_SVG.accept, t("Принять")]]
-              : [["mute", c.muted ? "on" : "", c.muted ? CALL_SVG.micOff : CALL_SVG.mic, c.muted ? t("Микрофон выкл.") : t("Микрофон")], ["hang", "red", CALL_SVG.hang, t("Завершить")]];
+              : [["mute", c.muted ? "on" : "", c.muted ? CALL_SVG.micOff : CALL_SVG.mic, c.muted ? t("Микрофон выкл.") : t("Микрофон")],
+                 ["speaker", c.speaker ? "on" : "", CALL_SVG.speaker, t("Динамик")],
+                 ["hang", "red", CALL_SVG.hang, t("Завершить")]];
           $c("call-acts").innerHTML = acts.map(([a, cls, svg, label]) => `<button type="button" class="call-act ${cls}" data-call-act="${a}"><span class="b">${svg}</span><span>${escapeHTML(label)}</span></button>`).join("");
           $c("call-min").title = t("Свернуть"); $c("call-min").innerHTML = CALL_SVG.min;
           $c("call-note").textContent = c.hint || (!c.ice ? "" : c.relay ? t("Голос зашифрован и идёт через защищённый сервер — собеседник не видит ваш IP-адрес") : t("Голос зашифрован и идёт напрямую между устройствами"));
@@ -3971,21 +4023,26 @@
           if (!id || !navigator.serviceWorker) return;
           navigator.serviceWorker.ready.then(r => r.getNotifications({ tag: "owl-call-" + id })).then(ns => ns.forEach(n => n.close())).catch(() => {});
       }
-      function callTick(c) { if (call === c && c.connectedAt) setCallStatus(callDur(Math.round((Date.now() - c.connectedAt) / 1000))); }
+      function callTick(c) { if (call === c && c.connectedAt && !c.dropTimer) setCallStatus(callDur(Math.round((Date.now() - c.connectedAt) / 1000))); }
+      // Ошибка слушателя записи звонка (например, её удалили) — звонок закончен, а не «висит» до таймера
+      const callListenErr = (c) => (e) => { console.log("call:", e.code); if (call === c) endCall(null, true); };
 
       // ----- исходящий -----
       async function startCall(peer) {
+          if (call && call.pending) endCall(null, true); // «призрак» из кэша не мешает позвонить
           if (call) return showCallScreen();
           if (!currentUser || !peer || peer === currentUser.uid) return;
           if (!callsSupported()) return showToast(t("Этот браузер не поддерживает звонки"), "error");
           if (iBlocked(peer) || blockedMe(peer)) return showToast(t("Нельзя позвонить этому человеку"), "block");
           if (!canCallTo(peer)) return showToast(t("Этот человек принимает звонки только от своих подписок"), "info");
+          if (!chatsMetaCache[guardDm(peer)]) return showToast(t("Чтобы позвонить, сначала напишите этому человеку"), "info");
           const me = currentUser.uid, c = call = { role: "caller", peer, chatId: guardDm(peer), name: usersCache[peer]?.name || "", relay: false };
           showCallScreen(); setCallStatus(t("Вызов…"));
           try {
               c.step = "mic";
-              const [stream, ice] = await Promise.all([getMic(), callIceServers()]);
-              c.stream = stream;
+              // к уху — сразу, как открылся микрофон: iOS разрешает переключать звук только вскоре после касания
+              const [stream, ice] = await Promise.all([getMic().then(st => { if (call === c) callSetSpeaker(c, false); return st; }), callIceServers()]);
+              c.stream = stream; callApplyMute(c);
               if (call !== c) return stream.getTracks().forEach(tr => tr.stop()); // положили трубку, пока спрашивали микрофон
               c.ice = ice; c.relay = ice.relay; callUi();
               c.step = "rtc";
@@ -3995,10 +4052,12 @@
               if (call !== c) return;
               c.step = "db";
               const ref = doc(collection(db, "calls")); c.id = ref.id;
-              await setDoc(ref, { from: me, to: peer, chatId: c.chatId, status: "ringing", offer: pc.localDescription.sdp, name: String(currentUser.displayName || "").slice(0, 64), created: serverTimestamp() });
+              // Без сети запись «повисает» навсегда — ждём не больше 12 с. Если она дойдёт позже, удаление уйдёт следом и её погасит
+              const offline = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("offline"), { code: "offline" })), 12000));
+              await Promise.race([setDoc(ref, { from: me, to: peer, chatId: c.chatId, status: "ringing", offer: pc.localDescription.sdp, name: String(currentUser.displayName || "").slice(0, 64), created: serverTimestamp() }), offline]);
               if (call !== c) { deleteDoc(ref).catch(() => {}); return; }
               c.step = "ring";
-              c.unsub = onSnapshot(ref, (snap) => onCallDoc(c, snap), (e) => console.log("call:", e.code));
+              c.unsub = onSnapshot(ref, (snap) => onCallDoc(c, snap), callListenErr(c));
               // Сервер скажет, дошло ли уведомление: нет — подсказываем на экране звонка, почему собеседник может не ответить
               pushPost("/call/ring", { callId: ref.id }).then(r => r.json()).then(j => {
                   if (call !== c || c.answered || !j) return;
@@ -4009,17 +4068,28 @@
               playTone("back"); setCallStatus(t("Звоним…"));
               c.ringTimer = setTimeout(() => { if (call === c && !c.answered) endCall("missed"); }, CALL_RING_MS);
           } catch (e) {
+              if (call !== c) return;
               console.log("Звонок:", e.name, e.code, e.message);
               const denied = e.code === "permission-denied";
-              showToast(e.name === "NotAllowedError" ? t("Нет доступа к микрофону — разрешите его в настройках браузера") : denied ? t("Этот человек не принимает звонки от вас") : t("Не удалось позвонить") + callErr(c, e), "error");
+              if (e.code === "offline") { deleteDoc(doc(db, "calls", c.id)).catch(() => {}); showToast(t("Нет связи с интернетом — звонок не начался"), "error"); }
+              else showToast(e.name === "NotAllowedError" ? t("Нет доступа к микрофону — разрешите его в настройках браузера") : denied ? t("Этот человек не принимает звонки от вас") : t("Не удалось позвонить") + callErr(c, e), "error");
+              if (!denied && e.name !== "NotAllowedError") callReport(c, null, e);
               c.id = null; endCall(null, true);
           }
       }
 
       // ----- входящий -----
-      function incomingCall(id, d) {
-          const c = call = { role: "callee", id, peer: d.from, chatId: d.chatId, offer: d.offer, name: String(d.name || "").slice(0, 64), relay: false };
-          c.unsub = onSnapshot(doc(db, "calls", id), (snap) => onCallDoc(c, snap), (e) => console.log("call:", e.code));
+      // cached — запись пришла из кэша на устройстве (приложение только открыли): звоним, только когда сервер подтвердит,
+      // что звонок ещё идёт (иначе «звонок-призрак» от уже закончившегося)
+      function incomingCall(id, d, cached) {
+          const c = call = { role: "callee", id, peer: d.from, chatId: d.chatId, offer: d.offer, name: String(d.name || "").slice(0, 64), relay: false, pending: !!cached };
+          // includeMetadataChanges — чтобы пришло и подтверждение сервера, даже если сама запись не менялась
+          c.unsub = onSnapshot(doc(db, "calls", id), { includeMetadataChanges: true }, (snap) => onCallDoc(c, snap), callListenErr(c));
+          if (!c.pending) callRing(c);
+          else setTimeout(() => { if (call === c && c.pending) endCall(null, true); }, 8000); // сервер так и не подтвердил — не ждём вечно
+      }
+      function callRing(c) {
+          c.pending = false;
           showCallScreen(); setCallStatus(t("Входящий звонок"));
           playTone("ring");
           callIceServers(); // заранее, чтобы после «Принять» соединиться быстрее
@@ -4027,12 +4097,13 @@
           c.ringTimer = setTimeout(() => { if (call === c && !c.accepting) endCall(null, true); }, CALL_RING_MS + 10000);
       }
       async function acceptCall() {
-          const c = call; if (!c || c.role !== "callee" || c.accepting) return;
-          c.accepting = true; clearTimeout(c.ringTimer); stopTone(); callUi(); setCallStatus(t("Соединение…"));
+          const c = call; if (!c || c.role !== "callee" || c.accepting || c.pending) return;
+          c.accepting = true; c.lockUntil = Date.now() + 900; // второе касание «Принять» не должно попасть в «Завершить»
+          clearTimeout(c.ringTimer); stopTone(); callUi(); setCallStatus(t("Соединение…"));
           try {
               c.step = "mic";
-              const [stream, ice] = await Promise.all([getMic(), callIceServers()]);
-              c.stream = stream;
+              const [stream, ice] = await Promise.all([getMic().then(st => { if (call === c) callSetSpeaker(c, false); return st; }), callIceServers()]);
+              c.stream = stream; callApplyMute(c);
               if (call !== c) return stream.getTracks().forEach(tr => tr.stop());
               c.ice = ice; c.relay = ice.relay; callUi();
               c.step = "rtc";
@@ -4043,82 +4114,117 @@
               await callGather(pc, c.relay);
               if (call !== c) return;
               c.step = "db";
-              await updateDoc(doc(db, "calls", c.id), { status: "accepted", answer: pc.localDescription.sdp, by: currentUser.uid });
+              const ref = doc(db, "calls", c.id);
+              await updateDoc(ref, { status: "accepted", answer: pc.localDescription.sdp, by: currentUser.uid });
+              // Положили трубку, пока «принятие» летело на сервер: оно уже записано — закрываем звонок как положено
+              if (call !== c) { updateDoc(ref, { status: "ended", by: currentUser.uid }).catch(() => {}); return; }
               c.answered = true; armConnectTimer(c);
+              callAnswerOffer2(c);
           } catch (e) {
+              if (call !== c) return;
               console.log("Звонок (ответ):", e.name, e.code, e.message);
               if (e.code === "permission-denied") { showToast(t("Звонок уже принят на другом устройстве или отменён"), "info"); return endCall(null, true); }
               showToast(e.name === "NotAllowedError" ? t("Нет доступа к микрофону — разрешите его в настройках браузера") : t("Не удалось ответить на звонок") + callErr(c, e), "error");
-              endCall();
+              callReport(c, null, e);
+              c.failWhy = ((c.step || "?") + ": " + errName(e)).slice(0, 40); // звонящий увидит причину, а не «отклонён»
+              endCall("fail");
           }
       }
 
-      // Изменения записи звонка — у обоих участников
+      // Изменения записи звонка — у обоих участников. offer2/answer2 — повторное соединение (через сервер не вышло,
+      // или во время разговора сменилась сеть): звонящий шлёт новое предложение, собеседник отвечает; каждое — один раз
       async function onCallDoc(c, snap) {
           if (call !== c) return;
           if (!snap.exists()) return endCall(null, true);
           const d = snap.data(), me = currentUser.uid;
+          if (c.pending) {
+              if (snap.metadata.fromCache) return;            // ждём ответа сервера
+              if (d.status !== "ringing") return endCall(null, true);
+              callRing(c);
+          }
           try {
               if (c.role === "caller") {
                   if (d.status === "accepted" && !c.answered) {
                       c.answered = true; c.hint = null; callUi(); clearTimeout(c.ringTimer); stopTone(); setCallStatus(t("Соединение…"));
                       await c.pc.setRemoteDescription({ type: "answer", sdp: d.answer }); armConnectTimer(c);
                   }
-                  if (d.answer2 && !c.gotAnswer2) { c.gotAnswer2 = true; await c.pc.setRemoteDescription({ type: "answer", sdp: d.answer2 }); }
-                  if (d.status === "declined" || d.status === "busy") return endCall(d.status, true);
-              } else {
-                  if (d.offer2 && !c.gotOffer2 && c.pc) {
-                      // Через сервер не соединились — звонящий просит попробовать напрямую
-                      c.gotOffer2 = true; c.relay = false; callUi(); setCallStatus(t("Соединяем напрямую…"));
-                      c.pc.setConfiguration({ iceServers: c.ice.iceServers, iceTransportPolicy: "all" });
-                      await c.pc.setRemoteDescription({ type: "offer", sdp: d.offer2 });
-                      await c.pc.setLocalDescription(await c.pc.createAnswer());
-                      await callGather(c.pc, false);
-                      if (call !== c) return;
-                      await updateDoc(snap.ref, { answer2: c.pc.localDescription.sdp, by: me });
-                      armConnectTimer(c);
+                  if (d.answer2 && d.answer2 !== c.lastAnswer2 && c.pc.signalingState === "have-local-offer") {
+                      c.lastAnswer2 = d.answer2; await c.pc.setRemoteDescription({ type: "answer", sdp: d.answer2 });
                   }
+                  if (d.status === "declined" || d.status === "busy") return endCall(d.status, true);
+                  if (d.status === "failed") { c.failWhy = d.why || ""; return endCall("fail", true); }
+                  if (d.status === "ended" && d.answer) c.answered = true; // «принял» и «положил» пришли одним снимком — это не «пропущенный»
+              } else {
+                  if (d.offer2) { c.wantOffer2 = d.offer2; callAnswerOffer2(c); }
                   if (!c.accepting && d.status === "accepted") return endCall("elsewhere", true); // ответили с другого устройства
                   if (!c.accepting && d.status !== "ringing") return endCall(null, true);
               }
               if (d.status === "ended" && d.by !== me) return endCall(null, true);
-          } catch (e) { console.log("Звонок (соединение):", e.name, e.message); endCall("fail"); }
+          } catch (e) { if (call !== c) return; console.log("Звонок (соединение):", e.name, e.message); callReport(c, "sdp2", e); endCall("fail"); }
       }
 
+      // Собеседник отвечает на повторные предложения строго по одному; пришло новое, пока отвечали на старое, —
+      // старый ответ не отправляем, сразу отвечаем на новое (иначе соединение «путается» и звонок рвётся)
+      async function callAnswerOffer2(c) {
+          if (c.answering2 || !c.answered || !c.pc) return;
+          c.answering2 = true;
+          try {
+              while (call === c && c.wantOffer2 && c.wantOffer2 !== c.lastOffer2) {
+                  const sdp = c.lastOffer2 = c.wantOffer2;
+                  // До соединения звонящий переходит «напрямую» — тогда и мы собираем прямые адреса
+                  if (!c.connectedAt && c.relay) { c.relay = false; callUi(); c.pc.setConfiguration({ iceServers: c.ice.iceServers, iceTransportPolicy: "all" }); }
+                  setCallStatus(c.connectedAt ? t("Связь прервалась, восстанавливаем…") : t("Соединяем напрямую…"));
+                  await c.pc.setRemoteDescription({ type: "offer", sdp });
+                  await c.pc.setLocalDescription(await c.pc.createAnswer());
+                  await callGather(c.pc, c.relay);
+                  if (call !== c) return;
+                  if (c.wantOffer2 !== sdp) continue;
+                  await updateDoc(doc(db, "calls", c.id), { answer2: c.pc.localDescription.sdp, by: currentUser.uid });
+                  if (!c.connectedAt) armConnectTimer(c);
+              }
+          } catch (e) { if (call !== c) return; console.log("Звонок (повторное соединение):", e.name, e.message); callReport(c, "sdp2", e); endCall("fail"); }
+          finally { c.answering2 = false; }
+      }
       function armConnectTimer(c) {
           clearTimeout(c.connTimer);
           c.connTimer = setTimeout(() => { if (call === c && !c.connectedAt) callFailed(c); }, CALL_CONNECT_MS);
       }
+      // Не соединились за 15 с. Звонящий один раз пробует напрямую, собеседник ждёт этой попытки; дальше — «не удалось»
       function callFailed(c) {
-          if (c.role === "caller" && c.relay && !c.retried) return callRetryDirect(c);
-          // Собеседник: ждём ещё немного — вдруг звонящий попробует соединиться напрямую
-          if (c.role === "callee" && c.relay && !c.waited) { c.waited = true; return armConnectTimer(c); }
+          if (call !== c) return;
+          if (c.role === "caller" && c.relay && !c.retried) { c.retried = true; return callRestart(c, true); }
+          if (c.role === "callee" && !c.waited) { c.waited = true; return armConnectTimer(c); } // ждём попытку звонящего «напрямую»
+          callReport(c, "connect", { name: c.relay ? "relay" : "direct" });
           endCall("fail");
       }
-      async function callRetryDirect(c) {
-          c.retried = true; c.relay = false; callUi(); setCallStatus(t("Соединяем напрямую…"));
+      // Повторное соединение (ICE restart): direct — уйти с сервера связи на прямое соединение
+      async function callRestart(c, direct) {
+          // по одному: пока не пришёл ответ на прошлое предложение (signalingState не stable), новое не шлём
+          if (c.restarting || c.role !== "caller" || !c.pc || c.pc.signalingState !== "stable") return;
+          c.restarting = true;
           try {
-              c.pc.setConfiguration({ iceServers: c.ice.iceServers, iceTransportPolicy: "all" });
+              if (direct) { c.relay = false; callUi(); setCallStatus(t("Соединяем напрямую…")); c.pc.setConfiguration({ iceServers: c.ice.iceServers, iceTransportPolicy: "all" }); }
               await c.pc.setLocalDescription(await c.pc.createOffer({ iceRestart: true }));
-              await callGather(c.pc, false);
+              await callGather(c.pc, c.relay);
               if (call !== c) return;
               await updateDoc(doc(db, "calls", c.id), { offer2: c.pc.localDescription.sdp, by: currentUser.uid });
-              armConnectTimer(c);
-          } catch (e) { console.log("Звонок (напрямую):", e.message); endCall("fail"); }
+              if (!c.connectedAt) armConnectTimer(c);
+          } catch (e) { if (call !== c) return; console.log("Звонок (переподключение):", e.message); callReport(c, "restart", e); endCall("fail"); }
+          finally { c.restarting = false; }
       }
       function callConnState(c) {
           if (call !== c || !c.pc) return;
           const st = c.pc.connectionState || c.pc.iceConnectionState;
           if (st === "connected" || st === "completed") {
-              clearTimeout(c.connTimer); clearTimeout(c.dropTimer);
+              clearTimeout(c.connTimer); clearTimeout(c.dropTimer); clearTimeout(c.reTimer); c.dropTimer = c.reTimer = null;
               if (!c.connectedAt) { c.connectedAt = Date.now(); stopTone(); c.tick = setInterval(() => callTick(c), 1000); }
               callTick(c);
-          } else if (st === "disconnected" && c.connectedAt) {
+          } else if ((st === "disconnected" || st === "failed") && c.connectedAt) {
+              // Сменилась сеть (Wi-Fi ↔ мобильный) или пропала связь: звонящий переподключает, оба ждут до 25 с
               setCallStatus(t("Связь прервалась, восстанавливаем…"));
-              clearTimeout(c.dropTimer); c.dropTimer = setTimeout(() => { if (call === c) endCall(); }, CALL_DROP_MS);
-          } else if (st === "failed") {
-              if (c.connectedAt) endCall(); else { clearTimeout(c.connTimer); callFailed(c); }
-          }
+              if (c.role === "caller" && !c.reTimer) c.reTimer = setTimeout(() => { c.reTimer = null; if (call === c && c.pc.connectionState !== "connected") callRestart(c, false); }, st === "failed" ? 0 : 2500);
+              if (!c.dropTimer) c.dropTimer = setTimeout(() => { if (call === c) { callReport(c, "drop", { name: "lost" }); endCall(); } }, CALL_DROP_MS);
+          } else if (st === "failed") { clearTimeout(c.connTimer); callFailed(c); }
       }
 
       // Положить трубку / звонок закончился. why — итог для звонящего (missed / declined / busy / fail),
@@ -4127,26 +4233,28 @@
       async function endCall(why = null, remote = false) {
           const c = call; if (!c || c.ending) return;
           c.ending = true; call = null;
-          [c.ringTimer, c.connTimer, c.dropTimer].forEach(clearTimeout); clearInterval(c.tick); stopTone();
+          [c.ringTimer, c.connTimer, c.dropTimer, c.reTimer].forEach(clearTimeout); clearInterval(c.tick); stopTone();
           if (c.unsub) c.unsub();
           try { if (c.pc) c.pc.close(); } catch (_) {}
           if (c.stream) c.stream.getTracks().forEach(tr => tr.stop());
           const a = $c("call-audio"); a.srcObject = null;
           restoreAmbient(); // звонок закончился — звук снова «фоновый», не прерывает музыку
           closeCallNotifs(c.id);
+          if (c.pending) { hideCallScreen(); return; } // «призрак» из кэша — экран не показывали (на всякий случай прячем)
           const dur = c.connectedAt ? Math.max(1, Math.round((Date.now() - c.connectedAt) / 1000)) : 0;
           const s = dur ? "ok" : why || (c.answered ? "fail" : "missed");
-          const ended = { ok: t("Звонок завершён"), missed: c.role === "caller" ? t("Нет ответа") : t("Звонок отменён"), declined: t("Звонок отклонён"), busy: t("Занято"), fail: t("Не удалось соединиться"), elsewhere: t("Принят на другом устройстве") }[s];
-          setCallStatus(dur ? ended + " · " + callDur(dur) : ended);
+          const peerFail = s === "fail" && c.role === "caller" && remote && c.failWhy !== undefined;
+          const ended = { ok: t("Звонок завершён"), missed: c.role === "caller" ? t("Нет ответа") : t("Звонок отменён"), declined: t("Звонок отклонён"), busy: t("Занято"), fail: peerFail ? t("У собеседника не получилось ответить") : t("Не удалось соединиться"), elsewhere: t("Принят на другом устройстве") }[s];
+          setCallStatus(dur ? ended + " · " + callDur(dur) : ended + (peerFail && c.failWhy ? " (" + c.failWhy + ")" : ""));
           $c("call-acts").innerHTML = ""; $c("call-screen").classList.remove("ringing");
           const shown = $c("call-screen").classList.contains("on");
           if (!shown && c.connectedAt) showToast(dur ? ended + " · " + callDur(dur) : ended, "info");
-          setTimeout(() => { if (!call) hideCallScreen(); }, shown ? 1300 : 0);
+          setTimeout(() => { if (!call) hideCallScreen(); }, shown ? (peerFail ? 2600 : 1300) : 0);
           if (!c.id || !currentUser) return;
           const me = currentUser.uid, ref = doc(db, "calls", c.id);
           if (!remote) {
-              const status = c.answered ? "ended" : c.role === "caller" ? "missed" : "declined";
-              await updateDoc(ref, { status, by: me }).catch(e => console.log("Звонок (итог):", e.code));
+              const upd = c.answered ? { status: "ended" } : c.role === "caller" ? { status: "missed" } : c.failWhy ? { status: "failed", why: c.failWhy } : { status: "declined" };
+              await updateDoc(ref, { ...upd, by: me }).catch(e => console.log("Звонок (итог):", e.code));
           }
           if (c.role !== "caller") { if (c.answered) setTimeout(() => deleteDoc(ref).catch(() => {}), 3000); return; }
           // Отметка в переписке — от звонящего. Push — только о пропущенном (об остальном собеседник и так знает)
@@ -4163,12 +4271,14 @@
           callsListener = onSnapshot(query(collection(db, "calls"), where("to", "==", me), where("status", "==", "ringing")), (snap) => {
               snap.docChanges().forEach((ch) => {
                   if (ch.type !== "added") return;
-                  const d = ch.doc.data(), id = ch.doc.id;
-                  // Старый «звонок» (звонящий пропал, не отменив) — убираем, чтобы не читать его при каждом входе
-                  if (!d.created || Date.now() - getTime(d.created) > CALL_STALE_MS) { deleteDoc(ch.doc.ref).catch(() => {}); return; }
+                  const d = ch.doc.data(), id = ch.doc.id, age = d.created ? Date.now() - getTime(d.created) : Infinity;
+                  // Старый «звонок» (звонящий пропал, не отменив): не звоним; совсем старый — убираем, чтобы не читать при каждом входе.
+                  // Запас в минутах — на случай, если часы телефона спешат
+                  if (age > CALL_STALE_MS) { if (age > 10 * 60000) deleteDoc(ch.doc.ref).catch(() => {}); return; }
                   if (iBlocked(d.from) || bansCache[d.from]) { updateDoc(ch.doc.ref, { status: "declined", by: me }).catch(() => {}); return; }
+                  if (call && call.pending && call.id !== id) endCall(null, true); // новый звонок важнее непроверенного «призрака»
                   if (call) { if (call.id !== id) updateDoc(ch.doc.ref, { status: "busy", by: me }).catch(() => {}); return; }
-                  incomingCall(id, d);
+                  incomingCall(id, d, ch.doc.metadata.fromCache);
               });
           }, (e) => console.log("calls:", e.code));
       }
@@ -4180,17 +4290,19 @@
       $c("call-btn").addEventListener("click", () => startCall(dmPeer(currentChatId)));
       $c("call-min").addEventListener("click", minimizeCall);
       $c("call-pill").addEventListener("click", showCallScreen);
-      $c("call-acts").addEventListener("click", (e) => {
+      $c("call-acts").addEventListener("click", async (e) => {
           const b = e.target.closest("[data-call-act]"); if (!b || !call) return;
-          const a = b.dataset.callAct;
+          const a = b.dataset.callAct, c = call;
+          if (a !== "accept" && c.lockUntil && Date.now() < c.lockUntil) return; // защита от двойного касания после «Принять»
           if (a === "accept") acceptCall();
           else if (a === "decline") endCall();
-          else if (a === "hang") endCall(call.role === "caller" && !call.answered ? "missed" : null);
-          else if (a === "mute") { call.muted = !call.muted; if (call.stream) call.stream.getAudioTracks().forEach(tr => { tr.enabled = !call.muted; }); callUi(); }
+          else if (a === "hang") endCall(c.role === "caller" && !c.answered ? "missed" : null);
+          else if (a === "mute") { c.muted = !c.muted; callApplyMute(c); callUi(); }
+          else if (a === "speaker") { if (!(await callSetSpeaker(c, !c.speaker))) showToast(t("Звук на этом устройстве выбирает система") + (c.outNames ? " (" + c.outNames + ")" : ""), "info"); }
       });
       document.addEventListener("keydown", (e) => { if (e.key === "Escape" && call && $c("call-screen").classList.contains("on") && !(call.role === "callee" && !call.accepting)) minimizeCall(); });
       // Закрыли вкладку посреди звонка — сообщаем собеседнику (как получится)
-      window.addEventListener("pagehide", () => { if (call && call.id) updateDoc(doc(db, "calls", call.id), { status: call.answered ? "ended" : call.role === "caller" ? "missed" : "declined", by: currentUser.uid }).catch(() => {}); });
+      window.addEventListener("pagehide", () => { if (call && call.id && !call.pending) updateDoc(doc(db, "calls", call.id), { status: call.answered ? "ended" : call.role === "caller" ? "missed" : "declined", by: currentUser.uid }).catch(() => {}); });
 
       // Отметка о звонке в переписке: нажать — позвонить снова
       const CALL_LABELS = { ok: ["Исходящий звонок", "Входящий звонок"], missed: ["Звонок без ответа", "Пропущенный звонок"], busy: ["Звонок без ответа", "Пропущенный звонок"], declined: ["Звонок отклонён", "Отклонённый звонок"], fail: ["Звонок не удался", "Звонок не удался"] };
@@ -4203,29 +4315,54 @@
       }
       document.getElementById("chat-box").addEventListener("click", (e) => { if (e.target.closest(".call-note")) startCall(dmPeer(currentChatId)); });
 
+      // ===== ПОДСКАЗКА «ВКЛЮЧИ УВЕДОМЛЕНИЯ» =====
+      // Без уведомлений человек не узнает о звонке, пока Owl закрыт. Раз в 3 дня, через 20 с после входа, мягко напоминаем.
+      // На iPhone в Safari (не с экрана «Домой») уведомлений нет вовсе — тогда подсказываем, как установить Owl
+      function pushNudge() {
+          if (!currentUser || pushEnabled()) return;
+          try { if (Date.now() - (+localStorage.getItem("owl-push-nudge") || 0) < 3 * 86400000 || localStorage.getItem("owl-push") === "off") return; localStorage.setItem("owl-push-nudge", String(Date.now())); } catch (_) { return; }
+          const iosTab = /iPhone|iPad/.test(navigator.userAgent) && !isStandalone();
+          if (iosTab || !("Notification" in window)) return showToast(t("Этот браузер не поддерживает уведомления. На iPhone добавьте Owl на экран «Домой» (iOS 16.4+)."), "bell");
+          if (Notification.permission === "denied") return;
+          showToast(t("Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда"), "bell", { onClick: () => {
+              const tg = document.getElementById("push-toggle"); tg.checked = true; tg.dispatchEvent(new Event("change"));
+          } });
+      }
+
       // ===== АВТООБНОВЛЕНИЕ =====
       // Owl с экрана «Домой» может днями жить в фоне со старым кодом (так у друзей не работали звонки после исправления).
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
-      // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст
-      const OWL_SHELL = 76; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
-      let updCheckAt = 0, updPending = false;
+      // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
+      // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
+      const OWL_SHELL = 77; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
-          if (updPending || Date.now() - updCheckAt < 5 * 60000) return;
+          if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
           updCheckAt = Date.now();
           try {
               const txt = await (await fetch("/sw.js?u=" + Date.now(), { cache: "no-store" })).text();
               const m = txt.match(/owl-shell-v(\d+)/);
-              if (m && +m[1] > OWL_SHELL) { updPending = true; tryApplyUpdate(); }
+              if (m && +m[1] > OWL_SHELL) { updTarget = +m[1]; tryApplyUpdate(); }
           } catch (_) {}
       }
-      function tryApplyUpdate() {
-          if (!updPending || call || isRecording || document.visibilityState !== "visible") return;
+      const updBusy = () => {
           const inp = document.getElementById("message-input");
-          if (inp && document.activeElement === inp && inp.value.trim()) return; // человек печатает — подождём следующего раза
-          const go = () => location.reload();
+          return !!call || isRecording || document.visibilityState !== "visible" || (inp && document.activeElement === inp && inp.value.trim());
+      };
+      function tryApplyUpdate() {
+          if (!updTarget || updBusy()) return;
+          try { if (sessionStorage.getItem("owl-upd") === String(updTarget)) return; } catch (_) {}
+          const go = () => {
+              if (updBusy()) return; // пока обновлялись — пришёл звонок или начали печатать
+              try { sessionStorage.setItem("owl-upd", String(updTarget)); } catch (_) {}
+              location.reload();
+          };
           (navigator.serviceWorker ? navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}) : Promise.resolve()).then(go, go);
       }
-      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { if (updPending) tryApplyUpdate(); else checkAppUpdate(); } });
+      document.addEventListener("visibilitychange", () => {
+          clearTimeout(updTimer);
+          if (document.visibilityState === "visible") updTimer = setTimeout(() => { if (updTarget) tryApplyUpdate(); else checkAppUpdate(); }, 5000);
+      });
       setTimeout(checkAppUpdate, 60000);
 
       document.getElementById("push-toggle").addEventListener("change", async (e) => {
@@ -6279,6 +6416,7 @@
           startBanListeners();
           startBlockListeners();
           startCallsListener();
+          setTimeout(pushNudge, 20000);
           setTimeout(markActiveToday, 3000);
           startPresence();
           if (user.displayName) ensureProfileMigrated(user);

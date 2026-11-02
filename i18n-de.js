@@ -747,5 +747,11 @@ export default {
 "Позвонить снова": "Zurückrufen",
 "Звонок": "Anruf",
 "У собеседника сейчас ночной режим — звонок его не разбудит": "Dein Gegenüber ist im Nachtmodus – der Anruf weckt die Person nicht",
-"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "Die Benachrichtigung kam nicht an: Bei deinem Gegenüber sind Benachrichtigungen aus. Der Anruf ist nur sichtbar, wenn Owl geöffnet ist"
+"Уведомление не дошло: у собеседника выключены уведомления. Он увидит звонок, только если Owl открыт": "Die Benachrichtigung kam nicht an: Bei deinem Gegenüber sind Benachrichtigungen aus. Der Anruf ist nur sichtbar, wenn Owl geöffnet ist",
+"Динамик": "Lautsprecher",
+"Звук на этом устройстве выбирает система": "Auf diesem Gerät wählt das System die Audioausgabe",
+"У собеседника не получилось ответить": "Dein Gegenüber konnte nicht annehmen",
+"Нет связи с интернетом — звонок не начался": "Keine Internetverbindung – der Anruf wurde nicht gestartet",
+"Чтобы позвонить, сначала напишите этому человеку": "Schreib dieser Person zuerst eine Nachricht, um anzurufen",
+"Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Schalte Benachrichtigungen ein, damit du keine Anrufe und Nachrichten verpasst – tippe hier"
 };
