@@ -755,5 +755,5 @@ export default {
 "Чтобы позвонить, сначала напишите этому человеку": "To call, first send this person a message",
 "Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Turn on notifications so you don't miss calls and messages — tap here",
 "Упрощённый режим": "Simplified mode",
-"Без лишних анимаций, звёздочек и эффекта стекла — спокойнее и быстрее на слабых телефонах": "No extra animations, stars or glass effect — calmer and faster on older phones"
+"Без лишних анимаций, звёздочек и эффекта стекла — спокойнее и быстрее": "No extra animations, stars or glass effect — calmer and faster"
 };
