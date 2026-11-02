@@ -16,12 +16,18 @@
   button.on { background: var(--acc); }
   .row { display: flex; gap: 8px; } .row button { flex: 1; text-align: center; }
   #outs button { background: #263a2c; }
+  #status { position: sticky; top: 0; z-index: 5; margin: -16px -16px 10px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: #2a2145; font-size: 15px; font-weight: 600; }
+  #status.err { background: #5a1f2a; } #status.ok { background: #1f4a2c; }
   #log { white-space: pre-wrap; word-break: break-word; font: 12px/1.35 ui-monospace, Menlo, monospace; background: var(--card); padding: 10px; border-radius: 10px; margin-top: 12px; min-height: 80px; }
 </style>
 </head>
 <body>
+<div id="status">Начни с кнопки «0. Проверка звука»</div>
 <h1>Тест: «у уха» или «громко»</h1>
-<p>Делай по шагам. После каждого нажатия в шаге 3 поднеси телефон к уху и отодвинь: у уха — звук только из верхней щели и почти не слышен на вытянутой руке; громко — из нижней решётки, слышно издалека.</p>
+<p>Делай по шагам. После каждого нажатия в шаге 3 поднеси телефон к уху и отодвинь: у уха — звук только из верхней щели и почти не слышен на вытянутой руке; громко — из нижней решётки, слышно издалека. Громкость — кнопками сбоку, наушники и AirPods отключи.</p>
+
+<h2>0. Проверка звука</h2>
+<button id="beep">0. Проверка: пропищать обычным звуком (без микрофона)</button>
 
 <h2>1. Микрофон</h2>
 <button id="mic">1. Включить микрофон и показать выходы звука</button>
@@ -54,6 +60,8 @@ function log(...a) {
   logEl.textContent = s + "\n" + logEl.textContent;
   console.log(s);
 }
+// Крупная строка сверху: что происходит сейчас (журнал внизу — для меня)
+function status(text, kind) { const el = $("status"); el.textContent = text; el.className = kind || ""; log("СТАТУС:", text); }
 const short = (s) => (s ? String(s).slice(0, 8) : "-");
 const AC = window.AudioContext || window.webkitAudioContext;
 document.addEventListener("pointerdown", () => { lastTap = performance.now(); }, true);
@@ -92,16 +100,26 @@ if (navigator.mediaDevices && navigator.mediaDevices.addEventListener)
 if (navigator.audioSession && navigator.audioSession.addEventListener)
   navigator.audioSession.addEventListener("statechange", () => log("audioSession.state =", navigator.audioSession.state));
 
-$("mic").onclick = async () => {
+async function enableMic() {
   try { if (navigator.audioSession) navigator.audioSession.type = "play-and-record"; log("audioSession.type =", navigator.audioSession ? navigator.audioSession.type : "нет"); }
   catch (e) { log("audioSession.type ОШИБКА", e.name); }
   await listDevices("до микрофона");
   try {
     mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     log("микрофон OK:", mic.getAudioTracks()[0].label);
-  } catch (e) { log("микрофон ОШИБКА", e.name, e.message); return; }
+  } catch (e) { status("Микрофон не включился: " + e.name + ". Разреши микрофон для owlmes.ru в настройках Safari", "err"); return false; }
   await listDevices("сразу после микрофона");
   setTimeout(() => listDevices("через 2 с после микрофона"), 2000);
+  status("Микрофон включён, выходов звука: " + outs.length + ". Теперь шаг 2 — способ A", "ok");
+  return true;
+}
+$("mic").onclick = () => enableMic();
+
+// Проверка без микрофона и WebRTC: обычный писк из файла. Не слышно — дело в громкости/наушниках, а не в способах
+$("beep").onclick = async () => {
+  const a = new Audio(wav(660, 0.8, 0.6));
+  try { await a.play(); status("Должно пискнуть один раз. Не слышно — прибавь громкость кнопками сбоку и отключи наушники", "ok"); }
+  catch (e) { status("Писк не включился: " + e.name, "err"); }
 };
 $("relist").onclick = () => listDevices("по кнопке");
 
@@ -111,11 +129,11 @@ function toneTrack(silent) {
   ctxTone.resume();
   const dst = ctxTone.createMediaStreamDestination();
   const g = ctxTone.createGain();
-  g.gain.value = silent ? 0 : 0.15;
+  g.gain.value = silent ? 0 : 0.35;
   if (!silent) {
     const osc = ctxTone.createOscillator(); osc.frequency.value = 440;
     const lfo = ctxTone.createOscillator(); lfo.type = "square"; lfo.frequency.value = 2;
-    const depth = ctxTone.createGain(); depth.gain.value = 0.15;
+    const depth = ctxTone.createGain(); depth.gain.value = 0.35;
     lfo.connect(depth); depth.connect(g.gain);
     osc.connect(g); osc.start(); lfo.start();
   } else {
@@ -139,15 +157,16 @@ async function loopback(tracks) {
   const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("нет соединения за 8 с")), 8000));
   return Promise.race([done, timeout]);
 }
-// 1 с тишины в WAV (8 кГц, 16 бит, моно) — «якорь» из обычного файла, а не из Web Audio
-let wavUrl = null;
-function silentWav() {
-  if (wavUrl) return wavUrl;
-  const n = 8000, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), s = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+// Звук в WAV (16 кГц, 16 бит, моно): тон freq Гц или тишина (freq 0) — «якорь» и проверка из обычного файла, а не из Web Audio
+function wav(freq, sec, vol) {
+  const rate = 16000, n = Math.round(rate * sec), b = new ArrayBuffer(44 + n * 2), v = new DataView(b), s = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
   s(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); s(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); s(36, "data"); v.setUint32(40, n * 2, true);
-  return (wavUrl = URL.createObjectURL(new Blob([b], { type: "audio/wav" })));
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); s(36, "data"); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n && freq; i++) v.setInt16(44 + i * 2, Math.round(Math.sin(2 * Math.PI * freq * i / rate) * vol * 32767 * Math.min(1, i / 400, (n - i) / 400)), true);
+  return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
 }
+let wavUrl = null;
+const silentWav = () => wavUrl || (wavUrl = wav(0, 1, 0));
 function newEl() {
   const el = document.createElement("audio");
   el.autoplay = true; el.setAttribute("playsinline", "");
@@ -172,10 +191,30 @@ $("stop").onclick = () => {
   log("остановлено");
 };
 
+// Safari не дал запустить звук (нет свежего касания) — запускаем при следующем касании
+let needPlay = false;
+document.addEventListener("pointerdown", () => {
+  if (!needPlay) return; needPlay = false;
+  els.forEach((el) => el.play().then(() => status("Звук включён. Слышно писк?", "ok")).catch((e) => status("Звук снова не включился: " + e.name, "err")));
+}, true);
+// Через 1,5 с проверяем, что звук действительно идёт: время в плеере растёт и дорожка не «немая»
+function checkFlow(m) {
+  const el = els[0], t1 = el ? el.currentTime : 0;
+  setTimeout(() => {
+    if (mode !== m || !els[0]) return;
+    const moved = els[0].currentTime > t1, muted = remote.some((t) => t.muted);
+    log("проверка потока: время " + t1.toFixed(2) + "→" + els[0].currentTime.toFixed(2) + ", дорожка muted=" + muted + ", paused=" + els[0].paused);
+    if (els[0].paused) status("Звук на паузе — нажми ещё раз кнопку способа " + m, "err");
+    else if (muted) status("Связь внутри страницы есть, но звук не доходит (дорожка немая). Скопируй журнал и пришли", "err");
+    else status("Способ " + m + ": должно пищать «бип-бип». Теперь нажимай кнопки в шаге 3 и слушай", "ok");
+  }, 1500);
+}
+
 document.querySelectorAll("[data-mode]").forEach((btn) => btn.onclick = async () => {
-  if (!mic) log("ВНИМАНИЕ: микрофон не включён — сначала шаг 1 (иначе выходов не будет)");
+  if (!mic) { status("Сначала включаю микрофон…"); if (!(await enableMic())) return; }
   stopAll();
   mode = btn.dataset.mode; btn.classList.add("on");
+  status("Способ " + mode + ": соединяю…");
   try {
     const tracks = mode === "D" ? [toneTrack(false), toneTrack(true)] : [toneTrack(false)];
     remote = await loopback(tracks);
@@ -211,17 +250,23 @@ document.querySelectorAll("[data-mode]").forEach((btn) => btn.onclick = async ()
       }
     }
     log("режим " + mode + " играет. Сейчас звук: послушай, громко или у уха?");
-  } catch (e) { log("режим " + mode + " ОШИБКА", e.name || "", e.message); }
+    checkFlow(mode);
+  } catch (e) {
+    log("режим " + mode + " ОШИБКА", e.name || "", e.message);
+    if (e.name === "NotAllowedError") { needPlay = true; status("Safari не дал включить звук — коснись экрана ещё раз", "err"); }
+    else status("Способ " + mode + " не запустился: " + (e.message || e.name) + ". Скопируй журнал и пришли", "err");
+  }
 });
 
 async function route(id, text) {
   const since = ((performance.now() - lastTap) / 1000).toFixed(1);
-  if (!els.length) { log("сначала выбери источник (шаг 2)"); return; }
+  if (!els.length) { status("Сначала выбери способ в шаге 2 (например, A)", "err"); return; }
   for (const el of (mode === "E1" || mode === "E2") && anchor ? [anchor] : els) {
     try { await el.setSinkId(id); log("setSinkId OK " + text + " | el.sinkId=" + short(el.sinkId) + " | после касания " + since + " с | режим " + mode); }
     catch (e) { log("setSinkId ОШИБКА " + text + ": " + e.name + " " + (e.message || "") + " | после касания " + since + " с"); }
   }
   log("→ Послушай: звук переключился? (у уха / громко)");
+  status("Выбран выход " + text.replace("→ ", "") + ". Послушай: писк у уха или громко?", "ok");
 }
 $("late").onclick = () => {
   log("жду 6 с без касаний…");
@@ -233,7 +278,7 @@ $("hiccup").onclick = () => {
   setTimeout(() => { remote.forEach((t) => { t.enabled = true; }); log("дорожка снова включена — звук остался там же или прыгнул?"); }, 600);
 };
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(logEl.textContent); log("журнал скопирован"); }
+  try { await navigator.clipboard.writeText(logEl.textContent); status("Журнал скопирован — вставь его в чат с Claude", "ok"); }
   catch (e) { log("копирование не удалось:", e.name); }
 };
 </script>
