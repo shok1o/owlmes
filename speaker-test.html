@@ -16,6 +16,9 @@
   button.on { background: var(--acc); }
   .row { display: flex; gap: 8px; } .row button { flex: 1; text-align: center; }
   #outs button { background: #263a2c; }
+  .marks button { padding: 14px 6px; font-size: 15px; } .marks button:disabled { opacity: .35; }
+  #mark-for { color: var(--fg); font-weight: 600; }
+  #results { font-size: 15px; margin-top: 6px; } #results div { padding: 6px 10px; background: var(--card); border-radius: 8px; margin: 4px 0; }
   #status { position: sticky; top: 0; z-index: 5; margin: -16px -16px 10px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: #2a2145; font-size: 15px; font-weight: 600; }
   #status.err { background: #5a1f2a; } #status.ok { background: #1f4a2c; }
   #log { white-space: pre-wrap; word-break: break-word; font: 12px/1.35 ui-monospace, Menlo, monospace; background: var(--card); padding: 10px; border-radius: 10px; margin-top: 12px; min-height: 80px; }
@@ -44,6 +47,11 @@
 <div id="outs"></div>
 <button id="late">Проверка: выбрать первый выход через 6 с (без касания)</button>
 <button id="hiccup">Имитировать «обрыв связи» (дорожка выкл → вкл)</button>
+
+<h2>4. Где слышно? Отметь после каждого выбора</h2>
+<p id="mark-for">Сначала выбери способ и выход звука</p>
+<div class="row marks"><button data-mark="ear">👂 У уха</button><button data-mark="loud">🔊 Громко</button><button data-mark="none">🔇 Не слышно</button></div>
+<div id="results"></div>
 
 <h2>Служебное</h2>
 <div class="row"><button id="relist">Обновить выходы</button><button id="stop">Стоп</button></div>
@@ -202,7 +210,7 @@ function stopAll() {
   if (ctxPlay) { ctxPlay.close().catch(() => {}); ctxPlay = null; }
   if (ctxTone) { ctxTone.close().catch(() => {}); ctxTone = null; }
   document.querySelectorAll("[data-mode]").forEach((b) => b.classList.remove("on"));
-  mode = null;
+  mode = null; setMarkFor(null);
 }
 $("stop").onclick = () => {
   stopAll();
@@ -270,6 +278,7 @@ document.querySelectorAll("[data-mode]").forEach((btn) => btn.onclick = async ()
       }
     }
     log("режим " + mode + " играет. Сейчас звук: послушай, громко или у уха?");
+    setMarkFor("выход по умолчанию");
     checkFlow(mode);
   } catch (e) {
     log("режим " + mode + " ОШИБКА", e.name || "", e.message);
@@ -287,8 +296,31 @@ async function route(id, text) {
     catch (e) { log("setSinkId ОШИБКА " + text + ": " + e.name + " " + (e.message || "") + " | после касания " + since + " с"); }
   }
   log("→ Послушай: звук переключился? (у уха / громко)");
-  status("Выбран выход " + text.replace("→ ", "") + ". Послушай: писк у уха или громко?", "ok");
+  status("Выбран выход " + text.replace("→ ", "") + ". Послушай и отметь в шаге 4: у уха или громко?", "ok");
+  setMarkFor(text.replace("→ ", "").replace(/\s+\[[^\]]*\]$/, "").trim());
 }
+
+// ----- Отметки «у уха / громко / не слышно»: для каждого способа и выхода, попадают в журнал и в итоги -----
+const MARK_TEXT = { ear: "👂 у уха", loud: "🔊 громко", none: "🔇 не слышно" };
+const results = new Map(); // «B · Receiver» → отметка
+let markFor = null;
+function setMarkFor(output) {
+  markFor = mode && output ? mode + " · " + output : null;
+  $("mark-for").textContent = markFor ? "Сейчас: способ " + markFor + " — где слышно?" : "Сначала выбери способ и выход звука";
+  document.querySelectorAll("[data-mark]").forEach((b) => { b.disabled = !markFor; });
+}
+function renderResults() {
+  $("results").textContent = "";
+  for (const [k, v] of results) { const d = document.createElement("div"); d.textContent = k + " — " + MARK_TEXT[v]; $("results").appendChild(d); }
+}
+document.querySelectorAll("[data-mark]").forEach((b) => b.onclick = () => {
+  if (!markFor) { status("Сначала выбери способ (шаг 2) и выход звука (шаг 3)", "err"); return; }
+  results.set(markFor, b.dataset.mark);
+  log("ОТМЕТКА: " + markFor + " → " + MARK_TEXT[b.dataset.mark]);
+  status("Записал: " + markFor + " — " + MARK_TEXT[b.dataset.mark], "ok");
+  renderResults();
+});
+setMarkFor(null);
 $("late").onclick = () => {
   log("жду 6 с без касаний…");
   setTimeout(() => { if (outs[0]) route(outs[0].deviceId, "(первый выход, спустя 6 с)"); else log("выходов нет"); }, 6000);
@@ -296,10 +328,15 @@ $("late").onclick = () => {
 $("hiccup").onclick = () => {
   if (!remote.length) { log("сначала выбери источник"); return; }
   remote.forEach((t) => { t.enabled = false; });
-  setTimeout(() => { remote.forEach((t) => { t.enabled = true; }); log("дорожка снова включена — звук остался там же или прыгнул?"); }, 600);
+  setTimeout(() => {
+    remote.forEach((t) => { t.enabled = true; }); log("дорожка снова включена — звук остался там же или прыгнул?");
+    if (markFor && !/после обрыва/.test(markFor)) { markFor += " (после обрыва)"; setMarkFor(markFor.slice(markFor.indexOf(" · ") + 3)); }
+    status("Связь «оборвалась» и вернулась. Отметь в шаге 4, где теперь слышно", "ok");
+  }, 600);
 };
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(logEl.textContent); status("Журнал скопирован — вставь его в чат с Claude", "ok"); }
+  const sum = results.size ? "ИТОГИ:\n" + [...results].map(([k, v]) => k + " — " + MARK_TEXT[v]).join("\n") + "\n\n" : "";
+  try { await navigator.clipboard.writeText(sum + logEl.textContent); status("Журнал скопирован — вставь его в чат с Claude", "ok"); }
   catch (e) { log("копирование не удалось:", e.name); }
 };
 </script>
