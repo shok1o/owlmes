@@ -1,4 +1,4 @@
-const CACHE = 'owl-shell-v72';
+const CACHE = 'owl-shell-v73';
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -97,7 +97,7 @@ self.addEventListener('push', (event) => {
         body: d.body || 'Новое сообщение',
         icon: '/icon-192.png', badge: '/icon-192.png',
         tag: tag, renotify: true,
-        data: { chatId: d.chatId || null, open: d.open || null }
+        data: { chatId: d.chatId || null, open: d.open || null, call: d.call || null }
     };
     // «Сова на страже»: тревога и напоминания — громко, с вибрацией и не исчезают сами
     if (d.loud) { opts.requireInteraction = true; opts.silent = false; opts.vibrate = [400, 150, 400, 150, 800]; }
@@ -105,9 +105,16 @@ self.addEventListener('push', (event) => {
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
             // Owl открыт на экране — уведомление покажет само приложение.
             // Safari требует показывать уведомление на каждый push, поэтому показываем и сразу убираем.
-            const inApp = !d.loud && list.some((c) => c.visibilityState === 'visible' && c.focused);
+            // Входящий звонок при открытом приложении показывает экран звонка — уведомление тоже убираем.
+            const inApp = (!d.loud || d.call) && list.some((c) => c.visibilityState === 'visible' && c.focused);
             return self.registration.showNotification(d.title || 'Owl Messenger', opts).then(() => {
                 if (inApp) return self.registration.getNotifications({ tag: tag }).then((ns) => ns.forEach((n) => n.close()));
+            }).then(() => {
+                // Пришло сообщение в этот чат (например, «Пропущенный звонок») — убираем устаревшее «звонит»
+                if (d.call || !d.chatId) return;
+                return self.registration.getNotifications().then((ns) => ns.forEach((n) => {
+                    if (n.tag && n.tag.indexOf('owl-call-') === 0 && n.data && n.data.chatId === d.chatId) n.close();
+                }));
             });
         })
     );
