@@ -1,5 +1,7 @@
-const CACHE = 'owl-shell-v81';
-const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const CACHE = 'owl-shell-v82';
+// Приложение — index.html + boot.js/app.js/ui.js (?v= — как CACHE): кладём их сразу, иначе без сети после обновления не запустится
+const SHELL = ['/', '/boot.js?v=82', '/app.js?v=82', '/ui.js?v=82', '/i18n-en.js?v=82', '/i18n-de.js?v=82', '/i18n-pl.js?v=82',
+    '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -45,6 +47,8 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET' || url.origin !== self.location.origin) return;
     // Проверка новой версии приложения (index.html читает sw.js) — всегда из сети, мимо кэша
     if (url.pathname === '/sw.js') return;
+    // Страница из писем (сброс пароля, подтверждение почты) — только из сети: одноразовый код из адреса не должен лечь в кэш
+    if (url.pathname === '/action.html') return;
 
     if (req.mode === 'navigate') {
         // Страницы: сначала сеть, при ошибке — кэш, затем заглушка.
@@ -52,9 +56,10 @@ self.addEventListener('fetch', (event) => {
         // из-за этого приложение с экрана «Домой» показывало старую версию)
         event.respondWith(
             fetch(req, { cache: 'no-cache' }).then((res) => {
-                if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+                // в кэш — без ?add=…/?chat=… в адресе (одна копия страницы, без следов ссылок)
+                if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(url.origin + url.pathname, copy)); }
                 return res;
-            }).catch(() => caches.match(req).then((r) => r || caches.match('/')).then((r) => r || new Response(offlineHtml, {
+            }).catch(() => caches.match(url.origin + url.pathname).then((r) => r || caches.match('/')).then((r) => r || new Response(offlineHtml, {
                 headers: { 'Content-Type': 'text/html; charset=utf-8' }
             })))
         );

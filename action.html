@@ -121,7 +121,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
   import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
-  import { getAuth, applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+  import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
   // Язык страницы: из ссылки в письме (?lang=), иначе из настроек Owl или телефона. Ключ перевода — русский текст
   const LANG = (() => {
@@ -151,7 +151,9 @@
   });
   // App Check обязателен для Authentication (Enforced) — без него ссылки из писем не сработают
   try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LciOuQtAAAAACzfAsHZMSxZ13E4hyN9kYvXcVK3"), isTokenAutoRefreshEnabled: false }); } catch (e) { console.log("appcheck:", e); }
-  const auth = getAuth(app);
+  // Вход только по почте и паролю: без getAuth, который на iPhone заранее грузит скрипт Google и скрытую страницу firebaseapp.com
+  // (для входа через Google — не нужны). Хранилище входа то же, что у getAuth, — никого не разлогинит
+  const auth = initializeAuth(app, { persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence] });
   auth.languageCode = LANG;
 
   const $ = (id) => document.getElementById(id);
