@@ -1,6 +1,6 @@
-const CACHE = 'owl-shell-v82';
+const CACHE = 'owl-shell-v83';
 // Приложение — index.html + boot.js/app.js/ui.js (?v= — как CACHE): кладём их сразу, иначе без сети после обновления не запустится
-const SHELL = ['/', '/boot.js?v=82', '/app.js?v=82', '/ui.js?v=82', '/i18n-en.js?v=82', '/i18n-de.js?v=82', '/i18n-pl.js?v=82',
+const SHELL = ['/', '/boot.js?v=83', '/app.js?v=83', '/ui.js?v=83', '/i18n-en.js?v=83', '/i18n-de.js?v=83', '/i18n-pl.js?v=83',
     '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {

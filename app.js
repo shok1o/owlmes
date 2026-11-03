@@ -29,7 +29,7 @@
       }
       const LANG = detectLang();
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=82`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=83`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -2320,7 +2320,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 82; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 83; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -2791,7 +2791,7 @@
           if (!currentUser) return;
           const who = uid || currentUser.uid, c = featherColorOf(usersCache[who]), mine = who === currentUser.uid;
           const hero = document.getElementById("prem-hero");
-          hero.innerHTML = featherSVG(124, c, true) + "<i></i><i></i><i></i><i></i>";
+          hero.innerHTML = `<div class="prem-rot">${featherSVG(124, c, true)}</div><i></i><i></i><i></i><i></i>`;
           hero.style.setProperty("--pg", FEATHER_COLORS[c][3]);
           document.getElementById("prem-title").textContent = welcome ? t("Добро пожаловать в Премиум") : t("Премиум Owl");
           document.getElementById("prem-sub").textContent = welcome ? t("Спасибо, что вы с Owl! Вот что теперь доступно:")
@@ -2801,23 +2801,37 @@
           document.getElementById("premium-screen").style.display = "flex";
           startPremSpin(hero);
       }
-      // Перо в окне премиума крутится само (≈70°/с) и пальцем: потянул — повернул, бросил — крутится по инерции и плавно
-      // возвращается к обычной скорости (в ту же сторону). Без лишнего движения (упрощённый режим) — только пальцем
+      // Перо в окне премиума — как звезда в Telegram: стоит лицом к нам и само не крутится. Потянул — поворачивается и наклоняется
+      // за пальцем; бросил — крутится по инерции, замедляется и мягко встаёт обратно лицом (сколько оборотов — решаем в момент броска,
+      // поэтому без откатов назад); отпустил медленно — возвращается лицом. При открытии окна — один оборот (без лишнего движения — нет).
+      // Поворачиваем обёртку .prem-rot, а не сам <svg>: объёмный поворот самого <svg> Safari на iPhone не рисует. Пока перо стоит — кадры не считаем
       let premSpin = null;
+      const premEase = (u) => 1 - Math.pow(1 - u, 3); // быстро в начале, плавно в конце
+      // Куда и как долго докручивать: бросок (≥300°/с) — до положения «лицом» после ~0,45 с полёта, но не меньше чем на 60° вперёд,
+      // скорость в начале ≈ скорости пальца (у кривой premEase она 3·путь/время); иначе — к ближайшему «лицом». Время — 0,35…2,6 с
+      function premSpinPlan(ay, v) {
+          if (Math.abs(v) < 300) { const goal = Math.round(ay / 360) * 360; return { goal, T: 350 + Math.abs(goal - ay) * 2.5 }; }
+          const dir = Math.sign(v);
+          let goal = Math.round((ay + v * .45) / 360) * 360;
+          if ((goal - ay) * dir < 60) goal += dir * 360;
+          return { goal, T: Math.min(2600, Math.max(350, 3000 * Math.abs(goal - ay) / Math.abs(v))) };
+      }
       function startPremSpin(hero) {
           if (premSpin) premSpin.stop();
-          const svg = hero.querySelector(".owl-feather"), scr = document.getElementById("premium-screen"), calm = reduceMotion(), BASE = calm ? 0 : 70;
-          let ay = 0, ax = 0, v = BASE, drag = null, raf = 0, last = performance.now();
-          const t0 = last;
+          const rot = hero.querySelector(".prem-rot"), scr = document.getElementById("premium-screen");
+          let ay = 0, ax = 0, v = 0, drag = null, raf = 0, spin = null, tilt = null;
+          const paint = () => { rot.style.transform = `rotateX(${ax.toFixed(1)}deg) rotateY(${ay.toFixed(1)}deg)`; };
           const frame = (now) => {
-              if (scr.style.display === "none" || !svg.isConnected) return stop();
-              const dt = Math.min(.05, (now - last) / 1000); last = now;
-              if (!drag) { ay += v * dt; v += ((v < 0 ? -BASE : BASE) - v) * Math.min(1, dt * 1.4); ax *= Math.pow(.05, dt); }
-              const fl = calm ? 0 : Math.sin((now - t0) / 650) * 5;
-              svg.style.transform = `translateY(${fl.toFixed(1)}px) rotateX(${ax.toFixed(1)}deg) rotateY(${(ay % 360).toFixed(1)}deg)`;
+              raf = 0;
+              if (scr.style.display === "none" || !rot.isConnected) return stop();
+              if (spin) { const u = Math.min(1, (now - spin.t0) / spin.T); ay = spin.a + (spin.goal - spin.a) * premEase(u); if (u >= 1) spin = null; }
+              if (tilt) { const u = Math.min(1, (now - tilt.t0) / 500); ax = tilt.a * (1 - premEase(u)); if (u >= 1) tilt = null; }
+              if (!drag && !spin && !tilt) { ay = 0; ax = 0; paint(); return; } // встало лицом — ждём касания
+              paint();
               raf = requestAnimationFrame(frame);
           };
-          const down = (e) => { drag = { x: e.clientX, y: e.clientY, t: e.timeStamp }; v = 0; hero.classList.add("grab"); try { hero.setPointerCapture(e.pointerId); } catch (_) {} };
+          const wake = () => { if (!raf) raf = requestAnimationFrame(frame); };
+          const down = (e) => { drag = { x: e.clientX, y: e.clientY, t: e.timeStamp }; v = 0; spin = tilt = null; hero.classList.add("grab"); try { hero.setPointerCapture(e.pointerId); } catch (_) {} wake(); };
           const move = (e) => {
               if (!drag) return;
               const dx = e.clientX - drag.x, dy = e.clientY - drag.y, dt = Math.max(8, e.timeStamp - drag.t) / 1000;
@@ -2829,13 +2843,17 @@
               if (!drag) return;
               if (e.timeStamp - drag.t > 90) v = 0; // задержал палец перед отпусканием — без броска
               drag = null; hero.classList.remove("grab");
-              v = Math.max(-1400, Math.min(1400, v));
+              const p = premSpinPlan(ay, Math.max(-1400, Math.min(1400, v))), now = performance.now();
+              spin = p.goal !== ay ? { a: ay, goal: p.goal, T: p.T, t0: now } : null;
+              tilt = ax ? { a: ax, t0: now } : null;
+              wake();
           };
           const evs = [["pointerdown", down], ["pointermove", move], ["pointerup", up], ["pointercancel", up]];
           evs.forEach(([n, f]) => hero.addEventListener(n, f));
-          const stop = () => { cancelAnimationFrame(raf); evs.forEach(([n, f]) => hero.removeEventListener(n, f)); if (premSpin && premSpin.stop === stop) premSpin = null; };
+          const stop = () => { cancelAnimationFrame(raf); raf = 0; evs.forEach(([n, f]) => hero.removeEventListener(n, f)); if (premSpin && premSpin.stop === stop) premSpin = null; };
           premSpin = { stop };
-          raf = requestAnimationFrame(frame);
+          paint();
+          if (!reduceMotion()) { spin = { a: 0, goal: 360, T: 1300, t0: performance.now() }; wake(); } // один оборот при открытии
       }
       // Окно «Добро пожаловать» — один раз на устройстве; сняли премиум — отметку стираем (выдадут снова — покажем снова)
       function checkPremiumWelcome() {
