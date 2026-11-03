@@ -755,5 +755,6 @@ export default {
 "Чтобы позвонить, сначала напишите этому человеку": "Schreib dieser Person zuerst eine Nachricht, um anzurufen",
 "Включите уведомления, чтобы не пропускать звонки и сообщения — нажмите сюда": "Schalte Benachrichtigungen ein, damit du keine Anrufe und Nachrichten verpasst – tippe hier",
 "Упрощённый режим": "Vereinfachter Modus",
-"Без лишних анимаций, звёздочек и эффекта стекла — спокойнее и быстрее": "Ohne zusätzliche Animationen, Sterne und Glaseffekt – ruhiger und schneller"
+"Без лишних анимаций, звёздочек и эффекта стекла — спокойнее и быстрее": "Ohne zusätzliche Animationen, Sterne und Glaseffekt – ruhiger und schneller",
+"Коснитесь экрана, чтобы включить звук": "Tippe auf den Bildschirm, um den Ton einzuschalten"
 };

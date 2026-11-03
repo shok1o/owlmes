@@ -2341,7 +2341,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.113</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.114</div>
       </div>
       
       <!-- ЧАТ -->
@@ -3979,7 +3979,7 @@
       function callPc(c) {
           const pc = new RTCPeerConnection({ iceServers: c.ice.iceServers, iceTransportPolicy: c.relay ? "relay" : "all" });
           c.stream.getTracks().forEach(tr => pc.addTrack(tr, c.stream));
-          pc.ontrack = (e) => { const a = document.getElementById("call-audio"); a.srcObject = e.streams[0] || new MediaStream([e.track]); a.play().catch(() => {}); };
+          pc.ontrack = (e) => { c.remote = e.streams[0] || new MediaStream([e.track]); callPlayRemote(c); };
           // Одно событие, а не два: иначе на «failed» сбой обрабатывался дважды (и сразу обрывал звонок)
           const st = () => callConnState(c);
           if ("connectionState" in pc) pc.addEventListener("connectionstatechange", st); else pc.addEventListener("iceconnectionstatechange", st);
@@ -3987,32 +3987,117 @@
       }
 
       // ----- громкая связь -----
-      // Safari на iPhone (iOS 18.4+) после включения микрофона показывает выходы «у уха» (Receiver) и «громкий» (Speaker)
-      // и разрешает переключать их только сразу после касания. Звонок начинаем у уха, кнопка «Динамик» — громкая связь.
-      // Где переключать нельзя (проверено 02.11 на iPhone с iOS 17 и 26+: Safari не показывает сайтам выходы звука),
-      // кнопки нет вовсе — звук выбирает система
-      async function callOutputs(c) {
-          if (c.outs !== undefined) return c.outs;
-          const a = $c("call-audio");
-          c.outs = null; c.outNames = "";
-          if (callOs() !== "ios" || !a.setSinkId || !navigator.mediaDevices.enumerateDevices) return null;
+      // Safari на iPhone с iOS 26+ после включения микрофона показывает выходы «у уха» (Receiver) и «громкий» (Speaker)
+      // и даёт выбрать их только вскоре после касания (setSinkId). Но звук собеседника, который играет прямо из WebRTC,
+      // всё равно идёт громко — ошибка WebKit 320087 (исправление ещё не вышло ни в одной iOS). Обход, проверенный 03.11
+      // на iPhone с iOS 27.2: «у уха» звук собеседника идёт через Web Audio-«ретранслятор» (MediaStreamDestination
+      // в тот же <audio>) — у него выбор выхода работает. Громко — напрямую, как раньше. Звонок начинаем у уха,
+      // кнопка «Динамик» — громкая связь. На iOS 17/18, Android и компьютере кнопки нет: звук выбирает система
+      let relayCtx = null;   // движок ретранслятора: один на страницу, между звонками «спит»
+      let sinkDirty = false; // после звонка «у уха» выход надо вернуть системный (получится по касанию)
+      const canPickOutput = () => callOs() === "ios" && !!AudioCtx && "setSinkId" in HTMLMediaElement.prototype;
+      // Движок запускаем, только когда выбор выхода реально есть; пока идёт запись с микрофона, iOS разрешает это и без касания
+      function callRelayCtx() {
+          if (!canPickOutput()) return null;
           try {
-              const outs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audiooutput" && d.deviceId && d.deviceId !== "default");
+              if (!relayCtx || relayCtx.state === "closed") { relayCtx = new AudioCtx(); relayCtx.onstatechange = () => callWakeRelay(); }
+              if (relayCtx.state !== "running") relayCtx.resume().catch(() => {});
+          } catch (_) { relayCtx = null; }
+          return relayCtx;
+      }
+      // Касание, которое iOS считает «нажатием» (для пальца — когда его отпустили, не когда коснулись)
+      const TAP_EVENTS = ["touchend", "click", "keydown"];
+      function onNextTap(fn) {
+          const go = (e) => { if (fn(e) !== false) TAP_EVENTS.forEach(ev => document.removeEventListener(ev, go, true)); };
+          TAP_EVENTS.forEach(ev => document.addEventListener(ev, go, true));
+      }
+      async function callOutputs(c) {
+          if (c.outs) return c.outs;
+          c.outNames = "";
+          if (!canPickOutput() || !navigator.mediaDevices.enumerateDevices) return null;
+          try {
+              const all = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audiooutput");
+              const outs = all.filter(d => d.deviceId && d.deviceId !== "default"), def = all.find(d => d.deviceId === "default");
               const rx = outs.find(d => /receiver|earpiece|handset|трубк|разговорн|hörer|słuchawka/i.test(d.label));
               const sp = outs.find(d => d !== rx && /speaker|динамик|громк|lautsprecher|głośnik/i.test(d.label));
-              if (rx && sp) c.outs = { rx: rx.deviceId, sp: sp.deviceId };
+              // Сейчас звук идёт в наушники (AirPods, гарнитура, машина)? Тогда к уху сами не уводим — решает система
+              if (rx && sp) c.outs = { rx: rx.deviceId, sp: sp.deviceId, headset: !!(def && def.label && !def.label.includes(rx.label) && !def.label.includes(sp.label)) };
               // Не распознали «у уха» / «громкий»: названия покажем самому человеку (по скриншоту подстроим распознавание),
               // а в журнал сервера — только «сколько выходов и что узнали»: в названиях Bluetooth бывают имена владельцев
-              else if (outs.length) { c.outNames = outs.map(d => d.label || "?").join(" | "); callReport(c, "outs", { name: outs.length + " rx" + (rx ? 1 : 0) + " sp" + (sp ? 1 : 0) }); }
+              else if (outs.length) { c.outNames = outs.map(d => d.label || "?").join(" | "); if (!c.outsReported) { c.outsReported = true; callReport(c, "outs", { name: outs.length + " rx" + (rx ? 1 : 0) + " sp" + (sp ? 1 : 0) }); } }
           } catch (_) {}
-          return c.outs;
+          return c.outs || null;
       }
-      async function callSetSpeaker(c, on) {
+      // Звук собеседника: «у уха» — через ретранслятор, громко — напрямую (так он надёжнее работает в фоне).
+      // Можно вызывать сколько угодно раз: если источник уже верный, он не меняется
+      function callPlayRemote(c) {
+          if (call !== c || !c.remote) return;
+          const a = $c("call-audio");
+          const ear = c.speaker === false && relayCtx && relayCtx.state === "running";
+          if (ear && c.relayFor !== c.remote) {
+              try { if (c.relayIn) c.relayIn.disconnect(); } catch (_) {}
+              try { const src = relayCtx.createMediaStreamSource(c.remote), dst = relayCtx.createMediaStreamDestination(); src.connect(dst); c.relayIn = src; c.relayOut = dst.stream; c.relayFor = c.remote; }
+              catch (e) { console.log("Ретранслятор:", e.name, e.message); c.relayFor = null; }
+          }
+          const want = ear && c.relayFor === c.remote ? c.relayOut : c.remote;
+          if (a.srcObject !== want) a.srcObject = want;
+          a.play().catch(e => callNeedTap(c, e));
+      }
+      // Safari не дал включить звук (окно разрешения микрофона «съедает» касание) — включаем на следующем касании
+      function callNeedTap(c, e) {
+          if (call !== c || !e || e.name !== "NotAllowedError" || c.needTap) return;
+          c.needTap = true; c.hint = t("Коснитесь экрана, чтобы включить звук");
+          $c("call-note").textContent = c.hint; // только надпись: кнопки под пальцем не перерисовываем
+          onNextTap(() => {
+              if (call !== c) return;
+              c.needTap = false; c.hint = null; callRelayCtx(); callPlayRemote(c);
+              setTimeout(() => { if (call === c) callUi(); }, 0);
+          });
+      }
+      // on: true — громко, false — у уха. auto — выбор при начале звонка (с наушниками к уху сами не уводим)
+      async function callSetSpeaker(c, on, auto) {
           const outs = await callOutputs(c);
-          if (!outs) return false;
-          try { await $c("call-audio").setSinkId(on ? outs.sp : outs.rx); c.speaker = on; if (call === c) callUi(); return true; }
-          catch (e) { console.log("Динамик:", e.name, e.message); return false; }
+          if (!outs || call !== c) return false;
+          if (auto && outs.headset) { if (call === c) callUi(); return false; }
+          const a = $c("call-audio");
+          if (!on) {
+              callRelayCtx();
+              if (relayCtx && relayCtx.state !== "running") await Promise.race([relayCtx.resume().catch(() => {}), new Promise(r => setTimeout(r, 1000))]);
+              if (call !== c) return false;
+          }
+          const ear = !on && relayCtx && relayCtx.state === "running"; // без ретранслятора «у уха» не получится
+          try {
+              await a.setSinkId(ear ? outs.rx : outs.sp);
+              if (call !== c) return false;
+              c.speaker = !ear; sinkDirty = ear;
+              callPlayRemote(c);
+              callUi();
+              return ear || on;
+          } catch (e) {
+              // Не успели после касания — звонок идёт громко, кнопка «Динамик» это и покажет: нажатие переключит к уху
+              console.log("Динамик:", e.name, e.message);
+              if (call === c && c.speaker === undefined) { c.speaker = true; callUi(); }
+              return e.name === "NotAllowedError";
+          }
       }
+      // Ретранслятор «уснул» (iOS приостанавливает звук в фоне, при Siri, будильнике) или проснулся.
+      // Проснулся — звук снова у уха. Не проснулся на виду за 1,5 с — честно громко, но звук не пропадает
+      function callWakeRelay() {
+          const c = call;
+          if (!c || c.speaker !== false || !relayCtx) return;
+          if (relayCtx.state === "running") return callPlayRemote(c);
+          relayCtx.resume().catch(() => {});
+          setTimeout(() => {
+              if (call !== c || c.speaker !== false || !relayCtx) return;
+              if (relayCtx.state === "running") return callPlayRemote(c);
+              if (document.visibilityState !== "visible") return; // в фоне ждём возвращения — там решим
+              c.speaker = true; callPlayRemote(c); callUi();
+              if (c.outs) $c("call-audio").setSinkId(c.outs.sp).catch(() => {});
+          }, 1500);
+      }
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") callWakeRelay(); });
+      // После звонка «у уха» возвращаем выход системный — на ближайшем касании (без касания iOS не даёт)
+      TAP_EVENTS.forEach(ev => document.addEventListener(ev, () => { if (sinkDirty && !call) $c("call-audio").setSinkId("").then(() => { sinkDirty = false; }).catch(() => {}); }, true));
 
       // ----- звуки: гудки у звонящего и мелодия входящего (синтез, без файлов) -----
       // Рингтон Owl «Бульк» — своя мелодия (в духе игровых мессенджеров, но не копия чужого звука), её синтезирует само
@@ -4136,7 +4221,7 @@
           try {
               c.step = "mic";
               // к уху — сразу, как открылся микрофон: iOS разрешает переключать звук только вскоре после касания
-              const [stream, ice] = await Promise.all([getMic().then(st => { if (call === c) callSetSpeaker(c, false); return st; }), callIceServers()]);
+              const [stream, ice] = await Promise.all([getMic().then(st => { if (call === c) callSetSpeaker(c, false, true); return st; }), callIceServers()]);
               c.stream = stream; callApplyMute(c);
               if (call !== c) return stream.getTracks().forEach(tr => tr.stop()); // положили трубку, пока спрашивали микрофон
               c.ice = ice; c.relay = ice.relay; callUi();
@@ -4197,7 +4282,7 @@
           clearTimeout(c.ringTimer); stopTone(); callUi(); setCallStatus(t("Соединение…"));
           try {
               c.step = "mic";
-              const [stream, ice] = await Promise.all([getMic().then(st => { if (call === c) callSetSpeaker(c, false); return st; }), callIceServers()]);
+              const [stream, ice] = await Promise.all([getMic().then(st => { if (call === c) callSetSpeaker(c, false, true); return st; }), callIceServers()]);
               c.stream = stream; callApplyMute(c);
               if (call !== c) return stream.getTracks().forEach(tr => tr.stop());
               c.ice = ice; c.relay = ice.relay; callUi();
@@ -4333,6 +4418,9 @@
           try { if (c.pc) c.pc.close(); } catch (_) {}
           if (c.stream) c.stream.getTracks().forEach(tr => tr.stop());
           const a = $c("call-audio"); a.srcObject = null;
+          try { if (c.relayIn) c.relayIn.disconnect(); } catch (_) {}
+          if (relayCtx && relayCtx.state !== "closed") relayCtx.suspend().catch(() => {}); // между звонками движок спит
+          if (sinkDirty) a.setSinkId("").then(() => { sinkDirty = false; }).catch(() => {}); // по касанию «Завершить» — сразу
           restoreAmbient(); // звонок закончился — звук снова «фоновый», не прерывает музыку
           closeCallNotifs(c.id);
           if (c.pending) { hideCallScreen(); return; } // «призрак» из кэша — экран не показывали (на всякий случай прячем)
@@ -4393,7 +4481,7 @@
           else if (a === "decline") endCall();
           else if (a === "hang") endCall(c.role === "caller" && !c.answered ? "missed" : null);
           else if (a === "mute") { c.muted = !c.muted; callApplyMute(c); callUi(); }
-          else if (a === "speaker") { if (!(await callSetSpeaker(c, !c.speaker))) showToast(t("Звук на этом устройстве выбирает система") + (c.outNames ? " (" + c.outNames + ")" : ""), "info"); }
+          else if (a === "speaker") { callRelayCtx(); if (!(await callSetSpeaker(c, !c.speaker))) showToast(t("Звук на этом устройстве выбирает система") + (c.outNames ? " (" + c.outNames + ")" : ""), "info"); }
       });
       document.addEventListener("keydown", (e) => { if (e.key === "Escape" && call && $c("call-screen").classList.contains("on") && !(call.role === "callee" && !call.accepting)) minimizeCall(); });
       // Закрыли вкладку посреди звонка — сообщаем собеседнику (как получится)
@@ -4429,7 +4517,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 80; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 81; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
