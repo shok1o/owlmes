@@ -11,7 +11,7 @@
 
   // Защита от чужих скриптов (CSP): какие адреса странице можно загружать. Эта же строка — в <meta> в index.html
   // (когда защита включена для всех); здесь — для пробного режима. Менять обе вместе.
-  var CSP = "default-src 'none'; script-src 'self' https://www.gstatic.com/firebasejs/10.11.0/ https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' data: blob: https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com https://www.google.com/recaptcha/ https://push.owlmes.ru; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/ https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
+  var CSP = "default-src 'none'; script-src 'self' https://www.gstatic.com/firebasejs/10.11.0/ https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://push.owlmes.ru https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/ https://challenges.cloudflare.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com https://www.google.com/recaptcha/ https://push.owlmes.ru; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/ https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
   window.OWL_CSP = CSP;
 
   // Журнал нарушений: что именно браузер не пустил (без адресов с параметрами); первые 5 — на сервер, чтобы увидеть сбои у людей
@@ -25,8 +25,11 @@
     } catch (_) {}
   });
 
+  // Защита включена для всех — строка CSP уже стоит в <meta> index.html (проба не нужна)
+  window.owlCspStatic = !!document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+
   // Пробный режим: ?csp=on — включить на 2 часа на этом устройстве, ?csp=off — выключить (и кнопка в «Панели разработчика»)
-  try {
+  if (!window.owlCspStatic) try {
     var q = window.owlFramed ? null : new URLSearchParams(location.search).get("csp");
     if (q === "on") localStorage.setItem("owl-csp-canary", String(Date.now()));
     else if (q === "off") localStorage.removeItem("owl-csp-canary");

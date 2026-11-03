@@ -29,7 +29,7 @@
       }
       const LANG = detectLang();
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=83`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=84`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -579,8 +579,10 @@
       document.addEventListener("click", (e) => { if (!e.target.closest("#sticker-panel, #sticker-btn")) toggleStickerPanel(false); }, true);
 
       // ===== ПРЕВЬЮ ССЫЛОК (карточку собирает наш сервер owl-push) =====
-      const LP_KEY = "owl-lp-v3"; let lpCache = {};
-      try { localStorage.removeItem("owl-lp-v1"); localStorage.removeItem("owl-lp-v2"); } catch (_) {}
+      // Картинку сайта грузим только через наш сервер (/img с подписью): напрямую сайт увидел бы IP каждого, кто открыл переписку.
+      // v4 — в старом кэше v3 лежали прямые адреса картинок
+      const LP_KEY = "owl-lp-v4"; let lpCache = {};
+      try { ["owl-lp-v1", "owl-lp-v2", "owl-lp-v3"].forEach(k => localStorage.removeItem(k)); } catch (_) {}
       try { lpCache = JSON.parse(localStorage.getItem(LP_KEY) || "{}"); } catch (_) {}
       const lpPending = {};
       function firstExternalLink(text) {
@@ -593,38 +595,96 @@
           }
           return null;
       }
-      function fetchLinkPreview(url) {
-          const c0 = lpCache[url];
-          if (c0 && !(c0.none && Date.now() - (c0.at || 0) > 3600e3)) return Promise.resolve(c0); // неудачу пробуем снова через час
-          if (lpPending[url]) return lpPending[url];
-          return lpPending[url] = pushPost("/preview", { url }).then(r => r.ok ? r.json() : null).then(d => {
-              const card = d && (d.title || d.description) ? { t: d.title || "", d: d.description || "", i: d.image || "", s: d.site || "" } : { none: 1, at: Date.now() };
-              lpCache[url] = card;
-              const keys = Object.keys(lpCache); if (keys.length > 300) keys.slice(0, keys.length - 300).forEach(k => delete lpCache[k]);
-              try { localStorage.setItem(LP_KEY, JSON.stringify(lpCache)); } catch (_) {}
-              return card;
-          }).catch(() => ({ none: 1, at: Date.now() })).finally(() => { delete lpPending[url]; });
+      // Карточка живёт неделю (потом спросим сервер снова: подпись и картинка могли смениться), «нет карточки» — час.
+      // Есть карточка в кэше — рисуем сразу (даже устаревшую: обновим тихо, в очереди). Сервер не ответил за 12 с, 5xx, 401 —
+      // временный сбой: старую карточку оставляем (повтор через час), поздний ответ запоминаем. «Слишком часто» — повтор через retryAfter
+      const LP_TTL = 7 * 86400e3, lpSave = () => { try { localStorage.setItem(LP_KEY, JSON.stringify(lpCache)); } catch (_) {} };
+      const lpFresh = (c) => !!c && Date.now() - (c.at || 0) <= (c.none ? 3600e3 : LP_TTL);
+      function lpStore(url, card) {
+          lpCache[url] = card;
+          const keys = Object.keys(lpCache); if (keys.length > 300) keys.slice(0, keys.length - 300).forEach(k => delete lpCache[k]);
+          lpSave(); return card;
       }
+      function lpRefresh(url, c0) {
+          if (lpPending[url]) return lpPending[url];
+          const keepOld = () => { if (c0) { c0.at = Date.now() - LP_TTL + 3600e3; lpSave(); return c0; } return { none: 1, at: Date.now() }; };
+          const settle = ([r, d]) => {
+              if (r.ok && d && (d.title || d.description)) return lpStore(url, { t: d.title || "", d: d.description || "", i: d.image || "", s: d.site || "", at: Date.now() });
+              if (r.status === 429) return c0 ? keepOld() : lpStore(url, { none: 1, at: Date.now() - 3600e3 + Math.min(900, Math.max(30, +(d && d.retryAfter) || 120)) * 1000 });
+              if (r.ok || r.status === 400) return lpStore(url, { none: 1, at: Date.now() }); // у страницы нет карточки или адрес не подходит
+              return keepOld();
+          };
+          const req = pushPost("/preview", { url }).then(async r => [r, await r.json().catch(() => null)]);
+          return lpPending[url] = Promise.race([req, new Promise(ok => setTimeout(() => ok(null), 12000))]).then(res => {
+              if (res) return settle(res);
+              req.then(settle).catch(() => {}); // ответ пришёл позже — пригодится в следующий раз
+              return keepOld();
+          }).catch(() => keepOld()).finally(() => { delete lpPending[url]; });
+      }
+      // Новые карточки запрашиваем, только когда сообщение близко к экрану, и не больше трёх запросов сразу
+      // (после обновления кэш пуст — иначе чат со ссылками разом упёрся бы в лимиты сервера)
+      const lpQueue = [], lpWatched = new Set(); let lpActive = 0;
+      const lpAnchored = !!(window.CSS && CSS.supports && CSS.supports("overflow-anchor", "auto"));
+      function lpPump() {
+          while (lpActive < 3 && lpQueue.length) {
+              const job = lpQueue.shift();
+              if (job.el && !job.el.isConnected) continue;
+              lpActive++;
+              (job.el ? showLinkPreview(job.el) : lpRefresh(job.url, job.c0)).finally(() => { lpActive--; lpPump(); });
+          }
+      }
+      const lpSeen = "IntersectionObserver" in window ? new IntersectionObserver((es) => {
+          for (const e of es) if (e.isIntersecting) { lpSeen.unobserve(e.target); lpWatched.delete(e.target); lpQueue.push({ el: e.target }); }
+          lpPump();
+      }, { root: document.getElementById("chat-box"), rootMargin: "600px 0px" }) : null;
       function loadLinkPreviews(root) {
+          // сообщения перерисовали — за старыми (уже не на странице) больше не следим
+          for (const el of lpWatched) if (!el.isConnected) { lpSeen.unobserve(el); lpWatched.delete(el); }
           root.querySelectorAll(".lp[data-lp-url]:not([data-done])").forEach(el => {
               el.setAttribute("data-done", "1");
-              fetchLinkPreview(el.getAttribute("data-lp-url")).then(c => {
-                  if (!c || c.none) { el.remove(); return; }
-                  const box = document.getElementById("chat-box"), stick = box.scrollHeight - box.clientHeight - box.scrollTop < 60;
-                  const img = c.i && /^https:\/\//.test(c.i) ? `<img src="${escapeHTML(c.i)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : "";
-                  el.innerHTML = `${img}<div>${c.s ? `<div class="s">${escapeHTML(c.s)}</div>` : ""}${c.t ? `<div class="h">${escapeHTML(c.t)}</div>` : ""}${c.d ? `<div class="d">${escapeHTML(c.d)}</div>` : ""}</div>`;
-                  el.querySelector("img")?.addEventListener("error", (e) => e.target.remove()); // картинка сайта не загрузилась — без «битой» рамки
-                  if (stick) { box.scrollTop = box.scrollHeight; el.querySelector("img")?.addEventListener("load", () => { box.scrollTop = box.scrollHeight; }); }
-              });
+              const url = el.getAttribute("data-lp-url"), c = lpCache[url];
+              // карточка в кэше — рисуем сейчас же, до прокрутки чата (её высота сразу учтётся); устарела — обновим в очереди
+              if (c && !c.none) { lpPaint(el, c, true); if (!lpFresh(c) && !lpQueue.some(j => j.url === url)) lpQueue.push({ url, c0: c }); }
+              else if (lpFresh(c)) el.remove();
+              else if (lpSeen) { lpSeen.observe(el); lpWatched.add(el); }
+              else lpQueue.push({ el });
+          });
+          lpPump();
+      }
+      function showLinkPreview(el) {
+          const url = el.getAttribute("data-lp-url"), c0 = lpCache[url];
+          return (lpFresh(c0) ? Promise.resolve(c0) : lpRefresh(url, c0 && !c0.none ? c0 : null)).then(c => {
+              if (!el.isConnected) return;
+              if (!c || c.none) el.remove(); else lpPaint(el, c, false);
+          });
+      }
+      // sync — рисуем вместе с сообщениями (прокрутку потом выставит сам чат); иначе карточка появилась позже: внизу — держим низ,
+      // выше читаемого (листают вверх) — сдвигаем прокрутку на её высоту, чтобы текст не прыгал (Chrome и Firefox делают это сами)
+      function lpPaint(el, c, sync) {
+          const box = document.getElementById("chat-box"), atBottom = (extra = 0) => box.scrollHeight - box.clientHeight - box.scrollTop - extra < 60;
+          const stick = !sync && atBottom();
+          const keep = (fn) => { const above = !sync && !stick && !lpAnchored && el.getBoundingClientRect().bottom <= box.getBoundingClientRect().top, h0 = box.scrollHeight; fn(); if (above) box.scrollTop += box.scrollHeight - h0; };
+          const img = c.i && c.i.startsWith("https://push.owlmes.ru/img?") ? `<img src="${escapeHTML(c.i)}" alt="" referrerpolicy="no-referrer">` : "";
+          keep(() => { el.innerHTML = `${img}<div>${c.s ? `<div class="s">${escapeHTML(c.s)}</div>` : ""}${c.t ? `<div class="h">${escapeHTML(c.t)}</div>` : ""}${c.d ? `<div class="d">${escapeHTML(c.d)}</div>` : ""}</div>`; });
+          if (stick) box.scrollTop = box.scrollHeight;
+          const im = el.querySelector("img"); if (!im) return;
+          // картинка не загрузилась — убираем рамку только сейчас (сбой бывает временным; отказ сервера браузер и так помнит 6 часов)
+          im.addEventListener("error", () => { const b = atBottom(); im.remove(); if (b) box.scrollTop = box.scrollHeight; });
+          im.addEventListener("load", () => {
+              if (atBottom(im.offsetHeight)) { box.scrollTop = box.scrollHeight; return; } // читали самый низ — остаёмся внизу
+              if (!lpAnchored && el.getBoundingClientRect().bottom - im.offsetHeight <= box.getBoundingClientRect().top) box.scrollTop += im.offsetHeight;
           });
       }
 
       // Проба защиты от чужих скриптов (CSP) — кнопка в «Панели разработчика» → «Копия» (в приложении с экрана «Домой» нет адресной строки для ?csp=on)
       function renderCspBox() {
-          const on = !!window.owlCspCanary, log = window.owlCspLog || [];
-          document.getElementById("csp-toggle").textContent = on ? "Выключить пробу" : "Включить пробу";
-          document.getElementById("csp-status").textContent = (on ? "Проба включена. " : "Проба выключена. ") + (log.length ? "Заблокировано: " + log.join(" · ") : "Блокировок нет.");
+          const all = !!window.owlCspStatic, on = !!window.owlCspCanary, log = window.owlCspLog || [], btn = document.getElementById("csp-toggle");
+          btn.style.display = all ? "none" : "";
+          btn.textContent = on ? "Выключить пробу" : "Включить пробу";
+          document.getElementById("csp-status").textContent = (all ? "Защита включена для всех. " : on ? "Проба включена. " : "Проба выключена. ") + (log.length ? "Заблокировано: " + log.join(" · ") : "Блокировок нет.");
       }
+      renderCspBox();
+      document.addEventListener("securitypolicyviolation", () => setTimeout(renderCspBox, 0));
       document.getElementById("csp-toggle").addEventListener("click", () => {
           try { if (window.owlCspCanary) localStorage.removeItem("owl-csp-canary"); else localStorage.setItem("owl-csp-canary", String(Date.now())); } catch (_) {}
           location.reload();
@@ -2320,7 +2380,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 83; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 84; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
