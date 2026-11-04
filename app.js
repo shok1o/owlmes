@@ -29,7 +29,7 @@
       }
       const LANG = detectLang();
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=84`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=85`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -991,21 +991,33 @@
       let myInvites = [];
       async function sendGroupInvites(gid, groupName, uids) {
           let sent = 0;
+          // одни и те же строки в приглашении и в тексте уведомления — правила сверяют текст ровно с приглашением
+          const gName = String(groupName || "Беседа").slice(0, 100), fName = (currentUser.displayName || "").slice(0, 64);
           await Promise.all(uids.map(async (to) => {
               try {
-                  await setDoc(doc(db, "group_invites", gid + "_" + to), { gid, groupName: String(groupName || "Беседа").slice(0, 100), toUid: to, fromUid: currentUser.uid, fromName: (currentUser.displayName || "").slice(0, 64), createdAt: new Date() });
+                  await setDoc(doc(db, "group_invites", gid + "_" + to), { gid, groupName: gName, toUid: to, fromUid: currentUser.uid, fromName: fName, createdAt: new Date() });
                   sent++;
-                  addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: to, text: `${currentUser.displayName} приглашает вас в беседу «${groupName}»`, timestamp: new Date(), read: false, type: "invite", chatId: gid }).catch(() => {});
+                  // номер постоянный: повторное приглашение не плодит уведомления (база откажет — это нормально)
+                  setDoc(doc(db, "notifications", `invite_${gid}_${to}`), { fromUid: currentUser.uid, toUid: to, text: `${fName} приглашает вас в беседу «${gName}»`, timestamp: new Date(), read: false, type: "invite", chatId: gid }).catch(() => {});
               } catch (e) { console.log("Приглашение " + to + ":", e.code || e); }
           }));
           return sent;
       }
       function renderGroupInvites() {
           const box = document.getElementById("group-invites");
-          box.innerHTML = myInvites.filter(i => !bansCache[i.fromUid] && !iBlocked(i.fromUid)).map(i => `<div class="gi-card" data-gi="${escapeHTML(i.id)}">
-              <p>${t("{name} приглашает вас в беседу «{group}»", { name: `<b>${escapeHTML(i.fromName || t("Пользователь"))}</b>`, group: `<b>${escapeHTML(i.groupName || t("Беседа"))}</b>` })}</p>
-              <div class="gi-actions"><button class="gi-no" data-gi-act="no">${t("Отклонить")}</button><button class="gi-ok" data-gi-act="ok">${t("Вступить")}</button></div></div>`).join("");
+          const html = myInvites.filter(i => !bansCache[i.fromUid] && !iBlocked(i.fromUid)).map(i => {
+              watchUser(i.fromUid);
+              const from = usersCache[i.fromUid]?.name || t("Пользователь"); // имя — из профиля, а не из приглашения
+              return `<div class="gi-card" data-gi="${escapeHTML(i.id)}">
+              <p>${t("{name} приглашает вас в беседу «{group}»", { name: `<b>${escapeHTML(from)}</b>`, group: `<b>${escapeHTML(i.groupName || t("Беседа"))}</b>` })}</p>
+              <div class="gi-actions"><button class="gi-no" data-gi-act="no">${t("Отклонить")}</button><button class="gi-ok" data-gi-act="ok">${t("Вступить")}</button></div></div>`;
+          }).join("");
+          // перерисовка зовётся и при любой смене профилей — без изменений кнопки не пересоздаём (иначе нажатие может потеряться)
+          if (box._html !== html) { box._html = html; box.innerHTML = html; }
       }
+      // Колокольчик приглашения (invite_{беседа}_{я}) убираем, когда ответили: иначе повторное приглашение в ту же беседу
+      // пришло бы без колокольчика. Нет такого документа (старое приглашение) — база откажет, не страшно
+      const dropInviteNotif = (inv) => deleteDoc(doc(db, "notifications", `invite_${inv.gid}_${currentUser.uid}`)).catch(() => {});
       document.getElementById("group-invites").addEventListener("click", async (e) => {
           const btn = e.target.closest("[data-gi-act]"); if (!btn) return;
           const id = btn.closest("[data-gi]").getAttribute("data-gi"), inv = myInvites.find(i => i.id === id); if (!inv) return;
@@ -1016,16 +1028,18 @@
                   b.update(doc(db, "groups", inv.gid), { members: arrayUnion(currentUser.uid) });
                   b.delete(doc(db, "group_invites", id));
                   await b.commit();
+                  dropInviteNotif(inv);
                   showToast(t("Вы вступили в беседу «{group}»", { group: inv.groupName || t("Беседа") }), "users");
                   window.loadChat(inv.gid, inv.groupName || t("Беседа"), inv.gid, true);
               } else {
                   await deleteDoc(doc(db, "group_invites", id));
+                  dropInviteNotif(inv);
                   showToast(t("Приглашение отклонено"), "info");
               }
           } catch (err) {
               console.error(err); btn.disabled = false;
               // беседу удалили или приглашение отозвали — просто убираем карточку
-              if (err.code === "not-found" || err.code === "permission-denied") { deleteDoc(doc(db, "group_invites", id)).catch(() => {}); showToast(t("Приглашение больше не действует"), "alert"); }
+              if (err.code === "not-found" || err.code === "permission-denied") { deleteDoc(doc(db, "group_invites", id)).catch(() => {}); dropInviteNotif(inv); showToast(t("Приглашение больше не действует"), "alert"); }
               else showToast(t("Не удалось ответить на приглашение"), "error");
           }
       });
@@ -1100,7 +1114,7 @@
       function usersChangedNow() {
           clearTimeout(usersChangedTimer); usersChangedTimer = null;
           renderChatList(document.getElementById("search-input").value);
-          updatePinIcon(); refreshHeaderStatus(); applyBlockState(); renderDevPanel();
+          updatePinIcon(); refreshHeaderStatus(); applyBlockState(); renderDevPanel(); renderGroupInvites();
           if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
           if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
           if (currentUser && usersCache[currentUser.uid]) { maybeShowOnboarding(); if (window.__pendingAdd) openPendingInvite(); }
@@ -2380,7 +2394,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 84; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 85; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -2672,26 +2686,20 @@
       }
       async function claimNickname(uid, newName, extra = {}) {
           newName = normalizeNick(newName); const key = nickKey(newName);
-          const oldKey = usersCache[uid]?.nameKey || null;
-          try {
-              await runTransaction(db, async (tx) => {
-                  const ref = doc(db, "usernames", key);
-                  const snap = await tx.get(ref);
-                  if (snap.exists() && snap.data().uid !== uid) throw nickTakenError();
-                  const oldRef = (oldKey && oldKey !== key) ? doc(db, "usernames", oldKey) : null;
-                  const oldSnap = oldRef ? await tx.get(oldRef) : null;
-                  tx.set(ref, { uid: uid, name: newName, updatedAt: new Date() });
-                  if (oldSnap && oldSnap.exists() && oldSnap.data().uid === uid) tx.delete(oldRef);
-                  tx.set(doc(db, "users", uid), { name: newName, nameLower: key, nameKey: key, ...extra }, { merge: true });
-              });
-          } catch (e) {
-              if (e.code !== "permission-denied") throw e;
-              // Правила Firestore ещё не пускают в usernames — проверяем хотя бы по профилям, чтобы регистрация не ломалась
-              console.warn("Нет доступа к коллекции usernames — добавьте правило. Проверяю ник по users.", e);
-              const dup = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(5)));
-              if (dup.docs.some(d => d.id !== uid)) throw nickTakenError();
-              await setDoc(doc(db, "users", uid), { name: newName, nameLower: key, ...extra }, { merge: true });
-          }
+          // Прежний ник читаем в транзакции из профиля, а не из памяти (могли сменить на другом устройстве).
+          // Запасного пути «имя без ника» больше нет: правила его не пустят, а ник остался бы свободным
+          await runTransaction(db, async (tx) => {
+              const meRef = doc(db, "users", uid), ref = doc(db, "usernames", key);
+              const me = await tx.get(meRef);
+              const snap = await tx.get(ref);
+              if (snap.exists() && snap.data().uid !== uid) throw nickTakenError();
+              const oldKey = (me.exists() && me.data().nameKey) || null;
+              const oldRef = (oldKey && oldKey !== key) ? doc(db, "usernames", oldKey) : null;
+              const oldSnap = oldRef ? await tx.get(oldRef) : null;
+              tx.set(ref, { uid: uid, name: newName, updatedAt: new Date() });
+              if (oldSnap && oldSnap.exists() && oldSnap.data().uid === uid) tx.delete(oldRef);
+              tx.set(meRef, { name: newName, nameLower: key, nameKey: key, ...extra }, { merge: true });
+          });
           return newName;
       }
       // Первый вход после подтверждения почты: создаём профиль и занимаем ник (до этого в базе нет ничего публичного —
@@ -2724,6 +2732,21 @@
                   await setDoc(doc(db, "users", user.uid), { createdAt: new Date(user.metadata.creationTime) }, { merge: true });
               }
               const name = data.name || user.displayName;
+              const nameOk = !!(data.name && data.nameKey && nickKey(data.name) === data.nameKey);
+              // displayName устарел (ник сменили на другом устройстве) — берём имя из профиля: им подписываются сообщения
+              if (nameOk && data.name !== user.displayName) updateProfile(user, { displayName: data.name }).catch(() => {});
+              else if (data.name && data.nameKey && !nameOk) {
+                  // имя в профиле не от ника — его откатило старое устройство (v1.115–v1.117 с устаревшим displayName) или записал
+                  // запасной путь смены ника v1.98–v1.117 (без подтверждённой почты): возвращаем имя из документа ника
+                  const nk = await getDoc(doc(db, "usernames", data.nameKey));
+                  const nkName = nk.exists() && nk.data().uid === user.uid ? nk.data().name : "";
+                  if (nkName && nickKey(nkName) === data.nameKey) {
+                      const fixed = await claimNickname(user.uid, nkName);
+                      if (fixed !== user.displayName) updateProfile(user, { displayName: fixed }).catch(() => {});
+                      // без подтверждённой почты это была смена ника в обход ника — объясняем, почему он вернулся
+                      if (!user.emailVerified && fixed !== data.name) showToast(t("Ваш ник снова «{name}»: сменить его можно после подтверждения почты", { name: fixed }), "alert");
+                  }
+              }
               if (!data.nameKey && name && name !== "Загрузка...") await claimNickname(user.uid, name);
           } catch (e) {
               if (e.code === "nick-taken") showToast(t("Ник «{name}» уже занят другим пользователем — смените его в профиле", { name: user.displayName }), "alert");
@@ -3456,6 +3479,7 @@
           const applyMeta = (id, meta, quiet) => {
             const prev = chatsMetaCache[id];
             if (meta) chatsMetaCache[id] = meta; else delete chatsMetaCache[id];
+            if (meta) resetIfArmed(id, meta);
             if (!quiet && meta) onChatMetaChanged(id, meta, prev);
           };
           let dmFirst = true;
@@ -3602,9 +3626,17 @@
           if (n.type === "follow") return t("{name} подписался(ась) на вас!", { name: who });
           if (n.type === "chat_deleted") return t("{name} удалил(а) вашу переписку", { name: who });
           const txt = String(n.text || "");
-          if (LANG !== "ru" && n.type === "invite") { const g = txt.match(/«(.*)»/); return t("{name} приглашает вас в беседу «{group}»", { name: who, group: g ? g[1] : t("Беседа") }); }
-          if (LANG !== "ru" && n.type === "mention") {
-              const i = txt.indexOf(": "), snippet = i >= 0 ? txt.slice(i + 2) : "";
+          // Приглашение и упоминание тоже собираем сами (на всех языках, и на русском): имя — из профиля отправителя,
+          // беседа — из своих данных. Присланный текст целиком не показываем — его пишет отправитель
+          if (n.type === "invite") {
+              const inv = myInvites.find(i => i.gid === n.chatId), g = txt.match(/«(.*)»/);
+              return t("{name} приглашает вас в беседу «{group}»", { name: who, group: groupsCache[n.chatId]?.name || inv?.groupName || (g ? g[1] : t("Беседа")) });
+          }
+          if (n.type === "mention") {
+              // фрагмент — сразу после названия беседы: в самом названии может быть своё «: »
+              const g = groupsCache[n.chatId]?.name, exact = g ? txt.indexOf("«" + g + "»: ") : -1, close = txt.indexOf("»: ");
+              const i = n.chatId === "global" ? txt.indexOf(": ") : exact >= 0 ? exact + g.length + 2 : close >= 0 ? close + 1 : txt.indexOf(": ");
+              const snippet = i >= 0 ? txt.slice(i + 2, i + 122) : "";
               return n.chatId === "global" ? t("{name} упомянул(а) вас в глобальном чате: {text}", { name: who, text: snippet })
                   : t("{name} упомянул(а) вас в беседе «{group}»: {text}", { name: who, group: groupsCache[n.chatId]?.name || t("Беседа"), text: snippet });
           }
@@ -3708,7 +3740,11 @@
           if (fresh.length > 2) {
               showToast(t("Новых уведомлений: {n}. Нажмите, чтобы посмотреть", { n: fresh.length }), "bell", { onClick: () => document.getElementById("notif-btn").click() });
               playNotifySound();
-          } else fresh.forEach(c => { showToast(notifText(c.doc.data()), "bell", { onClick: () => document.getElementById("notif-btn").click() }); playNotifySound(); });
+          } else fresh.forEach(c => {
+              const n = c.doc.data(), show = () => { showToast(notifText(n), "bell", { onClick: () => document.getElementById("notif-btn").click() }); playNotifySound(); };
+              // имя — из профиля отправителя: профиль незнакомца ещё грузится — ждём чуть-чуть, иначе в тосте «Пользователь»
+              if (n.fromUid && !usersCache[n.fromUid]) { watchUser(n.fromUid); setTimeout(show, 1500); } else show();
+          });
           fresh.forEach(c => updateDoc(doc(db, "notifications", c.doc.id), { toasted: true }).catch(e=>{}));
         };
         notificationsListener = onSnapshot(qLatest, handleNotifs, (err) => {
@@ -3834,6 +3870,7 @@
                   row.style.display = "none"; showToast(t("Никнейм изменён на «{name}»", { name }), "check");
               } catch (e) {
                   if (e.code === "nick-taken") { setHint(icon("error", 14) + t("Этот ник только что заняли"), "bad"); }
+                  else if (e.code === "permission-denied" && !currentUser.emailVerified) showToast(t("Сначала подтвердите почту"), "alert"); // новый ник правила базы дают только с подтверждённой почтой
                   else { console.error(e); showToast(t("Не удалось сменить ник: ") + e.message, "error"); }
               }
               saveBtn.disabled = false; saveBtn.innerText = orig;
@@ -4260,7 +4297,7 @@
 
               let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageText)) : (u.bio && allowedBy(u, "bio") ? escapeHTML(u.bio) : t("Статус не указан"));
               if (bansCache[u.uid]) preview = `<span class="banned-label">${t("Пользователь заблокирован")}</span>`;
-              if (meta && meta.lastMessageSender && !isMyMeta(meta) && !bansCache[u.uid]) preview = escapeHTML(meta.lastMessageSender) + ": " + preview;
+              if (meta && meta.lastMessageSender && !isMyMeta(meta) && !bansCache[u.uid]) preview = escapeHTML(u.name) + ": " + preview; // имя — из профиля собеседника: lastMessageSender = поле sender сообщения, его пишет сам отправитель
               
               let time = meta && meta.timestamp ? getTime(meta.timestamp) : 0;
               let unread = (meta && meta.unreadCount && !isMyMeta(meta)) ? meta.unreadCount : 0;
@@ -4649,14 +4686,14 @@
 
           try { await createProfileAfterVerify(user); } catch (e) { console.log("Профиль после подтверждения почты:", e.code || e); }
           let safeName = user.displayName || "Загрузка...";
-          // Ник пишем, только если он уже есть (при регистрации он появится чуть позже — его занимает claimNickname)
           // Email храним в закрытой users_private (видят только сам человек и админ). В публичном профиле он
           // остаётся только у официального аккаунта — по нему рисуется синяя галочка.
           // owlv — версия приложения: по ней звонящий знает, что у собеседника Owl с видео (у старых версий видеоканал ломал бы звук на iPhone)
           let baseProfile = { uid: user.uid, owlv: OWL_SHELL, email: (user.email === ADMIN_EMAIL) ? user.email : deleteField() };
           setDoc(doc(db, "users_private", user.uid), { uid: user.uid, email: user.email || "" }, { merge: true }).catch(e => console.log("users_private:", e.code));
-          if (user.displayName) { baseProfile.name = user.displayName; baseProfile.nameLower = nickKey(user.displayName); }
-          await setDoc(doc(db, "users", user.uid), baseProfile, { merge: true });
+          // Имя в профиль здесь не пишем: его меняет только claimNickname, вместе с ником. Иначе устаревший displayName
+          // (ник сменили на другом устройстве) откатывал имя в профиле, а отказ этой записи останавливал весь запуск
+          try { await setDoc(doc(db, "users", user.uid), baseProfile, { merge: true }); } catch (e) { console.log("Профиль при входе:", e.code || e); }
 
           document.getElementById("auth-screen").style.display = "none"; 
           document.getElementById("my-name").innerText = safeName; 
@@ -4938,9 +4975,17 @@
           window.__pendingAdd = null;
           try { history.replaceState(null, "", location.pathname); } catch (_) {}
           const key = nickKey(nick);
-          let u = Object.values(usersCache).find(x => x && (x.nameLower === key || x.nameKey === key));
+          let u = Object.values(usersCache).find(x => x && x.nameKey === key);
           if (!u) {
-              try { const snap = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(1))); snap.forEach(d => { u = d.data(); window.__ingestUser(u, true); u = usersCache[u.uid]; }); } catch (e) { console.log("Приглашение:", e.code || e); }
+              // Владельца ника ищем по usernames/{ник} (документ ника не подделать), а не по nameLower: имя в профиле
+              // можно было поставить чужое, не занимая ник. Документа ника нет (очень старый профиль) — как раньше
+              try {
+                  const nk = await getDoc(doc(db, "usernames", key));
+                  let p = null;
+                  if (nk.exists()) { const s = await getDoc(doc(db, "users", nk.data().uid)); if (s.exists()) p = s.data(); }
+                  else { const snap = await getDocs(query(collection(db, "users"), where("nameLower", "==", key), limit(1))); snap.forEach(d => { p = d.data(); }); }
+                  if (p && p.uid) { window.__ingestUser(p, true); u = usersCache[p.uid]; }
+              } catch (e) { console.log("Приглашение:", e.code || e); }
           }
           if (!u) return showToast(t("Пользователь {name} не найден", { name: nick }), "alert");
           if (u.uid === currentUser.uid) return;
@@ -5809,7 +5854,8 @@
           const orig = m.chatId === NEWS_ID ? { uid: "", name: "Owl Messenger" } : m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
           if (m.text) data.text = m.chatId === NEWS_ID ? newsText(m) : m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
-          const preview = m.text ? m.text : m.imageUrl ? "📷 Фотография" : m.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
+          // превью — из того, что реально уходит (пост канала при en/de/pl уходит переводом, а не русским оригиналом)
+          const preview = data.text ? data.text : data.imageUrl ? "📷 Фотография" : data.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
           await postMessage(target.chatId, data, preview);
       }
 
@@ -5830,6 +5876,19 @@
       document.getElementById("message-input").addEventListener("keydown", e => { if (e.key === "Escape" && replyingTo) { e.stopPropagation(); cancelReply(); } });
 
       function showChatPlaceholder(on) { const el = document.getElementById("chat-placeholder"); if (el) el.classList.toggle("on", !!on); }
+      const metaDenied = new Set(); // новые лички, где база уже отказала в превью (в этом сеансе)
+      // Чат, где при открытии сброс пропустили по превью из памяти (там ещё «моё последнее» или 0). Открыли из push —
+      // свежее превью с чужими непрочитанными приходит чуть позже: тогда сбрасываем один раз (applyMeta → resetIfArmed).
+      // Только 20 с после открытия: дальше, как в v1.117, сброс лишь при открытии — иначе сидящий в беседе обнулял бы
+      // общий счётчик беседы остальным участникам на каждое новое сообщение
+      let resetArmed = null; // { id, until }
+      function resetIfArmed(id, meta) {
+          if (!resetArmed || id !== resetArmed.id) return;
+          if (Date.now() > resetArmed.until || id !== currentChatId) { resetArmed = null; return; }
+          if (!meta.unreadCount || isMyMeta(meta) || !chatIsOnScreen()) return;
+          resetArmed = null;
+          setDoc(doc(db, "chats_metadata", id), id.includes("_") ? { unreadCount: 0, members: id.split("_") } : { unreadCount: 0 }, { merge: true }).catch(e => console.log(e));
+      }
       window.loadChat = (chatId, title, targetUid, isGroup = false) => {
         try {
             if (!chatId) return;
@@ -5843,8 +5902,16 @@
             currentChatTargetUid = (targetUid && !isGroup && chatId !== 'global') ? targetUid : null; currentTypers = [];
 
             if (chatId !== 'global') {
-                setDoc(doc(db, "chats_metadata", chatId), chatId.includes("_") ? { unreadCount: 0, members: chatId.split("_") } : { unreadCount: 0 }, { merge: true }).catch(e=>console.log(e));
-            }
+                const meta = chatsMetaCache[chatId], peer = dmPeer(chatId);
+                // Есть превью — сбрасываем только чужие непрочитанные (свои — это счётчик собеседника) и только не ноль.
+                // Новой лички (превью ещё нет) не создаём, если собеседник нас заблокировал или не разрешает ни писать,
+                // ни звонить, или база уже отказала в этом сеансе: правила всё равно откажут, а отказ стоит 4–6 чтений
+                const skip = meta ? (!meta.unreadCount || isMyMeta(meta))
+                    : !!peer && (blockedMe(peer) || metaDenied.has(chatId) || (!canWriteTo(peer) && !canCallTo(peer)));
+                if (!skip) setDoc(doc(db, "chats_metadata", chatId), chatId.includes("_") ? { unreadCount: 0, members: chatId.split("_") } : { unreadCount: 0 }, { merge: true })
+                    .catch(e => { if (!meta && e.code === "permission-denied") metaDenied.add(chatId); console.log(e); });
+                resetArmed = (skip && meta) ? { id: chatId, until: Date.now() + 20000 } : null;
+            } else resetArmed = null;
             updatePinIcon();
             
             let qfBanner = document.getElementById("quick-follow-banner");
@@ -6362,9 +6429,9 @@
             const upd = { text: text, edited: true };
             if (chatId === NEWS_ID && isAdmin) { const tr = await translateNews(text); upd.i18n = tr || deleteField(); } // пост канала — переводы заново
             const edit = updateDoc(doc(db, "messages", editedId), upd);
-            // Превью меняем, только если отредактировали последнее сообщение чата
-            const latest = latestLoadedMsg();
-            if (latest && latest.id === editedId) setDoc(doc(db, "chats_metadata", chatId), { lastMessageText: "✏️ " + text }, { merge: true }).catch(e => console.log(e));
+            // Превью меняем, только если в нём именно это сообщение (по живой копии превью). Раньше сверяли с последним
+            // загруженным: если новое ещё не пришло, превью затиралось старым текстом (а с правилами волны 1 — отклонялось)
+            if (chatsMetaCache[chatId]?.lastMessageId === editedId) setDoc(doc(db, "chats_metadata", chatId), { lastMessageText: "✏️ " + text }, { merge: true }).catch(e => console.log(e));
             await edit;
             return;
         }
@@ -6392,7 +6459,7 @@
         if (mentioned.length) {
             const where = chatId === "global" ? "глобальном чате" : `беседе «${groupsCache[chatId]?.name || "Беседа"}»`;
             const snippet = text.replace(/\s+/g, " ").slice(0, 90);
-            mentioned.forEach(uid => addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId, msgId: sentRef.id }).catch(() => {})); // база сверит: сообщение есть и в нём упомянут получатель
+            mentioned.forEach(uid => setDoc(doc(db, "notifications", `mention_${sentRef.id}_${uid}`), { fromUid: currentUser.uid, toUid: uid, text: `${currentUser.displayName} упомянул(а) вас в ${where}: ${snippet}`, timestamp: new Date(), read: false, type: "mention", chatId, msgId: sentRef.id }).catch(() => {})); // одно на сообщение и человека; повтор база отклонит — это нормально
         }
         return true;
       }
@@ -6498,34 +6565,49 @@
             lastGlobalSend = Date.now();
         }
         const msgRef = doc(collection(db, "messages"));
-        let saving;
-        if (isAdmin) saving = setDoc(msgRef, msgData);
-        else {
-            const st = await loadRl();
-            const fresh = Date.now() - st.mw > 62000; // окно точно истекло (с запасом на расхождение часов)
-            if (!fresh && st.mc >= MSG_PER_MIN) throw Object.assign(new Error("rate"), { code: "owl/rate-min" });
-            // flip — повтор после отказа базы: значит, мы и сервер по-разному поняли, закончилась ли минута
-            const commit = (useNew) => {
-                const b = writeBatch(db);
-                b.set(msgRef, msgData);
-                b.set(doc(db, "ratelimits", currentUser.uid), { ...(chatId === "global" ? { g: serverTimestamp() } : {}), ...(useNew ? { mw: serverTimestamp(), mc: 1 } : { mc: increment(1) }) }, { merge: true });
-                return b.commit().then(() => { rlState = useNew ? { mw: Date.now(), mc: 1 } : { mw: st.mw, mc: st.mc + 1 }; });
-            };
-            saving = commit(fresh).catch(err => {
-                if (err && err.code === "permission-denied" && !(st.mw && !fresh && st.mc >= MSG_PER_MIN - 1)) return commit(!fresh);
-                throw err;
-            });
-        }
-        setDoc(doc(db, "chats_metadata", chatId), {
+        const metaRef = doc(db, "chats_metadata", chatId);
+        if (resetArmed && resetArmed.id === chatId) resetArmed = null; // написал сам — отложенный сброс непрочитанных уже не нужен
+        // Превью пишем ОДНОЙ пачкой с сообщением: правила базы сверяют его с этим сообщением, «+1 непрочитанное» —
+        // ровно одно на сообщение, а повтор пачки несёт и превью (раньше превью шло отдельно и при повторе терялось)
+        const meta = {
             ...(chatId.includes("_") ? { members: chatId.split("_") } : {}),
             lastMessageText: previewText,
-            lastMessageSender: chatId === NEWS_ID ? "Owl Messenger" : currentUser.displayName,
+            lastMessageSender: chatId === NEWS_ID ? "Owl Messenger" : msgData.sender,   // ровно как в сообщении — так сверяют правила
             ...(chatId === NEWS_ID && msgData.i18n ? { lastMessageI18n: msgData.i18n } : {}),
             lastMessageSenderUid: currentUser.uid,
             lastMessageId: msgRef.id,
             timestamp: msgData.timestamp,
             unreadCount: (chatId === 'global' || chatId === NEWS_ID || isNest(chatId) ? 0 : increment(1))
-        }, { merge: true }).catch(e => console.log("Превью чата:", e));
+        };
+        let saving;
+        if (isAdmin) { const b = writeBatch(db); b.set(msgRef, msgData); b.set(metaRef, meta, { merge: true }); saving = b.commit(); }
+        else {
+            const st = await loadRl();
+            const fresh = Date.now() - st.mw > 62000; // окно точно истекло (с запасом на расхождение часов)
+            if (!fresh && st.mc >= MSG_PER_MIN) throw Object.assign(new Error("rate"), { code: "owl/rate-min" });
+            // last — номер этого сообщения: правила пускают ровно одно сообщение на шаг счётчика
+            const commit = (useNew, withMeta = true) => {
+                const b = writeBatch(db);
+                b.set(msgRef, msgData);
+                b.set(doc(db, "ratelimits", currentUser.uid), { ...(chatId === "global" ? { g: serverTimestamp() } : {}), ...(useNew ? { mw: serverTimestamp(), mc: 1 } : { mc: increment(1) }), last: msgRef.id }, { merge: true });
+                if (withMeta) b.set(metaRef, meta, { merge: true });
+                return b.commit().then(() => { rlState = useNew ? { mw: Date.now(), mc: 1 } : { mw: st.mw, mc: st.mc + 1 }; });
+            };
+            const denied = (e) => e && e.code === "permission-denied";
+            saving = (async () => {
+                try { return await commit(fresh); }
+                catch (err) { if (!denied(err) || (st.mw && !fresh && st.mc >= MSG_PER_MIN - 1)) throw err; }
+                // flip — повтор после отказа базы: значит, мы и сервер по-разному поняли, закончилась ли минута
+                try { return await commit(!fresh); }
+                catch (err) { if (!denied(err)) throw err; }
+                // Отклонены обе: вдруг база не приняла именно превью — сообщение важнее. Шлём без превью,
+                // а превью — отдельно и без «+1» (такое база примет: сообщение уже есть)
+                console.warn("Превью не принято базой — сообщение уходит без него");
+                await commit(fresh, false);
+                const { unreadCount: _u, ...metaNoUnread } = meta;
+                setDoc(metaRef, metaNoUnread, { merge: true }).catch(e => console.log("Превью чата:", e));
+            })();
+        }
         try { await saving; }
         catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
         if (chatId !== "global" && chatId !== NEWS_ID && !isNest(chatId) && !opts.noPush) notifyPushServer(msgRef.id);
@@ -6746,7 +6828,11 @@
               await step("беседы", async () => {
                   await Promise.all(Object.values(groupsCache).filter(g => (g.members || []).includes(uidToDelete)).map(g => setDoc(doc(db, "groups", g.id), { members: arrayRemove(uidToDelete) }, { merge: true })));
               });
-              await step("ник", async () => { const key = usersCache[uidToDelete]?.nameKey || nickKey(usersCache[uidToDelete]?.name || currentUser.displayName || ""); if (key) await deleteDoc(doc(db, "usernames", key)); });
+              await step("ник", async () => {
+                  const me = await getDoc(doc(db, "users", uidToDelete)); // свежий nameKey, а не из памяти
+                  const key = (me.exists() && me.data().nameKey) || usersCache[uidToDelete]?.nameKey || nickKey(usersCache[uidToDelete]?.name || currentUser.displayName || "");
+                  if (key) await deleteDoc(doc(db, "usernames", key));
+              });
               await step("подписки", () => deleteFollowEdges(uidToDelete));
               await step("почта", () => deleteDoc(doc(db, "users_private", uidToDelete)));
               await deleteDoc(doc(db, "users", uidToDelete)); await deleteUser(currentUser);

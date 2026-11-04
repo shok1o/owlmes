@@ -31,6 +31,7 @@ const app = initializeApp({
   apiKey: "AIzaSyCYeKCL1hqaDwmNp6bRuSZ4MPjMvMikqbY",
   authDomain: "mymessenger-12ec5.firebaseapp.com",
   projectId: "mymessenger-12ec5",
+  appId: "1:334096138410:web:c9cd4112c71ca79b91d0d3", // без него App Check не получал токен (запрос уходил на apps/undefined)
 });
 // App Check обязателен для Authentication (Enforced) — без него ссылки из писем не сработают
 try { initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider("6LciOuQtAAAAACzfAsHZMSxZ13E4hyN9kYvXcVK3"), isTokenAutoRefreshEnabled: false }); } catch (e) { console.log("appcheck:", e); }

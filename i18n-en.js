@@ -794,5 +794,6 @@ export default {
 "Здесь появятся люди, которые подписаны на вас. Попросите близкого человека подписаться на ваш профиль.": "People who follow you will appear here. Ask someone close to you to follow your profile.",
 "{name} не подписан(а) на вас — Сова не сможет предупредить": "{name} doesn't follow you — the Owl can't alert them",
 "{name} уже получал(а) от вас тревогу за последние 12 часов": "{name} already got an alert from you in the last 12 hours",
-"Тревога уже ушла близким — сначала нажмите «Я в порядке»": "The alert has already gone to your close ones — tap \"I'm OK\" first"
+"Тревога уже ушла близким — сначала нажмите «Я в порядке»": "The alert has already gone to your close ones — tap \"I'm OK\" first",
+"Ваш ник снова «{name}»: сменить его можно после подтверждения почты": "Your nickname is “{name}” again: you can change it after confirming your email"
 };

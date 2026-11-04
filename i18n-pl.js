@@ -794,5 +794,6 @@ export default {
 "Здесь появятся люди, которые подписаны на вас. Попросите близкого человека подписаться на ваш профиль.": "Tutaj pojawią się osoby, które cię obserwują. Poproś bliską osobę, żeby zaobserwowała twój profil.",
 "{name} не подписан(а) на вас — Сова не сможет предупредить": "{name} cię nie obserwuje — Sowa nie będzie mogła tej osoby ostrzec",
 "{name} уже получал(а) от вас тревогу за последние 12 часов": "{name} dostał(a) już od ciebie alarm w ciągu ostatnich 12 godzin",
-"Тревога уже ушла близким — сначала нажмите «Я в порядке»": "Alarm już poszedł do bliskich — najpierw naciśnij „Wszystko OK”"
+"Тревога уже ушла близким — сначала нажмите «Я в порядке»": "Alarm już poszedł do bliskich — najpierw naciśnij „Wszystko OK”",
+"Ваш ник снова «{name}»: сменить его можно после подтверждения почты": "Twój nick to znowu „{name}”: możesz go zmienić po potwierdzeniu e-maila"
 };
