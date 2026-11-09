@@ -29,7 +29,7 @@
       }
       const LANG = detectLang();
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=85`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=89`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -2394,7 +2394,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 85; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 89; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -4570,6 +4570,13 @@
           const created = Date.parse(user.metadata && user.metadata.creationTime || "");
           return isFinite(created) && created >= EMAIL_GATE_SINCE;
       }
+      // Почта подтверждена (данные аккаунта обновились при запуске), а в пропуске входа отметки ещё нет — обновляем пропуск.
+      // Проверка пропуска — без сети (он хранится на устройстве); запрос к серверу — только когда отметки нет
+      async function freshVerifiedToken(user) {
+          if (!user.emailVerified) return;
+          try { const r = await user.getIdTokenResult(); if (r.claims.email_verified !== true) await user.getIdToken(true); }
+          catch (e) { console.log("Пропуск входа:", e.code || e.message || e); }
+      }
       const fmtWait = (sec) => { sec = Math.max(1, Number(sec) || 60); return sec < 90 ? t("{n} сек", { n: sec }) : t("{n} мин", { n: Math.ceil(sec / 60) }); };
       // Запрос к серверу писем: App Check обязателен, ID token — если вошли
       async function emailPost(path, data) {
@@ -4684,7 +4691,18 @@
           // Новые аккаунты сначала подтверждают почту кодом из письма
           if (needsEmailCode(user)) { showVerifyScreen(user); return; }
 
-          try { await createProfileAfterVerify(user); } catch (e) { console.log("Профиль после подтверждения почты:", e.code || e); }
+          // Почта уже подтверждена, а «пропуск» входа (ID-токен) ещё старый, без отметки email_verified — так бывает, если
+          // подтвердили ссылкой из письма и просто перезапустили приложение. С таким пропуском правила базы не дают создать
+          // профиль и ник: человек входит, но его не найти ни по нику, ни по ссылке-приглашению (09.11.2026). Берём свежий пропуск
+          await freshVerifiedToken(user);
+          try { await createProfileAfterVerify(user); }
+          catch (e) {
+              console.log("Профиль после подтверждения почты:", e.code || e);
+              // база отказала — ещё раз со свежим пропуском (без сети не выйдет — тогда профиль создастся при следующем запуске)
+              if (e && e.code === "permission-denied") {
+                  try { await user.getIdToken(true); await createProfileAfterVerify(user); } catch (e2) { console.log("Профиль, повтор:", e2.code || e2); }
+              }
+          }
           let safeName = user.displayName || "Загрузка...";
           // Email храним в закрытой users_private (видят только сам человек и админ). В публичном профиле он
           // остаётся только у официального аккаунта — по нему рисуется синяя галочка.
