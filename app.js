@@ -34,7 +34,7 @@
       // Загрузка не уложилась в 8 с, но потом всё-таки закончилась — e2eLateLib (ставит раздел шифрования) повторит запуск сам
       let e2eLateLib = null;
       const e2eImport = (bust) => {
-          const imp = import(bust ? `./e2e.js?v=90&r=${Date.now()}` : "./e2e.js?v=90");
+          const imp = import(bust ? `./e2e.js?v=92&r=${Date.now()}` : "./e2e.js?v=92");
           return Promise.race([imp, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 8000))])
               .then(() => globalThis.OwlE2E || null, () => {
                   if (!globalThis.OwlE2E) imp.then(() => { if (globalThis.OwlE2E && e2eLateLib) e2eLateLib(); }, () => {});
@@ -43,7 +43,7 @@
       };
       let e2eLoad = e2eImport(false); // «Повторить» (e2eRetry) подменяет промис новой попыткой; ждущие читают (await e2eLoad) || globalThis.OwlE2E
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=90`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=92`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -2435,7 +2435,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 90; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 92; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -5654,6 +5654,9 @@
           "K3JuSPS6HvQJ9qJ4Wgkjx9UVHp73", // sonykkk.pq
           "SIkZlQzhGjY0KrEQC0six7ATZhw2", // Рождественская
           "wAKMWdWhJUdctRJ79H5TY4UV78q2", // zoka
+          "340YPw2Ad4f3L9tC1lf8byEqcZo2", // HMonday (12.11)
+          "p8izqOpJmcNpnu2mWnZISqbNJ3r1", // Sofia Trushkina (12.11)
+          "VAYDwgE41nNsMG7vHSdZWIChrQy1", // wxkizxshi (12.11)
       ]);
       const E2E_ALL = false;
       // ключ для запросов не вшит (E2E_ESCROW ниже) — ключи не создаются ни у кого: все работают как вне пилота

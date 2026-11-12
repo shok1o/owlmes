@@ -1,10 +1,10 @@
-const CACHE = 'owl-shell-v90';
+const CACHE = 'owl-shell-v92';
 // Приложение — index.html + boot.js/app.js/ui.js (?v= — как CACHE): кладём их сразу, иначе без сети после обновления не запустится
-const SHELL = ['/', '/boot.js?v=90', '/app.js?v=90', '/ui.js?v=90', '/i18n-en.js?v=90', '/i18n-de.js?v=90', '/i18n-pl.js?v=90',
-    '/e2e.js?v=90', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const SHELL = ['/', '/boot.js?v=92', '/app.js?v=92', '/ui.js?v=92', '/i18n-en.js?v=92', '/i18n-de.js?v=92', '/i18n-pl.js?v=92',
+    '/e2e.js?v=92', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 // Ядро шифрования (globalThis.OwlE2E) — для расшифровки текста в push. Номер ?v= — тот же, что у CACHE и SHELL.
 // Без try: не загрузилось — новый service worker не ставится, остаётся прежний, браузер повторит позже.
-importScripts('/e2e.js?v=90');
+importScripts('/e2e.js?v=92');
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
