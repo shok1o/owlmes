@@ -1,7 +1,7 @@
 // Owl Messenger — приложение (модуль). Подключён в index.html как app.js?v=NN, NN = OWL_SHELL = CACHE в sw.js
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
       // ВАЖНО: Добавлены deleteField и getDoc для отмены реакций
-      import { getFirestore, enableIndexedDbPersistence, serverTimestamp, collection, addDoc, onSnapshot as fsOnSnapshot, query, where, getDocs as fsGetDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc as fsGetDoc, runTransaction, documentId, terminate, clearIndexedDbPersistence, waitForPendingWrites } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+      import { getFirestore, enableIndexedDbPersistence, serverTimestamp, collection, addDoc, onSnapshot as fsOnSnapshot, query, where, getDocs as fsGetDocs, deleteDoc, doc, setDoc, updateDoc, arrayUnion, arrayRemove, writeBatch, increment, orderBy, limit, deleteField, getDoc as fsGetDoc, runTransaction, documentId, terminate, clearIndexedDbPersistence, waitForPendingWrites, Bytes, getDocFromServer } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
       import { initializeAppCheck, ReCaptchaEnterpriseProvider, getToken as getAppCheckToken } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app-check.js";
       import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged, signOut, sendPasswordResetEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification, getMultiFactorResolver, multiFactor, TotpMultiFactorGenerator } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -28,8 +28,22 @@
           return "en";
       }
       const LANG = detectLang();
+      // Ядро сквозного шифрования (e2e.js → globalThis.OwlE2E) грузится параллельно со словарём и запуск НЕ задерживает:
+      // его ждут только e2eInit и отправка в личку (e2eSendMode). Не загрузилось за 8 с — null: состояние «broken»
+      // (плашка и явное «Без шифрования»), открытый текст молча не включается. ?v=NN — как у app.js (план §0.13, §8.4)
+      // Загрузка не уложилась в 8 с, но потом всё-таки закончилась — e2eLateLib (ставит раздел шифрования) повторит запуск сам
+      let e2eLateLib = null;
+      const e2eImport = (bust) => {
+          const imp = import(bust ? `./e2e.js?v=90&r=${Date.now()}` : "./e2e.js?v=90");
+          return Promise.race([imp, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 8000))])
+              .then(() => globalThis.OwlE2E || null, () => {
+                  if (!globalThis.OwlE2E) imp.then(() => { if (globalThis.OwlE2E && e2eLateLib) e2eLateLib(); }, () => {});
+                  return globalThis.OwlE2E || null;
+              });
+      };
+      let e2eLoad = e2eImport(false); // «Повторить» (e2eRetry) подменяет промис новой попыткой; ждущие читают (await e2eLoad) || globalThis.OwlE2E
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=89`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=90`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -280,15 +294,18 @@
           megaphone: '<path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"></path><path d="M16 8.5a5 5 0 0 1 0 7"></path><path d="M19 5.5a9 9 0 0 1 0 13"></path>',
           eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
           moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>',
+          lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+          lockOpen: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>',
+          key: '<circle cx="7.5" cy="15.5" r="4.5"></circle><path d="M10.7 12.3 21 2"></path><path d="M16 7l3 3"></path><path d="M14 9l2 2"></path>',
           sun: '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>'
       };
       function icon(name, size = 18) {
           return `<svg class="ui-icon" viewBox="0 0 24 24" width="${size}" height="${size}" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ICONS.info}</svg>`;
       }
       // В базе превью хранятся с эмодзи-префиксом (📷/🎤/✏️) — при показе меняем его на иконку
-      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"], ["🦉 ", "sticker"], ["⚠️ ", "alert"], ["⚠ ", "alert"], ["✅ ", "check"], ["📞 ", "phone"]];
+      const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"], ["🦉 ", "sticker"], ["⚠️ ", "alert"], ["⚠ ", "alert"], ["✅ ", "check"], ["📞 ", "phone"], ["🔒 ", "lock"]];
       // Превью в базе хранятся по-русски («📷 Фотография») — переводим служебные слова при показе
-      const PREVIEW_WORDS = [["📷 ", "Фотография"], ["🎤 ", "Голосовое сообщение"], ["🦉 ", "Стикер"], ["📊 ", "Опрос:"], ["⚠️ ", "Сова на страже"], ["✅ ", "Всё в порядке"], ["📞 ", "Пропущенный звонок"], ["📞 ", "Отклонённый звонок"], ["📞 ", "Звонок не удался"], ["📞 ", "Звонок"]];
+      const PREVIEW_WORDS = [["📷 ", "Фотография"], ["🎤 ", "Голосовое сообщение"], ["🦉 ", "Стикер"], ["📊 ", "Опрос:"], ["⚠️ ", "Сова на страже"], ["✅ ", "Всё в порядке"], ["📞 ", "Пропущенный звонок"], ["📞 ", "Отклонённый звонок"], ["📞 ", "Звонок не удался"], ["📞 ", "Звонок"], ["🔒 ", "Зашифрованное сообщение"], ["🔒 ", "Новое сообщение"]];
       function trPreview(text) {
           if (LANG === "ru") return text;
           for (const [emoji, w] of PREVIEW_WORDS) text = text.split(emoji + w).join(emoji + t(w));
@@ -314,6 +331,9 @@
           "❌": ["#ff453a", '<circle class="f" cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/>'],
           "✗": ["#ff453a", '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'],
           "⚠": ["#ff9f0a", '<path class="f" d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.4M12 17.2v.3"/>'],
+          "🔒": ["#2fb36d", '<rect class="f" x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>'],
+          "🔓": ["#ff9f0a", '<rect class="f" x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 6.8-1.2"/>'],
+          "🔑": ["#f5b942", '<circle class="f" cx="8" cy="15" r="4"/><path d="M10.8 12.2 19 4M16 7l2.5 2.5M14 9l2 2"/>'],
       };
       const EMOJI_RE = new RegExp("(" + Object.keys(EMOJI_ICONS).join("|") + ")\uFE0F?", "gu");
       function emojiIcon(e, size = "1.15em") {
@@ -323,7 +343,7 @@
       // html — уже экранированный текст: эмодзи интерфейса → иконки
       const iconizeEmoji = (html) => String(html).replace(EMOJI_RE, (m, e) => emojiIcon(e));
       // Эмодзи в статичных подсказках (текст уже переведён translateDom) — тоже на свои иконки
-      document.querySelectorAll(".night-how, #night-urgent-btn").forEach(root => {
+      document.querySelectorAll(".night-how, #night-urgent-btn, .e2e-faq").forEach(root => {
           const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], has = new RegExp(EMOJI_RE.source, "u");
           for (let n = w.nextNode(); n; n = w.nextNode()) if (has.test(n.nodeValue)) nodes.push(n);
           nodes.forEach(n => { const sp = document.createElement("span"); sp.innerHTML = iconizeEmoji(escapeHTML(n.nodeValue)); n.replaceWith(...sp.childNodes); });
@@ -546,6 +566,7 @@
           const b = e.target.closest("[data-attach]"); if (!b) return;
           toggleAttachMenu(false);
           const kind = b.getAttribute("data-attach");
+          if ((kind === "photo" || kind === "clip") && !e2eGateOk(currentChatId)) return; // гейт — до выбора файла (§4.1 п.11)
           if (kind === "photo") document.getElementById("image-input").click(); else if (kind === "clip") pasteFromClipboard(); else openPollEditor();
       });
       document.addEventListener("click", (e) => { if (!e.target.closest("#attach-menu, #attach-btn")) toggleAttachMenu(false); }, true);
@@ -572,6 +593,7 @@
       document.querySelector("#sticker-panel .sp-close").addEventListener("click", () => toggleStickerPanel(false));
       document.getElementById("sp-grid").addEventListener("click", (e) => {
           const b = e.target.closest("[data-sticker]"); if (!b || !currentChatId) return;
+          if (!e2eGateOk(currentChatId)) { toggleStickerPanel(false); return; } // гейт шифрования закрыт — причина на плашке (§4.3)
           b.style.transform = "scale(.85)"; setTimeout(() => { b.style.transform = ""; }, 160);
           toggleStickerPanel(false);
           sendMessage(null, null, null, null, b.getAttribute("data-sticker"));
@@ -1118,6 +1140,7 @@
           if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
           if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
           if (currentUser && usersCache[currentUser.uid]) { maybeShowOnboarding(); if (window.__pendingAdd) openPendingInvite(); }
+          e2eAfterUsersChanged(); // после онбординга: он решает, когда можно показать окно Совиного ключа
           if (call) callPeerHeader(); // профиль собеседника подгрузился во время звонка — имя и аватар вместо «Собеседник»
       }
       const usersChanged = () => { if (!usersChangedTimer) usersChangedTimer = setTimeout(usersChangedNow, 60); };
@@ -1125,9 +1148,17 @@
       function watchUser(uid) {
           if (!uid || !currentUser || isAdmin || uid === "global" || userWatchers[uid]) return;
           if (Object.keys(userWatchers).length >= MAX_USER_WATCHERS) return;
-          userWatchers[uid] = onSnapshot(doc(db, "users", uid), (d) => {
-              if (!d.exists()) { delete usersCache[uid]; usersChanged(); return; }
+          // includeMetadataChanges — чтобы узнать, что сервер подтвердил профиль (шифрование: «ключа нет» из кэша может быть устаревшим,
+          // e2eProfileSrv). Изменились только метаданные (подтверждение, ответ на свою запись) — профиль заново не разбираем и не считаем
+          let sig = null;
+          userWatchers[uid] = fsOnSnapshot(doc(db, "users", uid), { includeMetadataChanges: true }, (d) => {
+              const fc = d.metadata.fromCache, s = d.exists() ? JSON.stringify(d.data()) : "";
+              if (s === sig) { if (!fc) e2eProfileSrv(uid); return; }
+              sig = s;
+              if (!fc && !d.metadata.hasPendingWrites) countReads("users/{id}", 1);
+              if (!d.exists()) { delete usersCache[uid]; usersChanged(); if (!fc) e2eProfileSrv(uid); return; }
               if (window.__ingestUser) window.__ingestUser(d.data(), true);
+              if (!fc) e2eProfileSrv(uid);
               usersChanged();
           }, (e) => { console.log("users/" + uid + ":", e.code); });
       }
@@ -1226,7 +1257,9 @@
       async function showSystemNotification(chatId, meta) {
           if (!pushEnabled()) return;
           const count = meta.unreadCount || 1;
-          let text = trPreview(String(meta.lastMessageText || t("Новое сообщение")));
+          // личка/Гнездо: превью расшифровываем (ждём ≤800 мс), не вышло — заглушка «🔒 Зашифрованное сообщение» (§4.5)
+          const raw = isE2EChat(chatId) ? await e2ePreviewFor(chatId, meta, 800) : meta.lastMessageText;
+          let text = trPreview(String(raw || t("Новое сообщение")));
           { const who = groupsCache[chatId] && usersCache[meta.lastMessageSenderUid]?.name; if (who) text = who + ": " + text; }
           const total = totalUnread();
           const opts = {
@@ -1303,17 +1336,25 @@
           if (!currentUser || !messageId) return;
           pushPost("/notify", { messageId }).catch(() => {});
       }
-      // Выход из аккаунта: отвязываем устройство, чтобы чужие сообщения сюда не приходили
-      async function logoutEverywhere(sendOffline = true) {
+      // Выход из аккаунта: отвязываем устройство, чтобы чужие сообщения сюда не приходили.
+      // wipe — явный «Выйти»: ключи шифрования стираются с устройства (сначала окно с Совиным ключом, если он не отмечен
+      // как сохранённый). Выход из окна бана — без стирания (план §3.8, В3)
+      async function logoutEverywhere(sendOffline = true, wipe = true) {
+          if (wipe && !(await e2eConfirmLogout())) return; // закрыли окно ключа — остаёмся в аккаунте
+          e2eLoggingOut = true;
+          if (wipe) e2eMarkWipe();                       // флаг незавершённого стирания — до всего остального
+          await e2eSessionOff();                         // метка сессии: service worker больше не расшифровывает push
           stopPresence(sendOffline);
           await Promise.race([serverPushUnsubscribe(), new Promise(r => setTimeout(r, 2500))]);
+          if (wipe) await e2eWipeDevice();
           clearPersonalData();
           signOut(auth);
       }
       // После выхода на устройстве не остаётся личного: черновики, «Сова на страже», прочитанное, карточки ссылок из чатов
       function clearPersonalData() {
           try {
-              Object.keys(localStorage).filter(k => /^owl-(draft-|guard|seen-followers-|otp-sent-|active-)/.test(k) || ["owl-reads", "owl-lp-v3", "owl-invite", "owl_custom_bg_data"].includes(k)).forEach(k => localStorage.removeItem(k));
+              // owl-lp-* — кэш карточек ссылок любой версии (раньше стирался только устаревший owl-lp-v3, а адреса из v4 оставались)
+              Object.keys(localStorage).filter(k => /^owl-(draft-|guard|seen-followers-|otp-sent-|active-|lp-)/.test(k) || ["owl-reads", "owl-invite", "owl_custom_bg_data"].includes(k)).forEach(k => localStorage.removeItem(k));
               sessionStorage.clear();
           } catch (_) {}
       }
@@ -2394,7 +2435,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 89; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 90; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -2407,7 +2448,8 @@
       }
       const updBusy = () => {
           const inp = document.getElementById("message-input");
-          return !!call || isRecording || document.visibilityState !== "visible" || (inp && document.activeElement === inp && inp.value.trim());
+          return !!call || isRecording || document.visibilityState !== "visible" || (inp && document.activeElement === inp && inp.value.trim())
+              || ["e2e-screen", "e2e-fp-screen"].some(id => document.getElementById(id)?.style.display === "flex"); // человек сохраняет или вводит Совиный ключ
       };
       function tryApplyUpdate() {
           if (!updTarget || updBusy()) return;
@@ -2658,6 +2700,7 @@
       // Текст в шапке открытого чата (для личек — онлайн-статус)
       let currentHeaderStatus = ""; let currentChatTargetUid = null; let currentTypers = [];
       function refreshHeaderStatus() {
+          paintE2EHeader(); // замок шифрования (Т7, §7.2): отсюда же — из loadChat и при смене профиля собеседника
           let el = document.getElementById("current-chat-status"); if (!el) return;
           if (currentTypers.length > 0) { el.innerHTML = escapeHTML(t("{name} печатает", { name: currentTypers[0] })) + '<span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>'; el.style.color = "var(--accent)"; return; }
           let text = currentHeaderStatus; let color = "var(--text-muted)";
@@ -3082,7 +3125,7 @@
               batch.commit().catch(e => { migratedBans.delete(d.id); console.log("Перенос причины бана:", e.code); });
           });
       }
-      document.getElementById("banned-logout-btn").addEventListener("click", () => logoutEverywhere(false));
+      document.getElementById("banned-logout-btn").addEventListener("click", () => logoutEverywhere(false, false)); // ключи шифрования не стираем (§3.8)
       document.getElementById("appeal-send-btn").addEventListener("click", async () => {
           if (!currentUser || !iAmBanned) return;
           const ta = document.getElementById("appeal-text"), btn = document.getElementById("appeal-send-btn"), st = document.getElementById("appeal-status");
@@ -3160,6 +3203,13 @@
           await step("подписки", () => deleteFollowEdges(uid));
           await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals", "verified", "users_private"].map(c => doc(db, c, uid))));
           await step("профиль", () => deleteDoc(doc(db, "users", uid)));
+          // Сейф Совиного ключа и его история: правила разрешают админу удалять их только после профиля
+          await step("ключ шифрования", async () => {
+              let old;
+              try { old = await getDocs(collection(db, "keyvault", uid, "old")); }
+              catch (e) { if (e && e.code === "permission-denied") return; throw e; } // правила без E2E (до публикации/после отката): сейфов нет и быть не может
+              await deleteRefsInChunks([...old.docs.map(d => d.ref), doc(db, "keyvault", uid)]);
+          });
           delete usersCache[uid];
 
           btn.disabled = false;
@@ -3393,6 +3443,7 @@
 
           let usersFirstSnap = true;
           Object.values(userWatchers).forEach(u => u()); userWatchers = {};
+          e2eSrvSeen.clear(); e2eSrvAll = false; // новые слушатели — подтверждение сервера заново
           if (privateListener) { privateListener(); privateListener = null; }
           // ПРОФИЛИ. Админ (панель разработчика) слушает всех; остальные — только себя и своих собеседников
           // (watchUser). Раньше каждый скачивал профили всех пользователей.
@@ -3402,13 +3453,15 @@
           };
           startOwnListeners();
           if (!isAdmin) { usersListener = null; watchUser(currentUser.uid); }
-          else usersListener = onSnapshot(collection(db, "users"), (snapshot) => {
-            snapshot.docChanges().forEach(change => {
+          else usersListener = onSnapshot(collection(db, "users"), { includeMetadataChanges: true }, (snapshot) => {
+            const ch = snapshot.docChanges(); // без метаданных: только настоящие изменения
+            ch.forEach(change => {
               if (change.type === "removed") { delete usersCache[change.doc.id]; return; } // профиль удалён
               ingestUser(change.doc.data(), usersFirstSnap);
             });
-            usersChangedNow();
+            if (ch.length || usersFirstSnap) usersChangedNow();
             usersFirstSnap = false;
+            if (!snapshot.metadata.fromCache) e2eProfileSrv(null); // вся коллекция с сервера — профили подтверждены (шифрование)
           });
           if (isAdmin) {
               privateListener = onSnapshot(collection(db, "users_private"), (snap) => {
@@ -3426,6 +3479,7 @@
                   applyRestricted(u);
                   usersCache[u.uid] = u;
                   ensureRestrictedWatch(u);
+                  e2eSeeUser(u.uid, u.e2e); // ключи — в своей памяти E2E, не в usersCache
               } else return;
               
               // Профиль подгрузился уже после отрисовки (в чатах аватарки и значки рисуются сразу, по имени) — обновляем
@@ -3479,6 +3533,7 @@
           const applyMeta = (id, meta, quiet) => {
             const prev = chatsMetaCache[id];
             if (meta) chatsMetaCache[id] = meta; else delete chatsMetaCache[id];
+            if (meta) wantPreview(id, meta); // зашифрованное превью лички — расшифровать в фоне (§4.5)
             if (meta) resetIfArmed(id, meta);
             if (!quiet && meta) onChatMetaChanged(id, meta, prev);
           };
@@ -4085,6 +4140,7 @@
         const blkBtn = document.getElementById("public-block-btn");
         blkBtn.style.display = (uid === currentUser.uid || u.email === ADMIN_EMAIL) ? "none" : "inline-flex";
         blkBtn.innerHTML = icon("block", 14) + (iBlocked(uid) ? t("Разблокировать") : t("Заблокировать")); blkBtn.setAttribute("data-action-uid", uid);
+        e2ePaintProfileFp(uid); // «Отпечаток совы» (Т7): не себе, только когда ключи есть у обоих
         const repBtn = document.getElementById("public-report-btn");
         repBtn.style.display = (uid === currentUser.uid || isAdmin || u.email === ADMIN_EMAIL) ? "none" : "inline-flex";
         repBtn.innerHTML = icon("flag", 14) + t("Пожаловаться"); repBtn.setAttribute("data-action-uid", uid);
@@ -4112,7 +4168,7 @@
       });
 
       document.getElementById("chat-header-info").addEventListener("click", (e) => {
-        if(e.target.closest('#mobile-back-btn') || e.target.closest('#pin-chat-btn') || e.target.closest('#clear-chat-btn')) return;
+        if(e.target.closest('#mobile-back-btn') || e.target.closest('#pin-chat-btn') || e.target.closest('#clear-chat-btn') || e.target.closest('[data-e2e-hd]')) return; // замок шифрования — своё окно (Т7)
         let trigger = e.target.closest("#header-profile-trigger");
         if(trigger) { let uid = trigger.getAttribute("data-profile-target"); if (uid === 'admin-settings') { document.getElementById("admin-global-screen").style.display = "flex"; } else if(uid) { openPublicProfile(uid); } }
       });
@@ -4178,7 +4234,7 @@
               }
               // Превью в списке чатов очищаем (удалить документ правила могут не разрешить — тогда просто обнуляем поля)
               await deleteDoc(doc(db, "chats_metadata", chatId)).catch(() =>
-                  setDoc(doc(db, "chats_metadata", chatId), { members: chatId.split("_"), lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
+                  setDoc(doc(db, "chats_metadata", chatId), { members: chatId.split("_"), lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), lastMessageEnc: deleteField(), unreadCount: 0 }, { merge: true }));
               delete chatsMetaCache[chatId];
               if (!nest) addDoc(collection(db, "notifications"), { fromUid: currentUser.uid, toUid: otherUid, text: `${currentUser.displayName} удалил(а) вашу переписку`, type: "chat_deleted", chatId, timestamp: new Date(), read: false }).catch(() => {});
               loadedMsgs = {}; document.getElementById("chat-box").innerHTML = "";
@@ -4247,7 +4303,7 @@
                 const nm = chatsMetaCache[nestId()];
                 chatItemsArray.push({
                     id: nestId(), targetUid: 'nest', isGroup: false, isNest: true, name: t("Гнездо"),
-                    subtext: nm && nm.lastMessageText ? iconizePreview(escapeHTML(nm.lastMessageText)) : t("Ваши заметки и сохранённое"),
+                    subtext: nm && nm.lastMessageText ? iconizePreview(escapeHTML(previewTextFor(nestId(), nm))) : t("Ваши заметки и сохранённое"),
                     avatarHtml: `<div class="nest-av">${NEST_SVG(26)}</div>`,
                     time: nm && nm.timestamp ? getTime(nm.timestamp) : 0, unread: 0, isOfficial: false, isPinned: false
                 });
@@ -4295,7 +4351,7 @@
                   if (isSearching && !String(u.name).toLowerCase().includes(val)) return; 
               }
 
-              let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(meta.lastMessageText)) : (u.bio && allowedBy(u, "bio") ? escapeHTML(u.bio) : t("Статус не указан"));
+              let preview = meta && meta.lastMessageText ? iconizePreview(escapeHTML(previewTextFor(chatId, meta))) : (u.bio && allowedBy(u, "bio") ? escapeHTML(u.bio) : t("Статус не указан"));
               if (bansCache[u.uid]) preview = `<span class="banned-label">${t("Пользователь заблокирован")}</span>`;
               if (meta && meta.lastMessageSender && !isMyMeta(meta) && !bansCache[u.uid]) preview = escapeHTML(u.name) + ": " + preview; // имя — из профиля собеседника: lastMessageSender = поле sender сообщения, его пишет сам отправитель
               
@@ -4449,8 +4505,11 @@
               ? t("Включён: после пароля Owl спрашивает 6-значный код из приложения-аутентификатора.") + (isAdmin ? " " + t("У админ-аккаунта выключить нельзя.") : "")
               : t("После пароля Owl будет спрашивать код из приложения-аутентификатора (на iPhone — «Пароли»). Так аккаунт не украдут, даже узнав пароль.");
       }
-      function plainQrSvg(text) { // обычный чёрно-белый код без логотипа — его надёжно читает камера телефона
-          const qr = qrcode(0, "M"); qr.addData(text); qr.make();
+      // обычный чёрно-белый код без логотипа — его надёжно читает камера телефона. mode — режим lib-qrcode (по умолчанию Byte);
+      // Совиный ключ — "Alphanumeric" (OWLKEY1: + 28 знаков: код меньше и читается легче). Модули чёрные на прозрачном —
+      // рисовать в белой рамке (#mfa-qr, .e2e-qr), иначе в тёмной теме сканер не прочтёт
+      function plainQrSvg(text, mode) {
+          const qr = qrcode(0, "M"); qr.addData(text, mode); qr.make();
           const n = qr.getModuleCount(); let r = "";
           for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) r += `M${x} ${y}h1v1h-1z`;
           return `<svg viewBox="-2 -2 ${n + 4} ${n + 4}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges"><path d="${r}" fill="#000"/></svg>`;
@@ -4719,6 +4778,7 @@
           document.getElementById("my-email-display").innerText = user.email;
 
           startDatabaseListeners(); 
+          e2eInit(user.uid); // ключи шифрования: IndexedDB → память, метка сессии, проверка ключа; ждёт снимок своего профиля
           startNotificationsListener();
           startBanListeners();
           startBlockListeners();
@@ -4750,6 +4810,7 @@
           // Заодно стираем личное с устройства: черновики и прочее (clearPersonalData) и офлайн-копию переписки (хранилище Firestore)
           if (currentUser) {
               clearTimeout(draftTimer); clearPersonalData();
+              await e2eOnSignedOut(); // §3.8: метка сессии off и отписка push (≤1,5 с); ключи НЕ стираем — вход тем же аккаунтом их вернёт
               const wait = (ms) => new Promise(r => setTimeout(r, ms));
               try { await Promise.race([waitForPendingWrites(db).catch(() => {}), wait(1500)]); await terminate(db); await Promise.race([clearIndexedDbPersistence(db), wait(2000)]); }
               catch (e) { console.log("Очистка офлайн-копии:", e.code || e.message); } // открыт в другой вкладке — сотрётся при следующем выходе
@@ -4840,7 +4901,8 @@
           if (!myPrivacy("readReceipts")) return; // человек выключил отметки о прочтении
           let batch = writeBatch(db); let n = 0;
           Object.values(loadedMsgs).forEach(m => {
-              if (m.chatId === currentChatId && m.uid !== currentUser.uid && !m.read) { batch.update(doc(db, "messages", m.id), { read: true }); m.read = true; n++; }
+              // ✓✓ — только за то, что реально можно прочитать: нерасшифрованное (не подключено, старый ключ) не отмечаем (§4.1 п.30)
+              if (m.chatId === currentChatId && m.uid !== currentUser.uid && !m.read && !(m._e2e && m._e2e !== "ok")) { batch.update(doc(db, "messages", m.id), { read: true }); m.read = true; n++; }
           });
           if (n) batch.commit().catch(e => console.error("Не удалось отметить прочитанным (проверьте правила Firestore):", e));
       }
@@ -5012,7 +5074,7 @@
 
       // ===== ПЕРВЫЙ ЗАПУСК =====
       // Показываем новым аккаунтам (зарегистрированы меньше 3 дней назад) один раз; отметка — users_private/{я}.onboarded
-      let obShown = false, obIndex = 0;
+      let obShown = false, obIndex = 0; // obShown — онбординг показан в этой сессии: окно Совиного ключа в такой сессии не открываем (e2eWantedWindow, §3.3 п.6)
       const OB_COUNT = 4;
       const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
       const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -5156,6 +5218,7 @@
                   : `<select class="st-sel" data-eye="${r.key}">${r.opts.map(o => `<option value="${o}" ${o === v ? "selected" : ""}>${EYE_OPT[o]}</option>`).join("")}</select>`;
               return `<div class="eye-row"><span class="eye-ico">${icon(r.ico, 17)}</span><span class="eye-txt"><b>${r.title} ${r.db ? `<span class="eye-db" title="${t("Гарантирует база данных")}">${icon("shield", 13)}</span>` : ""}</b><span class="${a.c}">${a.t}</span></span>${ctl}</div>`;
           });
+          e2eEyeHtml = e2eEyeRow(); if (e2eEyeHtml) rows.unshift(e2eEyeHtml); // шифрование (Т7) — второй строкой, после «Почты»; в уровень не входит
           rows.unshift(`<div class="eye-row"><span class="eye-ico">${icon("mail", 17)}</span><span class="eye-txt"><b>${t("Почта")} <span class="eye-db" title="${t("Гарантирует база данных")}">${icon("shield", 13)}</span></b><span class="closed">${t("Только я — всегда")}</span></span></div>`);
           document.getElementById("eye-list").innerHTML = rows.join("");
           document.getElementById("eye-legend-ico").innerHTML = icon("shield", 13);
@@ -5260,10 +5323,21 @@
           document.getElementById("qr-tabs").classList.toggle("second", tab === "scan");
           document.getElementById("qr-mine").style.display = tab === "mine" ? "" : "none";
           document.getElementById("qr-scan").style.display = tab === "scan" ? "" : "none";
-          if (tab === "scan") startQrScan(); else stopQrScan();
+          if (tab === "scan") startQrScan({
+              video: document.getElementById("qr-video"), hint: document.getElementById("qr-scan-hint"), frame: document.querySelector("#qr-scan .qr-frame"), onText: handleQrText,
+              texts: { ready: t("Наведите камеру на QR-код друга из Owl"), wrong: t("Это не QR-код Owl — наведите на код друга"),
+                  noApi: t("Этот браузер не даёт доступ к камере. Отсканируйте код обычной камерой телефона"), denied: t("Нет доступа к камере. Разрешите его в настройках браузера или телефона"),
+                  fail: t("Не удалось включить камеру"), lib: t("Не удалось загрузить сканер. Проверьте интернет") }
+          }); else stopQrScan();
       }
-      // Принимаем только наши ссылки owlmes.ru/?add=ник — всё остальное игнорируем
+      // Принимаем только наши ссылки owlmes.ru/?add=ник — всё остальное игнорируем. Совиный ключ (OWLKEY1:) здесь не принимаем:
+      // подключение устройства — только в Настройки → Безопасность → Сквозное шифрование (null — «наш, но не сюда», без подсказки «не тот код»)
+      let owlKeyHintAt = 0;
       function handleQrText(text) {
+          if (/^OWLKEY1:/i.test(String(text).trim())) {
+              if (Date.now() - owlKeyHintAt > 4000) { owlKeyHintAt = Date.now(); const msg = t("Это Совиный ключ — откройте Настройки → Безопасность → Сквозное шифрование"); document.getElementById("qr-scan-hint").textContent = msg; showToast(msg, "key"); }
+              return null;
+          }
           let u; try { u = new URL(String(text).trim()); } catch (_) { return false; }
           if (!/^(www\.)?owlmes\.ru$/.test(u.hostname) || u.protocol !== "https:") return false;
           const add = (u.searchParams.get("add") || "").slice(0, 40); if (!add) return false;
@@ -5271,36 +5345,45 @@
           setTimeout(() => { closeQr(); window.__pendingAdd = add; openPendingInvite(); }, 350);
           return true;
       }
-      async function startQrScan() {
-          const hint = document.getElementById("qr-scan-hint"), video = document.getElementById("qr-video");
-          document.querySelector("#qr-scan .qr-frame").classList.remove("hit");
+      // Сканер QR — общий для «Мой QR-код» и подключения устройства к шифрованию: у каждого окна свои видео, подсказка и рамка.
+      // onText(text) → true — принято (сканер останавливается), false — чужой код (подсказка texts.wrong), null — промолчать.
+      // onNoCamera() — камеры нет / не дали / не включилась (окно ключа сразу переключается на ввод вручную)
+      let qrScanSeq = 0, qrVideo = null;
+      async function startQrScan({ video, hint, frame, onText, texts = {}, onNoCamera = null }) {
+          if (frame) frame.classList.remove("hit");
           if (qrStream) return;
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { hint.textContent = t("Этот браузер не даёт доступ к камере. Отсканируйте код обычной камерой телефона"); return; }
+          const seq = ++qrScanSeq; qrVideo = video;
+          const noCam = (msg) => { hint.textContent = msg || ""; if (onNoCamera) onNoCamera(); };
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { noCam(texts.noApi); return; }
           try {
-              qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-              video.srcObject = qrStream; await video.play();
-              hint.textContent = t("Наведите камеру на QR-код друга из Owl");
-          } catch (e) { qrStream = null; hint.textContent = e && e.name === "NotAllowedError" ? t("Нет доступа к камере. Разрешите его в настройках браузера или телефона") : t("Не удалось включить камеру"); return; }
+              const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+              if (seq !== qrScanSeq) { stream.getTracks().forEach(tr => tr.stop()); return; } // окно закрыли, пока спрашивали разрешение
+              qrStream = stream; video.srcObject = qrStream; await video.play();
+              hint.textContent = texts.ready || "";
+          } catch (e) { if (seq !== qrScanSeq) return; stopQrScan(); noCam(e && e.name === "NotAllowedError" ? texts.denied : texts.fail); return; }
           if ("BarcodeDetector" in window) { try { qrDetector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (_) { qrDetector = null; } }
-          if (!qrDetector) { try { await loadScript("lib-jsqr.js"); } catch (_) { hint.textContent = t("Не удалось загрузить сканер. Проверьте интернет"); return; } }
+          if (!qrDetector) { try { await loadScript("lib-jsqr.js"); } catch (_) { hint.textContent = texts.lib || ""; return; } }
           const canvas = document.createElement("canvas"), ctx = canvas.getContext("2d", { willReadFrequently: true });
           let wrongShown = 0;
           const tick = async () => {
+              if (seq !== qrScanSeq) return;
               if (!qrStream || !video.videoWidth) { qrTimer = setTimeout(tick, 200); return; }
               let found = null;
               try {
                   if (qrDetector) { const r = await qrDetector.detect(video); if (r && r[0]) found = r[0].rawValue; }
                   else { const w = 480, hgt = Math.round(w * video.videoHeight / video.videoWidth); canvas.width = w; canvas.height = hgt; ctx.drawImage(video, 0, 0, w, hgt); const r = jsQR(ctx.getImageData(0, 0, w, hgt).data, w, hgt, { inversionAttempts: "dontInvert" }); if (r) found = r.data; }
               } catch (_) {}
-              if (found) { if (handleQrText(found)) return; if (Date.now() - wrongShown > 3000) { wrongShown = Date.now(); hint.textContent = t("Это не QR-код Owl — наведите на код друга"); } }
+              if (seq !== qrScanSeq) return;
+              if (found) { const ok = onText(found); if (ok === true) return; if (ok === false && Date.now() - wrongShown > 3000) { wrongShown = Date.now(); hint.textContent = texts.wrong || ""; } }
               qrTimer = setTimeout(tick, 180);
           };
           tick();
       }
       function stopQrScan() {
-          clearTimeout(qrTimer); qrTimer = null;
-          if (qrStream) { qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
-          const v = document.getElementById("qr-video"); if (v) v.srcObject = null;
+          qrScanSeq++; clearTimeout(qrTimer); qrTimer = null;
+          if (qrStream) { qrStream.getTracks().forEach(tr => tr.stop()); qrStream = null; }
+          [qrVideo, document.getElementById("qr-video"), document.getElementById("e2e-video")].forEach(v => { if (v) v.srcObject = null; });
+          qrVideo = null;
       }
       function closeQr() { stopQrScan(); document.getElementById("qr-screen").style.display = "none"; }
       // Картинка карточки (PNG) — для «Сохранить» и «Поделиться»
@@ -5492,6 +5575,9 @@
       // Совёнок сидит в гнезде: задний край — за ним, передний (с плетением) закрывает низ тела
       const NEST_SVG = (size) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="M3.4 12.6C7.4 10.4 16.6 10.4 20.6 12.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".85"/><path d="M12 5.9C14.9 5.9 17.2 8.1 17.2 11.1V16H6.8V11.1C6.8 8.1 9.1 5.9 12 5.9Z" fill="currentColor"/><path d="M7.5 8.2L7.8 4.8L10.1 6.7Z M16.5 8.2L16.2 4.8L13.9 6.7Z" fill="currentColor"/><circle cx="9.95" cy="10.3" r="2.05" fill="#6d3dff"/><circle cx="14.05" cy="10.3" r="2.05" fill="#6d3dff"/><circle cx="10.35" cy="9.9" r=".72" fill="#fff"/><circle cx="14.45" cy="9.9" r=".72" fill="#fff"/><path d="M11.3 12.1L12 13.3L12.7 12.1Z" fill="#f5b942"/><path d="M2.4 12.9C6 15.7 18 15.7 21.6 12.9C21.2 18.5 17.3 21.3 12 21.3S2.8 18.5 2.4 12.9Z" fill="currentColor"/><path d="M2.4 12.9C6 15.7 18 15.7 21.6 12.9" fill="none" stroke="rgba(85,45,140,.5)" stroke-width="1.1" stroke-linecap="round"/><g fill="none" stroke="rgba(85,45,140,.3)" stroke-width="1" stroke-linecap="round"><path d="M4.4 15.9q2 1.3 4.2 1.4"/><path d="M10 17.6q2 .3 4 0"/><path d="M15.4 17.3q2.2-.1 4.2-1.4"/><path d="M6.4 18.9q2.4 1 4.4 1"/><path d="M13.2 19.9q2.2-.1 4.4-1"/></g><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.1 12.1L3.7 13.5"/><path d="M22.9 12.1L20.3 13.5"/><path d="M1.6 14.6L3.3 14.5"/><path d="M22.4 14.6L20.7 14.5"/></g></svg>`;
       const dmPeer = (chatId) => (currentUser && chatId && chatId.includes("_")) ? chatId.split("_").find(id => id !== currentUser.uid) : null;
+      // Сквозное шифрование — только лички и Гнездо (id «uid_uid» со мной); беседы, канал и глобальный чат — открыто
+      const isE2EChat = (id) => !!currentUser && typeof id === "string" && /^[A-Za-z0-9]+_[A-Za-z0-9]+$/.test(id) && id.split("_").includes(currentUser.uid);
+      const e2ePeer = (id) => isNest(id) ? (currentUser ? currentUser.uid : null) : dmPeer(id); // в Гнезде «собеседник» — я сам
       async function toggleBlock(uid) {
           if (!currentUser || !uid || uid === currentUser.uid) return;
           const name = usersCache[uid]?.name || t("пользователя");
@@ -5521,6 +5607,7 @@
           document.getElementById("block-bar-text").innerText = text;
           document.getElementById("block-bar-btn").style.display = canUnblock ? "inline" : "none";
           if (text) cancelReply();
+          e2ePaintBar(!!text); // плашка шифрования (§4.3): поле ввода не прячет; микрофон и скрепка выключены, пока гейт закрыт
           // Канал: читателям — плашка «пишет только команда Owl» и кнопка заглушить; админу — поле ввода и галочка «push»
           const ch = document.getElementById("channel-bar"), inNews = currentChatId === NEWS_ID;
           ch.classList.toggle("on", inNews); ch.classList.toggle("admin", inNews && isAdmin);
@@ -5536,6 +5623,1948 @@
           document.querySelectorAll("#chat-box .message-row.other-msg[data-uid]").forEach(r => r.classList.toggle("from-blocked", !inDM && iBlocked(r.getAttribute("data-uid"))));
       }
       document.getElementById("block-bar-btn").addEventListener("click", () => toggleBlock(currentChatTargetUid));
+
+      // ==================== СКВОЗНОЕ ШИФРОВАНИЕ (E2E) ЛИЧЕК И «ГНЕЗДА»: КЛЮЧИ И УСТРОЙСТВА ====================
+      // План: «E2E/План шифрования.md» — §3 (ключи и состояния устройства), §4.3 (гейт отправки), §7 (окна). Ядро — e2e.js (globalThis.OwlE2E).
+      // Хранилище на устройстве — IndexedDB «owl-e2e» (keys/peers/pins/prefs); при запуске всё читается в память, горячий путь
+      // (гидратация, превью, отправка) IndexedDB не трогает. Расшифрованное на диск не пишется.
+      //
+      // Для Т5 (сообщения) и Т7 (значки) отсюда:
+      //   e2eState (§3.2), e2eEpoch (растёт при любой смене ключей/состояний — сброс кэша провалов), e2eReady (промис: состояние не «loading»),
+      //   e2eGate(chatId) → {ok, mode: "e2e"|"plain"|"wait"|null, reason} — синхронно, по памяти: ok:false — гейт закрыт (текст остаётся в поле,
+      //       плашка уже показана applyBlockState); mode "wait" — отправку решает асинхронный путь,
+      //   e2eSendMode(chatId) → "e2e"|"plain" или бросает {code:"owl/e2e-<причина>"} (открытым по тайм-ауту — никогда),
+      //   e2eChatKeysFor(chatId) → {keys:{msg,pv}, sk, rk} — для шифрования своим текущим ключом,
+      //   e2eKeysForMsg(chatId, authorUid, sk, rk, ts) → {msg,pv} или бросает {code:"nokey"|"oldkey"|"nopeer"} — для расшифровки,
+      //   e2ePeerState(uid) → ok|changed|none|lost|unknown, e2ePeerPromise(uid), E2E.pins.get(uid).since (для 🔓, §4.6),
+      //   e2eShowBar(chatId, "peer"|"wait"|null) — причина неудачной отправки на плашке, e2eHeld / e2eResendHeld (голос/фото, §4.3),
+      //   e2eMemo, previewPlain, repaintOpenChat — объявлены здесь (очищаются при выходе), Т5 их заполняет и НЕ объявляет заново;
+      //   хуки по имени (если объявлены): paintE2EHeader() (Т7), wantPreview(chatId, meta) (Т5).
+
+      // Аварийная сборка (§8.3): false — новые сообщения уходят открыто (в шапке «Шифрование временно выключено»), ключи не создаются
+      // и не меняются; уже зашифрованное продолжает читаться
+      const E2E_SEND = true;
+      // ПИЛОТ (стадия 1, §8.2 п.4, §11 В1): ключи создаются автоматически только у этих uid. Владелец впишет uid тестеров
+      // (uid видны в панели разработчика), например: "AbCdEf0123456789xyz". Пустой список — пилот только у админ-аккаунта (владелец).
+      // Остальные работают как в v1.118 (но уже умеют расшифровывать). Стадия 2 (все) — E2E_ALL = true
+      const E2E_PILOT = new Set([
+          "6HWWGKdOHZVItYtANm0LpHFVNFq2", // Owl Tester
+          "zQCyfWwvw4Mu4M3CfUsCPfKKB672", // Амир
+          "3yiKiHdDGQPkwymTJ47ka8xU1Z12", // dimachhh
+          "K3JuSPS6HvQJ9qJ4Wgkjx9UVHp73", // sonykkk.pq
+          "SIkZlQzhGjY0KrEQC0six7ATZhw2", // Рождественская
+          "wAKMWdWhJUdctRJ79H5TY4UV78q2", // zoka
+      ]);
+      const E2E_ALL = false;
+      // ключ для запросов не вшит (E2E_ESCROW ниже) — ключи не создаются ни у кого: все работают как вне пилота
+      const e2ePilotOk = () => E2E_ESCROW_OK && !!currentUser && (E2E_ALL || isAdmin || E2E_PILOT.has(currentUser.uid));
+      const E2E_KID_RE = /^[A-Za-z0-9_-]{12}$/, E2E_PK_RE = /^B[A-P][A-Za-z0-9_-]{85}$/;
+      // Ключ для запросов («E2E/notes/escrow-design.md»): открытая часть главного ключа — mk (12 знаков, как kid) и pk (raw, 87 знаков).
+      // Заполняется после gen (см. E2E/escrow/README.md). Копия каждого нового ключа, запертая им, пишется в той же пачке, что и ключ
+      // (escrow/{uid}_{kid}); без неё правила ключ не примут. Пока заглушка — новые ключи не создаются нигде (создание, «заново»,
+      // черновик), в консоль одна строка; расшифровка, подключение устройства и остальное работают как прежде
+      const E2E_ESCROW = { mk: "fjrJ3yyUd2wN", pk: "BNMJ9siYASrk65WOEOKKuCtMxTOOigMY3Byr4J_4yJRuFknKvzvc60pcY3fgcU1kRE9GoV7UihXZoeL-h5aLfqQ" };
+      const E2E_ESCROW_OK = E2E_KID_RE.test(E2E_ESCROW.mk) && E2E_PK_RE.test(E2E_ESCROW.pk);
+
+      // ----- Память (копия IndexedDB + то, что знаем о сервере) -----
+      const E2E = {
+          lib: null, uid: null,
+          idb: false,                 // keys/peers/pins прочитаны в память
+          acc: undefined,             // users/я.e2e: undefined — снимка ещё не было, null — ключа у аккаунта нет, иначе {kid, pk, t, prev}
+          accSig: "",
+          me: null, selfOk: false,    // keys/me и итог selfTest
+          pend: new Map(),            // kid → keys/pending:{kid} (создание/смена, сервер ещё не подтвердил)
+          old: new Map(),             // kid → keys/old:{kid} — прежние свои ключи (читать старую историю)
+          peers: new Map(),           // "uid|kid" → {uid, kid, pk, seenAt} — все виденные ключи собеседников (и для service worker)
+          pins: new Map(),            // uid → {h, kid, since, ack, prevH, changedAt, acks} — закреплённый ключ (TOFU, §3.7)
+          busy: null,                 // своя операция создания/смены в работе: {kid, gen}
+          unsupported: false,         // нет WebCrypto или IndexedDB
+          broken: null,               // "lib" — e2e.js не загрузился, "idb" — хранилище не открылось
+          meBad: false,               // keys/me есть, а CryptoKey не прочитался (тоже «broken»: ключ на устройстве не работает)
+          vaultExists: false,         // сейф на сервере видели (для «lost» без следов на устройстве)
+          staleFrom: null,            // {kid, gen, at} — свой ключ, который в этой сессии сменили на другом устройстве
+          createTried: false, createFailed: false, createdNow: false, repairTried: false, wantHere: false,
+          welcomeKid: null,           // для какого ключа уже показали окно «Шифрование включено ✓» (prefs/welcome)
+          shown: {},                  // какие окна уже открывались сами в этой сессии
+          wiped: false, booting: null
+      };
+      let e2eState = "loading", e2eEpoch = 0;
+      let e2eReadyResolve = null;
+      const e2eReady = new Promise((r) => { e2eReadyResolve = r; });
+      let e2eStateWaiters = [];
+      const e2ePeerChk = new Map();   // uid → {sig, status: pending|good|bad|none|fail, key, p} — проверка ключа собеседника
+      const e2ePeerKeys = new Map();  // uid → {kid, pk, h} — текущий проверенный ключ собеседника
+      // чат → причина, при которой человек подтвердил «Без шифрования» (до перезагрузки, §11 В2). Согласие действует только при
+      // ТОЙ ЖЕ причине (иначе «не подключено» молча открыло бы и «ключ собеседника пропал»), снимается, как только шифрование снова
+      // работает, а для «пропал» — одноразовое (на одно сообщение)
+      const e2ePlainOk = new Map();
+      // Снимки профилей с сервера (не из кэша) в этой сессии: «ключа нет» из кэша может быть устаревшим (ключ создали на другом
+      // устройстве, пока это было закрыто) — §3.2, §3.7. e2eSrvAll — админ: снимок всей коллекции users с сервера
+      const e2eSrvSeen = new Set(); let e2eSrvAll = false, e2eBootAt = Date.now();
+      const E2E_SRV_WAIT = 10000;     // сколько после первого снимка из кэша ждём сервер, прежде чем верить кэшу
+      const e2eEncReplies = new WeakSet(); // цитаты зашифрованных сообщений (replyingTo): открытым их текст не уходит никогда
+      let e2eBarNote = null;          // {chatId, reason} — причина неудачной отправки на плашке (e2eShowBar)
+      let e2eHeld = null;             // Т5: {chatId, args} — голос/фото, не ушедшие из-за гейта (1 слот)
+      let e2eResendHeld = null;       // Т5: function() — «Повторить отправку» на плашке
+      let repaintOpenChat = null;     // Т5: перерисовать открытый чат из последнего снимка без новых чтений (§4.2)
+      const e2eMemo = new Map();      // Т5: расшифрованные сообщения (§4.2)
+      const previewPlain = new Map(); // Т5: расшифрованные превью списка чатов (§4.5)
+      let e2eLoggingOut = false, e2eLogoutWait = null, e2eLastSecret = null, e2eCardDismissed = false;
+      const e2eSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const e2eErr = (reason) => Object.assign(new Error("e2e " + reason), { code: "owl/e2e-" + reason });
+      const e2eFail = (code) => Object.assign(new Error("e2e " + code), { code });
+      const e2eEl = (id) => document.getElementById(id);
+
+      // ----- Замок «owl-e2e-keys»: создание, подключение, смена, стирание — по одному на браузер (вкладки) -----
+      function e2eLocked(fn, waitMs = 0) {
+          const L = navigator.locks;
+          if (!L || typeof L.request !== "function") return Promise.resolve().then(fn);
+          if (!waitMs || typeof AbortController !== "function") return L.request("owl-e2e-keys", () => fn());
+          const ac = new AbortController(), timer = setTimeout(() => ac.abort(), waitMs);
+          return L.request("owl-e2e-keys", { signal: ac.signal }, () => { clearTimeout(timer); return fn(); })
+              .catch((e) => { clearTimeout(timer); if (e && e.name === "AbortError" && ac.signal.aborted) return fn(); throw e; }); // замок занят слишком долго — без него
+      }
+      function e2ePersist(fromClick) { // хранилище «не стирать» (Chromium/WebKit решают молча; Firefox спрашивает — только по нажатию)
+          try {
+              if (!navigator.storage || typeof navigator.storage.persist !== "function") return;
+              if (/Firefox\//.test(navigator.userAgent) && !fromClick) return;
+              navigator.storage.persist().catch(() => {});
+          } catch (_) {}
+      }
+      const e2eBC = (() => { try { return typeof BroadcastChannel === "function" ? new BroadcastChannel("owl-e2e") : null; } catch (_) { return null; } })();
+      function e2eBroadcast(type) { try { if (e2eBC) e2eBC.postMessage({ type, uid: E2E.uid || null }); } catch (_) {} }
+      if (e2eBC) e2eBC.addEventListener("message", (ev) => {
+          const m = ev.data; if (!m || !currentUser || (m.uid && m.uid !== currentUser.uid)) return;
+          if (m.type === "wipe") { E2E.wiped = true; e2eIdbGen++; try { if (E2E.lib) E2E.lib.db.close(); } catch (_) {} e2eDropMemory(); return; } // соседняя вкладка выходит
+          if (m.type === "changed") e2eRefreshFromIdb();
+      });
+
+      // ----- Свой ключ из профиля -----
+      function e2eParseAcc(e) {
+          if (!e || typeof e !== "object" || e.v !== 1 || typeof e.pk !== "string" || !E2E_PK_RE.test(e.pk) || typeof e.kid !== "string" || !E2E_KID_RE.test(e.kid)) return null;
+          return { kid: e.kid, pk: e.pk, t: e.t && typeof e.t.toMillis === "function" ? e.t.toMillis() : 0, prev: Array.isArray(e.prev) ? e.prev : [] };
+      }
+      function e2eOnOwnProfile(raw) {
+          const acc = e2eParseAcc(raw);
+          const sig = acc ? acc.kid + "|" + acc.pk + "|" + acc.t : (raw ? "bad" : "none");
+          if (E2E.acc !== undefined && sig === E2E.accSig) return;
+          E2E.accSig = sig; E2E.acc = acc;
+          e2ePinSelf(); e2ePinSync();
+          e2eRecompute();
+      }
+      // Снимок профиля пришёл с сервера (watchUser / админский слушатель users, includeMetadataChanges). uid null — вся коллекция
+      const e2eProfileFresh = (uid) => e2eSrvAll || e2eSrvSeen.has(uid);
+      // «ключа нет» у своего аккаунта известно только из кэша (стадия 1 — только у пилота: вне пилота ключа быть не может)
+      const e2eAccUnconfirmed = () => !!currentUser && e2ePilotOk() && !e2eProfileFresh(currentUser.uid);
+      function e2eProfileSrv(uid) {
+          if (!currentUser) return;
+          if (uid === null) { if (e2eSrvAll) return; e2eSrvAll = true; }
+          else { if (e2eSrvSeen.has(uid)) return; e2eSrvSeen.add(uid); }
+          if (uid === null || uid === currentUser.uid) { // свой профиль подтверждён — «загрузка/нет ключа» пересчитать, авто-создание
+              Promise.resolve(e2eRecompute()).then(() => { if (e2eState === "nokey") e2eMaybeCreate(); e2eRefreshUi(); });
+          }
+          if (uid !== currentUser.uid) { // собеседник: «ключа нет» стало достоверным — плашка, шапка, отправка
+              if (uid === null) { for (const p of e2eCircle()) e2eOnPeerChecked(p, false); }
+              else e2eOnPeerChecked(uid, false);
+          }
+      }
+
+      // ----- Загрузка и состояние -----
+      // Записи ключей (me/pending/old) под замком увеличивают счётчик; чтение хранилища, начатое до такой записи, в память не кладём —
+      // оно старее того, что операция уже положила в память (иначе «подключено» откатывалось бы к «не подключено» до перезагрузки)
+      let e2eIdbGen = 0;
+      async function e2eLoadIdb(force) { // force — при запуске и под замком (хранилище там главнее памяти): читаем в память в любом случае
+          const lib = E2E.lib, uid = E2E.uid, gen0 = e2eIdbGen;
+          const [keys, peers, pins, welcome, ses] = await Promise.all([lib.db.getAll("keys"), lib.db.getAll("peers"), lib.db.getAll("pins"), lib.db.get("prefs", "welcome"), lib.db.get("prefs", "session")]);
+          if (!force && gen0 !== e2eIdbGen) return false;
+          const prevMe = E2E.me, rawMe = keys.get("me") || null;
+          const meBad = !!(rawMe && rawMe.uid === uid && !rawMe.priv); // запись есть, а CryptoKey не прочитался (WebKit)
+          const me = rawMe && rawMe.uid === uid && rawMe.priv ? rawMe : null;
+          let selfOk = E2E.selfOk;
+          if (!me) selfOk = false;
+          else if (!prevMe || prevMe.kid !== me.kid || prevMe.pub !== me.pub || !E2E.selfOk) selfOk = await lib.selfTest(me.priv, lib.unb64u(me.pub));
+          if (!force && gen0 !== e2eIdbGen) return false; // пока проверяли ключ, операция под замком его сменила
+          E2E.meBad = meBad; E2E.me = me; E2E.selfOk = selfOk;
+          E2E.pend = new Map(); E2E.old = new Map();
+          for (const [k, v] of keys) {
+              if (!v || v.uid !== uid || typeof v.kid !== "string") continue;
+              if (k.indexOf("pending:") === 0) E2E.pend.set(v.kid, v);
+              else if (k.indexOf("old:") === 0 && v.priv) E2E.old.set(v.kid, v);
+          }
+          for (const [k, v] of E2E.peers) if (!peers.has(k)) peers.set(k, v); // виденные, пока хранилище не открылось
+          // закрепления (pins) только добавляются (удаляет их лишь стирание/смена аккаунта): то, что есть в памяти, а в хранилище нет
+          // (запись ещё идёт или сорвалась), — оставить и дописать; иначе pin молча пропадёт и «пропало» станет «нет ключа» (§3.7)
+          if (ses && ses.uid === uid && !E2E.wiped) for (const [k, v] of E2E.pins) if (!pins.has(k)) { pins.set(k, v); lib.db.put("pins", k, v).catch(() => {}); }
+          E2E.peers = peers; E2E.pins = pins;
+          E2E.welcomeKid = welcome && welcome.kid || null;
+          E2E.idb = true;
+          return true;
+      }
+      const e2eKeysSig = () => [E2E.me ? E2E.me.kid + ":" + E2E.selfOk : "", [...E2E.old.keys()].join(","), [...E2E.pend.keys()].join(",")].join("|");
+      async function e2eRefreshFromIdb() { // соседняя вкладка что-то поменяла, вернулись в приложение
+          if (!E2E.lib || !E2E.idb || E2E.wiped || !currentUser) return;
+          const before = e2eKeysSig();
+          try { await e2eLoadIdb(); } catch (_) { return; }
+          if (e2eKeysSig() !== before) { e2eEpoch++; e2eRefreshUi(); }
+          e2ePinSync(true); // закрепить проверенных собеседников, у которых pin так и не лёг (идемпотентно)
+          if (E2E.pend.size && !E2E.busy) e2eSettlePending(); // незавершённое создание/смена (своё из прошлого запуска или соседней вкладки)
+          e2eRecompute();
+      }
+      function e2eInit(uid) { // после входа (onAuthStateChanged): флаг стирания → e2e.js → IDB в память → метка сессии → selfTest
+          // окно ожидания снимка сервера (e2eCandidate; гейт в creating — состояние то же, поэтому и плашку перерисовать)
+          if (E2E.uid !== uid) { e2eBootAt = Date.now(); setTimeout(() => { if (currentUser) Promise.resolve(e2eRecompute()).then(() => { if (currentUser) applyBlockState(); }); }, E2E_SRV_WAIT + 100); }
+          E2E.uid = uid; E2E.wiped = false;
+          if (!E2E.booting) E2E.booting = e2eBoot().finally(() => { E2E.booting = null; e2eRecompute(); });
+          return E2E.booting;
+      }
+      async function e2eBoot() {
+          if (e2eWipeAtStart) { await e2eWipeAtStart; e2eWipeAtStart = null; E2E.wiped = false; }
+          const uid = E2E.uid;
+          if (!globalThis.crypto || !crypto.subtle || typeof indexedDB === "undefined" || !indexedDB) { E2E.unsupported = true; return; }
+          const lib = (await e2eLoad) || globalThis.OwlE2E || null; // || — догрузилось уже после тайм-аута
+          if (!lib) { E2E.broken = "lib"; return; }
+          E2E.lib = lib;
+          try {
+              await lib.db.open();
+              const ses = await lib.db.get("prefs", "session");
+              if (ses && ses.uid && ses.uid !== uid) { await lib.db.clearAll(); E2E.peers = new Map(); E2E.pins = new Map(); } // на устройстве был другой аккаунт
+              const keys = await lib.db.getAll("keys");
+              if ([...keys.values()].some((v) => v && v.uid && v.uid !== uid)) { await lib.db.clearAll(); E2E.peers = new Map(); E2E.pins = new Map(); }
+              await lib.db.put("prefs", "session", { uid, on: true }); // service worker может расшифровывать push этого аккаунта
+              await e2eLoadIdb(true);
+          } catch (e) { console.log("E2E: хранилище ключей:", e && (e.name || e.message)); E2E.broken = "idb"; return; }
+          if (E2E.pend.size) e2eSettlePending();
+          e2ePinSelf(); e2ePinSync();
+          // собеседники, которых не смогли проверить без ядра (status «fail»: гейт решал только по профилю), — проверить заново
+          for (const [pu, chk] of [...e2ePeerChk]) if (chk.status === "fail" && usersCache[pu]) e2eSeePeer(pu, usersCache[pu].e2e);
+      }
+      async function e2eRetry() { // «Повторить» (и само — при возвращении в приложение)
+          if (E2E.booting || !E2E.uid) return E2E.booting;
+          // ядро могло догрузиться уже после тайм-аута: тогда старый e2eLoad навсегда решён в null — подменяем в обоих случаях
+          if (E2E.broken === "lib") e2eLoad = globalThis.OwlE2E ? Promise.resolve(globalThis.OwlE2E) : e2eImport(true);
+          if (E2E.lib) { try { E2E.lib.db.close(); } catch (_) {} }
+          E2E.broken = null; E2E.unsupported = false; E2E.idb = false;
+          e2eRecompute();
+          return e2eInit(E2E.uid);
+      }
+      // e2e.js догрузился после 8-секундного тайм-аута — не ждать «Повторить»/возвращения в приложение (идущий запуск — дождаться)
+      e2eLateLib = () => {
+          const go = () => { if (E2E.broken === "lib") e2eRetry(); };
+          if (E2E.booting) E2E.booting.then(go, go); else go();
+      };
+      // Черновик, который уже не станет ключом аккаунта: это текущий ключ устройства (повышение прошло, а удаление черновика сорвалось
+      // или приложение закрыли между записями) или первое создание (gen 1) при ДРУГОМ ключе в профиле — такую пачку правила не примут
+      // (сейф уже есть, §3.6). Такие черновики ни «creating», ни открытой отправки не дают (§3.2) и удаляются при разборе
+      const e2eDeadPend = (r) => !!r && ((!!E2E.me && r.kid === E2E.me.kid) || (!!E2E.acc && (r.gen || 1) === 1 && r.kid !== E2E.acc.kid));
+      const e2eLivePends = () => [...E2E.pend.values()].filter((r) => !e2eDeadPend(r));
+      function e2eCandidate() {
+          if (E2E.unsupported) return "unsupported";
+          if (E2E.broken) return "broken";
+          if (!E2E.idb || E2E.acc === undefined) return "loading";
+          if (e2eSelfBad()) return "broken"; // ключ на устройстве есть, но не работает (selfTest) — подключить заново
+          const acc = E2E.acc, me = E2E.me;
+          // «готово» — раньше черновиков: оставшийся pending не переводит готовое устройство в «creating» (своя смена ключа — busy — переводит)
+          if (!E2E.busy && acc && me && me.kid === acc.kid && me.pub === acc.pk) return "ready";
+          if (E2E.busy || e2eLivePends().length) return "creating";
+          if (!acc) {
+              if (me || E2E.old.size || E2E.vaultExists) return "lost";
+              // «ключа нет» только из кэша, а связь есть — первые секунды ждём снимок сервера: ключ мог появиться на другом устройстве
+              if (e2eAccUnconfirmed() && navigator.onLine && Date.now() - e2eBootAt < E2E_SRV_WAIT) return "loading";
+              return "nokey";
+          }
+          if (me && me.kid === acc.kid) return "unlinked"; // тот же kid, другой pub — ключ на устройстве не от этого профиля
+          if (me) return "stale";
+          return E2E.staleFrom ? "stale" : "unlinked";
+      }
+      const e2eSelfBad = () => E2E.meBad || (!!E2E.me && !E2E.selfOk);
+      const e2eCreatingGen = () => E2E.busy ? E2E.busy.gen : Math.max(1, ...e2eLivePends().map((r) => r.gen || 1));
+      let e2eRecomputing = null, e2eRecomputeAgain = false;
+      function e2eRecompute() {
+          if (e2eRecomputing) { e2eRecomputeAgain = true; return e2eRecomputing; }
+          e2eRecomputing = (async () => {
+              do {
+                  e2eRecomputeAgain = false;
+                  let s = e2eCandidate();
+                  // перед «не подключено / сменили / пропал» — перечитать хранилище: ключ могла только что создать соседняя вкладка
+                  if ((s === "stale" || s === "unlinked" || s === "lost") && s !== e2eState && E2E.lib && E2E.idb && !E2E.wiped) {
+                      try { await e2eLoadIdb(); } catch (_) {}
+                      s = e2eCandidate();
+                  }
+                  // Профиль вернулся к ключу из old:{kid} — сами его НЕ возвращаем: убран он только по ответу сервера, а возврат к
+                  // выведенному ключу — тоже смена ключа (сервер/злоумышленник с паролем); остаётся «не подключено/сменили» на виду.
+                  // «Сменили» — сначала закрыть отправку (ключ на месте), потом сверка с сервером (до ~10 с) и перенос me → old
+                  if (s === "stale" && E2E.me && !E2E.wiped) { e2eSetState(s); await e2eRetireMe(false); s = e2eCandidate(); }
+                  e2eSetState(s);
+              } while (e2eRecomputeAgain);
+          })().catch((e) => console.log("E2E: состояние:", e)).finally(() => { e2eRecomputing = null; });
+          return e2eRecomputing;
+      }
+      function e2eSetState(s) {
+          if (s !== "loading" && e2eReadyResolve) { e2eReadyResolve(); e2eReadyResolve = null; }
+          if (s === e2eState) return;
+          const prev = e2eState; e2eState = s; e2eEpoch++;
+          e2eStateWaiters.splice(0).forEach((fn) => fn());
+          e2eRefreshUi();
+          if (s === "nokey") e2eMaybeCreate();
+          if (s === "lost" && E2E.me) e2eRepair();
+          if (s === "ready") { e2ePinSync(); e2eWantAllPreviews(); }
+          for (const id of [...e2ePlainOk.keys()]) e2eGate(id); // шифрование снова работает в чате — согласие «Без шифрования» снимается (e2eGate)
+          if (prev !== s) e2eAutoWindows();
+      }
+      function e2eRefreshUi() {
+          if (!currentUser) return;
+          applyBlockState(); e2eRenderCard(); e2eRenderSettings(); e2eRenderDot();
+          if (e2eMode === "status" && e2eEl("e2e-screen").style.display === "flex") e2eFillStatus();
+          if (typeof paintE2EHeader === "function") paintE2EHeader();                          // Т7: замок в шапке
+          e2eRefreshFp(); e2eRefreshProfileFp(); e2eRefreshEye();                              // Т7: окно отпечатка, профиль, «Совиный взгляд»
+          if (typeof repaintOpenChat === "function" && isE2EChat(currentChatId)) repaintOpenChat(); // Т5: открытый чат без новых чтений
+          renderChatList(document.getElementById("search-input").value);                       // превью (Т5: previewTextFor)
+      }
+      function e2eWantAllPreviews() {
+          if (typeof wantPreview !== "function") return; // Т5
+          for (const id of Object.keys(chatsMetaCache)) if (isE2EChat(id)) wantPreview(id, chatsMetaCache[id]);
+      }
+
+      // ----- Незавершённое создание/смена (§3.3 п.5): повышаем только по ответу сервера, не по кэшу -----
+      // Пока висит pending:{kid}, состояние «creating» (gen 1 — открыто, смена — отправка ждёт), поэтому не вышло (нет связи, сервер
+      // не ответил, черновик свежий — его может дописывать соседняя вкладка) — пробуем снова: при «online», при возвращении в приложение
+      // и сообщении соседней вкладки (e2eRefreshFromIdb) и по таймеру 30 с → 1 → 2 → … ≤10 мин. Попытка = 1 чтение, не чаще раза в 15 с
+      let e2eSettling = null, e2eSettleTimer = null, e2eSettleDelay = 0, e2eSettleReadAt = 0;
+      function e2eSettlePending() {
+          if (e2eSettling) return e2eSettling;
+          e2eSettling = e2eSettleOnce().catch((e) => console.log("E2E: незавершённый ключ:", e && (e.code || e.message))).finally(() => {
+              e2eSettling = null;
+              if (!E2E.pend.size || E2E.wiped || !currentUser) { clearTimeout(e2eSettleTimer); e2eSettleTimer = null; e2eSettleDelay = 0; return; }
+              if (E2E.busy || e2eSettleTimer) return; // свою операцию доведёт e2eCreate/«заново» (при отказе позовут нас снова); повтор уже назначен
+              e2eSettleDelay = Math.min(e2eSettleDelay ? e2eSettleDelay * 2 : 30000, 600000);
+              // смену (gen ≥ 2) разбираем ровно через 12 мин после её начала, а не на следующем шаге удвоения (до ~15 мин)
+              const due = Math.min(...[...E2E.pend.values()].filter((r) => (r.gen || 1) > 1).map((r) => (r.at || 0) + 12 * 60000 + 1000 - Date.now()).filter((ms) => ms > 0));
+              e2eSettleTimer = setTimeout(() => { e2eSettleTimer = null; e2eSettlePending(); }, Math.min(e2eSettleDelay, Math.max(15000, due)));
+          });
+          return e2eSettling;
+      }
+      window.addEventListener("online", () => { if (E2E.pend.size) { e2eSettleDelay = 0; e2eSettlePending(); } });
+      // Черновик удаляем, только когда он точно не станет ключом аккаунта (§3.3 п.5). waitForPendingWrites видит лишь очередь СВОЕЙ
+      // вкладки (вторая вкладка работает с Firestore без кэша — очередь первой, сохранённая на диске, ей не видна), поэтому «очередь
+      // пуста» — не довод: gen 1 при пустом профиле не удаляем, а публикуем тот же ключ сами (принят → повышаем, отказ → удаляем);
+      // при другом ключе в профиле gen 1 правила не примут — удаляем; смену (gen ≥ 2) — не раньше 12 мин (дальше её не пустит freshAuth)
+      async function e2eSettleOnce() {
+          if (E2E.busy || !E2E.pend.size || !E2E.lib || E2E.wiped || !currentUser) return;
+          const dead = [...E2E.pend.values()].filter(e2eDeadPend).map((r) => r.kid);
+          if (dead.length) { await e2eDropPend(dead); e2eBroadcast("changed"); if (!E2E.pend.size) { e2eRecompute(); return; } }
+          if (!navigator.onLine) return; // повторим по «online»
+          if (Date.now() - e2eSettleReadAt < 15000) return; // только что спрашивали сервер — дальше таймер
+          try { await Promise.race([waitForPendingWrites(db), e2eSleep(6000)]); } catch (_) {} // своя очередь — сначала на сервер
+          e2eSettleReadAt = Date.now();
+          const srv = await e2eSrvAcc(); if (srv === undefined) return;
+          let dropped = false;
+          for (const [kid, rec] of [...E2E.pend]) {
+              if (E2E.busy || E2E.wiped) return;
+              if (srv && srv.kid === kid) {
+                  if (E2E.me && E2E.me.kid === kid) { await e2eDropPend([kid]); dropped = true; continue; } // уже повышен: копия черновика не затрёт «Я сохранил(а) ключ»
+                  await e2ePromote(rec); return;
+              }
+              const age = Date.now() - (rec.at || 0);
+              if ((rec.gen || 1) === 1) {
+                  if (srv) { await e2eDropPend([kid]); dropped = true; }
+                  else if (age > 120000) { // свежий — может ждать сервер соседняя вкладка
+                      // аварийная сборка и сборка без ключа для запросов ключи не публикуют — черновик ключом не станет
+                      if (!E2E_SEND || !E2E_ESCROW_OK) { await e2eDropPend([kid]); dropped = true; }
+                      else { if (await e2eRepublish(rec)) return; if (!E2E.pend.has(kid)) dropped = true; }
+                  }
+              } else if (age > 12 * 60000) { await e2eDropPend([kid]); dropped = true; }
+          }
+          if (dropped) e2eBroadcast("changed"); // соседние вкладки, прочитавшие этот черновик, тоже выйдут из «creating»
+          e2eRecompute();
+      }
+      async function e2eSrvAcc() { // users/я.e2e с сервера (1 чтение): объект, null — ключа нет, undefined — не прочитали
+          try { const snap = await getDocFromServer(doc(db, "users", E2E.uid)); countReads("users/{id}", 1); return snap.exists() ? (snap.data().e2e || null) : null; }
+          catch (e) { console.log("E2E: профиль с сервера:", e && (e.code || e.message)); return undefined; }
+      }
+      async function e2eDropPend(kids) { // удалить черновики (под замком); память — сразу
+          await e2eLocked(async () => { for (const k of kids) { if (E2E.wiped) return; await E2E.lib.db.del("keys", "pending:" + k); } })
+              .catch((e) => console.log("E2E: черновик ключа:", e && (e.name || e.message)));
+          for (const k of kids) E2E.pend.delete(k);
+          e2eIdbGen++;
+      }
+      async function e2eRepublish(rec) { // ключа на сервере нет — тот же ключ из черновика заново (gen 1, тот же шифротекст сейфа); → повысили?
+          if (!rec.vault || typeof rec.pub !== "string" || E2E.wiped || !e2eEscrowReady()) return false;
+          const esc = await e2eEscrowFor(rec); if (!esc || E2E.wiped) return false; // копию не собрать — не публикуем (как без сейфа)
+          try {
+              const b = writeBatch(db);
+              b.update(doc(db, "users", E2E.uid), { e2e: { v: 1, pk: rec.pub, kid: rec.kid, t: serverTimestamp() } });
+              b.set(doc(db, "keyvault", E2E.uid), { v: 1, kid: rec.kid, iv: rec.vault.iv, ct: rec.vault.ct, gen: 1, t: serverTimestamp() });
+              b.set(doc(db, "escrow", E2E.uid + "_" + rec.kid), { ...esc, t: serverTimestamp() });
+              const c = b.commit(); c.catch(() => {}); // нет ответа — пачка остаётся в очереди и может дойти сама: тогда повысим по серверу
+              await Promise.race([c, e2eSleep(20000).then(() => { throw e2eFail("timeout"); })]);
+          } catch (e) {
+              if (!e || e.code !== "permission-denied") { console.log("E2E: ключ из черновика:", e && (e.code || e.message)); return false; }
+              const srv = await e2eSrvAcc();
+              if (srv && srv.kid === rec.kid) { await e2ePromote(rec); return true; } // уже принят (пачка из очереди дошла раньше)
+              if (srv !== undefined) await e2eDropPend([rec.kid]);
+              return false;
+          }
+          if (E2E.wiped) return false;
+          E2E.createdNow = true;
+          await e2ePromote(rec);
+          return true;
+      }
+      async function e2ePromote(rec) { // pending:{kid} → me — из своей записи в памяти; прежний me → old:{kid}
+          const lib = E2E.lib;
+          await e2eLocked(async () => {
+              if (E2E.wiped) return; // вышли, пока ждали сервер, — ключ на устройство не кладём (§3.8)
+              const prevMe = E2E.me && E2E.me.kid !== rec.kid ? E2E.me : null;
+              if (prevMe) { const o = { uid: prevMe.uid, kid: prevMe.kid, pub: prevMe.pub, priv: prevMe.priv }; await lib.db.put("keys", "old:" + o.kid, o); E2E.old.set(o.kid, o); }
+              await lib.db.put("keys", "me", rec);
+              for (const k of [...E2E.pend.keys()]) await lib.db.del("keys", "pending:" + k).catch(() => {});
+              E2E.pend.clear();
+          }).catch((e) => console.log("E2E: запись ключа:", e && (e.name || e.message))); // не записалось — при следующем запуске повысим по серверу
+          if (E2E.wiped) return;
+          E2E.me = rec; E2E.meBad = false; E2E.busy = null; E2E.staleFrom = null; e2eIdbGen++;
+          E2E.selfOk = await lib.selfTest(rec.priv, lib.unb64u(rec.pub));
+          e2eBroadcast("changed");
+          e2eRecompute();
+      }
+
+      // ----- Создание (авто), ремонт, смена ключа на другом устройстве -----
+      // Новый ключ — только с вшитым ключом для запросов: копия ключа (escrow/{uid}_{kid}) идёт в той же пачке, без неё правила не примут
+      let e2eEscrowSaid = false;
+      function e2eEscrowReady() {
+          if (E2E_ESCROW_OK) return true;
+          if (!e2eEscrowSaid) { e2eEscrowSaid = true; console.log("E2E: ключ для запросов не задан — новые ключи шифрования не создаются"); }
+          return false;
+      }
+      // Копия для повторной публикации черновика: та же, что собрали при создании (rec.escrow), если она под нынешний ключ для запросов;
+      // иначе — заново из сейфа черновика. null — не собрать
+      async function e2eEscrowFor(rec) {
+          const e = rec.escrow, lib = E2E.lib;
+          if (e && typeof e === "object" && e.v === 1 && e.kid === rec.kid && e.mk === E2E_ESCROW.mk) return { v: 1, mk: e.mk, kid: e.kid, epk: e.epk, iv: e.iv, ct: e.ct };
+          try { return await lib.escrowSeal(await lib.openVault(rec.vault, rec.secret, E2E.uid, rec.kid), E2E.uid, rec.kid, E2E_ESCROW); }
+          catch (err) { console.log("E2E: копия ключа из черновика:", err && (err.code || err.message)); return null; }
+      }
+      function e2eMaybeCreate() {
+          if (!E2E_SEND || e2eState !== "nokey" || E2E.createTried || E2E.createFailed || E2E.busy || !currentUser || iAmBanned || !E2E.lib) return;
+          if (!e2eEscrowReady()) return; // ключ для запросов не вшит — не создаём ни у кого
+          if (!e2ePilotOk()) return; // стадия 1: только пилот
+          const meU = usersCache[currentUser.uid];
+          if (!meU || !meU.nameKey) return; // профиль не загружен — запись стала бы созданием профиля и упёрлась в правила
+          if (!e2eProfileFresh(currentUser.uid)) { if (!navigator.onLine) e2eWaitOnline(); return; } // «ключа нет» только из кэша — ждём снимок сервера (e2eProfileSrv)
+          // вкладка Safari на iPhone (своё хранилище, стирается через 7 дней) и браузеры без navigator.locks — только кнопкой «Включить здесь»
+          if ((!navigator.locks || (isIOS() && !isStandalone())) && !E2E.wantHere) return;
+          if (!navigator.onLine) { e2eWaitOnline(); return; }
+          e2eCreate();
+      }
+      function e2eWaitOnline() { if (E2E.onlineHook) return; E2E.onlineHook = true; window.addEventListener("online", () => { E2E.onlineHook = false; e2eMaybeCreate(); }, { once: true }); }
+      async function e2eCreate() {
+          if (E2E.busy || !e2eEscrowReady()) return;
+          E2E.createTried = true;
+          const lib = E2E.lib, uid = E2E.uid;
+          let job = null;
+          try {
+              job = await e2eLocked(async () => {
+                  await e2eLoadIdb(true).catch(() => {}); // внутри замка — заново: ключ могла создать соседняя вкладка
+                  if (E2E.wiped || E2E.me || E2E.pend.size || E2E.acc || (usersCache[uid] && usersCache[uid].e2e)) return null;
+                  const id = await lib.generateIdentity(), secret = lib.newSecret();
+                  const sealed = await lib.sealVault(id.jwk, secret, uid, id.kid);
+                  // копия для запросов (шифротекст — в черновик тоже, для e2eRepublish); не вышло — ни черновика, ни записи на сервер
+                  const escrow = await lib.escrowSeal(id.jwk, uid, id.kid, E2E_ESCROW);
+                  const rec = { uid, kid: id.kid, pub: lib.b64u(id.pubRaw), priv: await lib.importPriv(id.jwk), gen: 1, secret,
+                      vault: { iv: sealed.iv, ct: sealed.ct, kid: id.kid, gen: 1 }, escrow, savedAck: false, at: Date.now() }; // JWK в хранилище не кладём
+                  if (E2E.wiped) return null; // вышли, пока создавали ключ (§3.8)
+                  await lib.db.put("keys", "pending:" + rec.kid, rec); // durability strict, ждём complete; сбой — на сервер ничего не пишем
+                  E2E.pend.set(rec.kid, rec); E2E.busy = { kid: rec.kid, gen: 1 }; e2eIdbGen++;
+                  const batch = writeBatch(db);
+                  batch.update(doc(db, "users", uid), { e2e: { v: 1, pk: rec.pub, kid: rec.kid, t: serverTimestamp() } });
+                  batch.set(doc(db, "keyvault", uid), { v: 1, kid: rec.kid, iv: sealed.iv, ct: sealed.ct, gen: 1, t: serverTimestamp() });
+                  batch.set(doc(db, "escrow", uid + "_" + rec.kid), { ...rec.escrow, t: serverTimestamp() });
+                  return { rec, commit: batch.commit() }; // замок отпускаем, не дожидаясь сервера (офлайн ответ может идти долго)
+              });
+          } catch (e) { console.log("E2E: создание ключа:", e && (e.code || e.name || e.message)); E2E.busy = null; e2eRecompute(); return; }
+          if (!job) { if (E2E.pend.size && !E2E.wiped) e2eSettlePending(); e2eRecompute(); return; } // чужой/прошлый черновик — разобрать по серверу
+          e2eBroadcast("changed"); // соседние вкладки видят черновик (и «Выйти» там покажет его Совиный ключ)
+          e2eRecompute(); // «creating»: первое создание — сообщения пока идут как раньше
+          try { await job.commit; }
+          catch (e) { await e2eCreateRejected(job.rec, e); return; }
+          E2E.createdNow = true;
+          await e2ePromote(job.rec);
+          e2ePersist(false);
+      }
+      async function e2eCreateRejected(rec, e) {
+          console.log("E2E: сервер не принял ключ:", e && (e.code || e.message));
+          try { await E2E.lib.db.del("keys", "pending:" + rec.kid); } catch (_) {}
+          E2E.pend.delete(rec.kid); E2E.busy = null; e2eIdbGen++;
+          e2eBroadcast("changed"); // соседняя вкладка могла прочитать этот черновик и ждать в «creating»
+          if (E2E.pend.size) e2eSettlePending(); // остались чужие/прошлые черновики — разобрать по серверу
+          let v = null;
+          try { const snap = await getDoc(doc(db, "keyvault", E2E.uid)); v = snap.exists() ? snap.data() : null; } catch (_) {}
+          // сейф есть: ключ успело создать другое устройство (→ «не подключено», окно подключения без «смените пароль»)
+          // или осиротевший сейф без ключа в профиле (→ «пропал»); сейфа нет — профиль не прошёл другие проверки, повторов нет
+          if (v) E2E.vaultExists = true; else E2E.createFailed = true;
+          if (v && v.gen === 1 && v.kid !== rec.kid) E2E.raceLostAt = Date.now(); // проиграли гонку первого создания (по серверу, §3.5)
+          e2eRecompute();
+      }
+      async function e2eRepair() { // в хранилище есть ключ, а из профиля он пропал → переопубликовать тот же (правила сверяют с сейфом)
+          if (!E2E_SEND || E2E.repairTried || !E2E.me || E2E.acc) return;
+          E2E.repairTried = true;
+          const me = E2E.me;
+          try {
+              await updateDoc(doc(db, "users", E2E.uid), { e2e: { v: 1, pk: me.pub, kid: me.kid, t: serverTimestamp() } });
+              showToast(t("Ключ шифрования пропадал из профиля — восстановили"), "key");
+          } catch (e) { console.log("E2E: ремонт ключа в профиле:", e.code || e); }
+      }
+      // Ключ сменили на другом устройстве: me → old:{kid}, Совиный ключ стираем (§3.2 stale). Необратимо (секрет стёрт), поэтому:
+      // force (окно ключа: сейф уже прочитан с сервера) — только если в хранилище всё ещё тот ключ, что сверяли (expectKid; соседняя
+      // вкладка могла за это время подключить/сменить ключ); само (по снимку профиля) — только когда смену подтвердил сервер: локальный
+      // снимок мог быть отклонённой записью «заново», откат которой ещё не пришёл. Пока не подтвердили — «stale», но ключ на месте
+      let e2eRetireCheckAt = 0;
+      async function e2eRetireMe(force, expectKid) {
+          const lib = E2E.lib; if (!lib) return;
+          let srvKid = null;
+          if (!force) {
+              if (!E2E.me || !E2E.acc || E2E.busy || Date.now() - e2eRetireCheckAt < 30000) return;
+              e2eRetireCheckAt = Date.now();
+              const srv = await e2eSrvAcc();
+              if (!srv || typeof srv.kid !== "string" || !E2E.me || srv.kid === E2E.me.kid) return; // нет связи / на сервере тот же ключ / ключа нет («пропал», не «сменили»)
+              srvKid = srv.kid;
+          }
+          let moved = false;
+          await e2eLocked(async () => {
+              await e2eLoadIdb(true).catch(() => {});
+              const me = E2E.me, acc = E2E.acc;
+              if (!me || E2E.busy || E2E.wiped) return;
+              if (force ? me.kid !== expectKid : (me.kid === srvKid || !acc || me.kid === acc.kid || E2E.pend.has(acc.kid))) return;
+              const o = { uid: me.uid, kid: me.kid, pub: me.pub, priv: me.priv };
+              await lib.db.put("keys", "old:" + o.kid, o);
+              await lib.db.del("keys", "me");
+              E2E.old.set(o.kid, o); E2E.me = null; E2E.selfOk = false; e2eIdbGen++;
+              E2E.staleFrom = { kid: me.kid, gen: me.gen, at: me.at };
+              moved = true;
+          }).catch((e) => console.log("E2E: прежний ключ:", e && (e.name || e.message)));
+          if (moved) e2eBroadcast("changed");
+      }
+
+      // ----- Ключи собеседников: TOFU, «липкость» (§3.7) -----
+      // Проверяем только себя, собеседников личек из chatsMetaCache и собеседника открытого чата (у админа слушается вся коллекция users)
+      function e2eInCircle(uid) {
+          if (!currentUser || !uid) return false;
+          if (uid === currentChatTargetUid || uid === dmPeer(currentChatId)) return true;
+          const me = currentUser.uid;
+          return !!chatsMetaCache[me < uid ? me + "_" + uid : uid + "_" + me];
+      }
+      function e2eCircle() {
+          const set = new Set(); if (!currentUser) return set;
+          for (const id of Object.keys(chatsMetaCache)) { const p = dmPeer(id); if (p && p !== currentUser.uid && isE2EChat(id)) set.add(p); }
+          if (currentChatTargetUid) set.add(currentChatTargetUid);
+          const cp = isE2EChat(currentChatId) ? dmPeer(currentChatId) : null; if (cp && cp !== currentUser.uid) set.add(cp);
+          return set;
+      }
+      function e2eSeeUser(uid, raw) { // из ingestUser
+          if (!currentUser || !uid || E2E.wiped) return;
+          if (uid === currentUser.uid) return e2eOnOwnProfile(raw);
+          if (e2eInCircle(uid)) e2eSeePeer(uid, raw);
+      }
+      const e2eRawSig = (raw) => raw && typeof raw === "object" ? [raw.v, raw.kid, raw.pk, raw.t && typeof raw.t.toMillis === "function" ? raw.t.toMillis() : 0, Array.isArray(raw.prev) ? raw.prev.map((p) => p && p.kid + ":" + p.pk).join(",") : ""].join("|") : (raw ? "x" : "");
+      function e2eSeePeer(uid, raw) { // проверенные uid|kid|pk помним: повторный снимок с тем же ключом ничего не делает
+          const sig = e2eRawSig(raw), cur = e2ePeerChk.get(uid);
+          if (cur && cur.sig === sig && cur.status !== "fail") return cur.p;
+          const rec = { sig, status: "pending", key: null, p: null, at: Date.now() };
+          e2ePeerChk.set(uid, rec);
+          rec.p = e2eCheckPeer(uid, raw, rec).catch((e) => { console.log("E2E: ключ собеседника:", e && e.message); if (e2ePeerChk.get(uid) === rec) rec.status = "fail"; return rec; });
+          return rec.p;
+      }
+      const e2ePeerPromise = (uid) => (e2ePeerChk.get(uid) || {}).p || (usersCache[uid] ? e2eSeePeer(uid, usersCache[uid].e2e) : null);
+      async function e2eValidPub(lib, kid, pk) { // форма, kid = kidOf(pk), точка на кривой
+          if (typeof kid !== "string" || !E2E_KID_RE.test(kid) || typeof pk !== "string" || !E2E_PK_RE.test(pk)) return null;
+          try { if (await lib.kidOf(pk) !== kid) return null; await lib.importPub(pk); return { kid, pk, h: await lib.pkHash(pk) }; } catch (_) { return null; }
+      }
+      // Записи peers: src "cur" — был ТЕКУЩИМ ключом собеседника на этом устройстве (прошёл TOFU: при смене — плашка);
+      // "prev-nopin" — прежний ключ из users.e2e.prev при первом знакомстве (pin ещё не было — TOFU тут не поможет);
+      // "prev-pin" — прежний ключ, совпавший с закреплённым (pin.h / pin.prevH). Прочие (без src) для расшифровки не берутся.
+      const E2E_PEER_SRC = new Set(["cur", "prev-nopin", "prev-pin"]);
+      function e2eRememberPeer(uid, g, src) {
+          const k = uid + "|" + g.kid, old = E2E.peers.get(k);
+          if (old && old.pk === g.pk && E2E_PEER_SRC.has(old.src) && (src !== "cur" || old.src === "cur")) return; // повышаем только до «cur»
+          const rec = { uid, kid: g.kid, pk: g.pk, h: g.h, src, seenAt: Date.now() };
+          E2E.peers.set(k, rec);
+          if (E2E.lib && E2E.idb && !E2E.wiped) E2E.lib.db.put("peers", k, rec).catch(() => {});
+      }
+      // Прежний (не текущий) ключ собеседника — доверять ли (отступление от §3.7/§4.2 п.5 по ревью Т5): сервер/консоль может
+      // дописать в users/{peer}.e2e.prev СВОЙ ключ, не трогая текущий, — плашки «заново включил(а)» не будет, а его сообщения
+      // «от собеседника» читались бы как настоящие. Поэтому берём прежний ключ, только если закреплений ещё не было (первое
+      // знакомство) или он совпал с закреплённым/предыдущим закреплённым. Закрепления не прочитаны — пока не решаем (null).
+      // Пока у аккаунта нет ключа (и на устройстве нет ни me, ни old:*), прежние ключи собеседника не запоминаем вовсе: зашифрованных
+      // для нас сообщений ещё быть не может, а закрепление без своего ключа не создаётся — запись «prev-nopin» жила бы неделями (стадия 1)
+      // вместо одного «первого знакомства». С ключом у аккаунта закрепление ложится сразу следом (e2ePinPeer). Даже принятый прежний
+      // ключ годится только для переписки ДО его смены — см. e2eOldPeerOk
+      function e2ePrevSrc(uid, g) {
+          if (!E2E.idb || !g || typeof g.h !== "string") return null;
+          const pin = E2E.pins.get(uid);
+          if (!pin) return E2E.acc || E2E.me || E2E.old.size ? "prev-nopin" : null;
+          return g.h === pin.h || (!!pin.prevH && g.h === pin.prevH) ? "prev-pin" : null;
+      }
+      function e2eKeepPrev(uid, prevs, curKid) { // ДО закрепления текущего ключа: при первом знакомстве pin ещё нет
+          for (const g of prevs || []) { if (!g || g.kid === curKid) continue; const src = e2ePrevSrc(uid, g); if (src) e2eRememberPeer(uid, g, src); }
+      }
+      async function e2eCheckPeer(uid, raw, rec) {
+          const lib = (await e2eLoad) || globalThis.OwlE2E || null;
+          if (!lib) { // ядро не загрузилось — проверить нечем (гейт решит по профилю: «нет ключа» из кэша ждёт сервер ≤ E2E_SRV_WAIT)
+              rec.status = "fail";
+              if (!e2eProfileFresh(uid)) setTimeout(() => { if (e2ePeerChk.get(uid) === rec) e2eOnPeerChecked(uid, false); }, Math.max(0, rec.at + E2E_SRV_WAIT + 100 - Date.now()));
+              return rec;
+          }
+          const good = (raw && typeof raw === "object" && raw.v === 1) ? await e2eValidPub(lib, raw.kid, raw.pk) : null;
+          const prevs = []; // прежние: проверяем форму сейчас, запоминаем — только когда прочитаны pins (e2eKeepPrev)
+          if (raw && Array.isArray(raw.prev)) for (const p of raw.prev.slice(0, 3)) { const g = p && await e2eValidPub(lib, p.kid, p.pk); if (g) prevs.push(g); }
+          if (e2ePeerChk.get(uid) !== rec) return rec; // пока проверяли, пришёл другой ключ
+          if (!E2E.idb && !E2E.broken && !E2E.unsupported) await Promise.race([e2eReady, e2eSleep(3000)]); // pins ещё не прочитаны
+          if (e2ePeerChk.get(uid) !== rec) return rec;
+          const before = e2ePeerKeys.get(uid);
+          rec.prevs = prevs; // не успели прочитать pins — e2ePinSync запомнит их перед первым закреплением
+          e2eKeepPrev(uid, prevs, good && good.kid);
+          rec.key = good; rec.status = good ? "good" : (raw ? "bad" : "none"); // битый ключ = «ключа нет» при первом знакомстве и «пропал» у закреплённого
+          if (good) { e2ePeerKeys.set(uid, good); e2eRememberPeer(uid, good, "cur"); await e2ePinPeer(uid, good, raw); }
+          else e2ePeerKeys.delete(uid);
+          e2eOnPeerChecked(uid, (before && before.h) !== (good && good.h));
+          // «ключа нет» из кэша: e2ePeerState ждёт снимок сервера не дольше E2E_SRV_WAIT — потом перерисовать (плашка, шапка, отправка)
+          if (!good && !e2eProfileFresh(uid)) setTimeout(() => { if (e2ePeerChk.get(uid) === rec) e2eOnPeerChecked(uid, false); }, Math.max(0, rec.at + E2E_SRV_WAIT + 100 - Date.now()));
+          return rec;
+      }
+      async function e2eSavePin(uid, pin) {
+          E2E.pins.set(uid, pin);
+          if (E2E.lib && E2E.idb && !E2E.wiped) try { await E2E.lib.db.put("pins", uid, pin); } catch (e) { console.log("E2E: pin:", e && (e.name || e.message)); }
+      }
+      async function e2ePinPeer(uid, good, raw) {
+          if (!E2E.idb) return; // закрепим после чтения хранилища (e2ePinSync)
+          const pin = E2E.pins.get(uid);
+          if (!pin) {
+              const myT = E2E.acc && E2E.acc.t;
+              if (!myT) return; // у моего аккаунта ключа ещё нет — закрепим, когда появится (since — когда ключи есть у обоих)
+              const peerT = raw && raw.t && typeof raw.t.toMillis === "function" ? raw.t.toMillis() : 0;
+              await e2eSavePin(uid, { h: good.h, kid: good.kid, since: Math.max(myT, peerT), ack: true, prevH: null, changedAt: 0, acks: [] });
+          } else if (pin.h !== good.h) {
+              // другой ключ: «{name} заново включил(а) шифрование» до «Понятно»; отправку не блокируем (как в Signal); since не трогаем.
+              // changedAt — СЕРВЕРНОЕ время смены (users.e2e.t нового ключа, каким его здесь увидели; часы устройства могут врать, а
+              // сравнивают его с метками сообщений). Позже сервер может сдвинуть t вперёд — порог останется (e2eOldPeerOk, e2eOkMsg).
+              // acks — прежние ключи, признанные на этом устройстве (первое знакомство / «Понятно»), и время их смены u: переписка с ними
+              // до u — без ⚠ (e2eOkMsg). Ключ, сменённый до «Понятно» (две смены подряд), туда не попадает — его сообщения остаются с ⚠
+              // правила ставят t = время записи; «будущее» t возможно только в обход правил — не дальше суток вперёд от часов устройства
+              const chT = raw && raw.t && typeof raw.t.toMillis === "function" ? Math.min(raw.t.toMillis(), Date.now() + 864e5) : Date.now();
+              let acks = Array.isArray(pin.acks) ? pin.acks : [];
+              if (pin.ack !== false) acks = acks.filter((a) => a && a.h !== pin.h).concat({ h: pin.h, u: chT }).slice(-8);
+              await e2eSavePin(uid, { ...pin, h: good.h, kid: good.kid, prevH: pin.h, changedAt: chT, acks, ack: false });
+          }
+      }
+      function e2ePinSync(onlyMissing) { // ключ аккаунта появился / хранилище прочитано — закрепить уже проверенных собеседников
+          if (!E2E.idb) return; // onlyMissing: только тех, у кого pin нет (перечитали хранилище — чужой более новый pin не откатывать)
+          for (const [uid, chk] of e2ePeerChk) if (chk.status === "good" && chk.key && !(onlyMissing && E2E.pins.has(uid))) {
+              if (!E2E.pins.has(uid)) e2eKeepPrev(uid, chk.prevs, chk.key.kid); // первое знакомство: прежние ключи — до закрепления текущего
+              e2ePinPeer(uid, chk.key, usersCache[uid] && usersCache[uid].e2e).then(() => { if (uid === e2ePeer(currentChatId)) applyBlockState(); });
+          }
+      }
+      async function e2ePinSelf() { // свой pin — для 🔓 в Гнезде (since = время своего ключа)
+          const acc = E2E.acc, lib = E2E.lib;
+          if (!acc || !acc.t || !lib || !E2E.idb || !currentUser) return;
+          const uid = currentUser.uid, pin = E2E.pins.get(uid);
+          let h; try { h = await lib.pkHash(acc.pk); } catch (_) { return; }
+          // kt — время ЭТОГО ключа (первый виденный users.e2e.t; ремонт профиля его не двигает) — для e2eOldPeerOk
+          if (!pin) await e2eSavePin(uid, { h, kid: acc.kid, since: acc.t, kt: acc.t, ack: true, prevH: null, changedAt: 0 });
+          else if (pin.h !== h) await e2eSavePin(uid, { ...pin, h, kid: acc.kid, kt: acc.t, prevH: pin.h, changedAt: Date.now(), ack: true });
+      }
+      function e2eOnPeerChecked(uid, changed) {
+          if (changed) e2eEpoch++;
+          for (const id of [...e2ePlainOk.keys()]) if (dmPeer(id) === uid) e2eGate(id); // с собеседником снова шифруется — согласие снимается
+          if (isE2EChat(currentChatId) && uid === e2ePeer(currentChatId)) {
+              applyBlockState();
+              if (typeof paintE2EHeader === "function") paintE2EHeader();
+              if (changed && typeof repaintOpenChat === "function") repaintOpenChat();
+          }
+          e2eRefreshFp(); e2eRefreshProfileFp(); // Т7: открытые окно отпечатка и профиль — по проверенному ключу
+          if (changed && typeof wantPreview === "function") for (const id of Object.keys(chatsMetaCache)) if (isE2EChat(id) && dmPeer(id) === uid) wantPreview(id, chatsMetaCache[id]);
+      }
+      function e2ePeerState(uid) { // ok | changed | none | lost | unknown
+          if (!uid) return "none";
+          let chk = e2ePeerChk.get(uid);
+          if (!chk && usersCache[uid]) { e2eSeePeer(uid, usersCache[uid].e2e); chk = e2ePeerChk.get(uid); }
+          if (!chk || chk.status === "pending" || chk.status === "fail") return "unknown";
+          const pin = E2E.pins.get(uid);
+          if (chk.status === "good") return pin && (pin.h !== chk.key.h || pin.ack === false) ? "changed" : "ok";
+          if (pin) return "lost"; // pin есть, а ключа нет / битый — «пропал» (сервер не выключит шифрование тихо)
+          // «ключа нет» только из кэша, а связь есть: ключ мог появиться, пока устройство было закрыто — первые секунды ждём сервер (§3.7)
+          if (navigator.onLine && !e2eProfileFresh(uid) && Date.now() - (chk.at || 0) < E2E_SRV_WAIT) return "unknown";
+          return "none";
+      }
+      const e2ePeerHas = (uid) => !!uid && (E2E.pins.has(uid) || !!(usersCache[uid] && usersCache[uid].e2e));
+
+      // ----- Гейт отправки (§4.3) -----
+      // reason у mode "wait": "loading" — ключи ещё читаются, "self" — своё создание/смена ключа, "wait" — ключ собеседника
+      function e2eGateRaw(chatId) {
+          if (!E2E_SEND || !isE2EChat(chatId)) return { ok: true, mode: "plain" };
+          const nest = isNest(chatId), peer = e2ePeer(chatId), s = e2eState;
+          // у собеседника «ключа нет», но это ещё не точно: профиль не загружен, ключ проверяется или «нет» только из кэша при связи
+          // (первые E2E_SRV_WAIT). Проверить нечем (ядро не загрузилось — status «fail») — решаем по профилю, а не ждём вечно
+          const peerWait = () => {
+              if (!usersCache[peer]) return true;
+              const chk = e2ePeerChk.get(peer);
+              if (chk && chk.status === "fail") return navigator.onLine && !e2eProfileFresh(peer) && Date.now() - (chk.at || 0) < E2E_SRV_WAIT;
+              return e2ePeerState(peer) === "unknown";
+          };
+          let reason;
+          if (s === "ready") {
+              if (nest) return { ok: true, mode: "e2e" };
+              const ps = e2ePeerState(peer);
+              if (ps === "ok" || ps === "changed") return { ok: true, mode: "e2e" };
+              if (ps === "none") return { ok: true, mode: "plain" };
+              if (ps === "unknown") return { ok: true, mode: "wait", reason: "wait" };
+              reason = "peer-lost";
+          } else if (s === "loading") {
+              // вне пилота (стадия 1) у аккаунта нет и не было ключа (ни своих ключей, ни закреплений — их без своего ключа не бывает):
+              // хранилище ещё читается, а шифровать нечем — открыто сразу, как nokey, не дожидаясь IndexedDB
+              // (свой профиль ещё не пришёл — acc undefined — то же самое: вне пилота ключа у аккаунта быть не может)
+              if (!E2E.acc && !E2E.busy && !E2E.pend.size && !e2ePilotOk()) return { ok: true, mode: "plain" };
+              return { ok: true, mode: "wait", reason: "loading" };
+          } else if (s === "creating") {
+              if (e2eCreatingGen() > 1) {
+                  // смена ключа не своя (черновик соседней вкладки или прошлого запуска, разбор — до 12 мин): собеседнику без ключа
+                  // и pin ждать нечего — как в базовом состоянии, открыто (иначе отправка в такие лички падала бы все эти минуты)
+                  if (!E2E.busy && !nest && peer && !e2ePeerHas(peer)) return peerWait() ? { ok: true, mode: "wait", reason: "wait" } : { ok: true, mode: "plain" };
+                  return { ok: true, mode: "wait", reason: "self" };
+              }
+              // первое создание — как nokey, но только пока у аккаунта ключа нет или в профиле именно этот черновик (§3.2);
+              // «ключа нет» только из кэша (черновик прошлого запуска) — собеседнику с ключом/pin и в Гнездо молча открыто не пишем
+              if (E2E.acc === null && e2eAccUnconfirmed() && (nest || e2ePeerHas(peer))) {
+                  if (navigator.onLine && Date.now() - e2eBootAt < E2E_SRV_WAIT) return { ok: true, mode: "wait", reason: "loading" };
+                  reason = "unconfirmed";
+              }
+              else if (E2E.acc === null || (E2E.acc && E2E.pend.has(E2E.acc.kid))) return { ok: true, mode: "plain" };
+              else return { ok: true, mode: "wait", reason: "self" };
+          } else if (s === "nokey") {
+              // «ключа нет» так и не подтвердил сервер (нет связи): у аккаунта мог появиться ключ на другом устройстве — собеседнику
+              // с ключом/закреплением и в Гнездо молча открыто не пишем (плашка с «Без шифрования»)
+              if (e2eAccUnconfirmed() && (nest || e2ePeerHas(peer))) reason = "unconfirmed";
+              else return { ok: true, mode: "plain" };
+          } else { // unlinked / stale / lost / broken / unsupported
+              const has = nest || e2ePeerHas(peer);
+              const accNone = E2E.acc === null && !e2eAccUnconfirmed();
+              if ((s === "broken" || s === "unsupported") && accNone) return { ok: true, mode: "plain" }; // у аккаунта ключа нет — шифровать нечем и нечего
+              // профиль собеседника не загружен (или только из кэша при связи) — ключ у него может быть: ждём, а не открыто
+              if (!has && peer && peerWait()) return { ok: true, mode: "wait", reason: "wait" };
+              if ((s === "broken" || s === "unsupported") && E2E.acc === undefined) return has ? { ok: true, mode: "wait", reason: "loading" } : { ok: true, mode: "plain" };
+              if (!has) return { ok: true, mode: "plain" }; // у собеседника нет ни ключа, ни pin — он на старой версии
+              reason = s;
+          }
+          if (e2ePlainOk.get(chatId) === reason) return { ok: true, mode: "plain", confirmed: true, reason };
+          return { ok: false, mode: null, reason };
+      }
+      function e2eGate(chatId) {
+          const g = e2eGateRaw(chatId);
+          if (g.mode === "e2e" && e2ePlainOk.has(chatId)) e2ePlainOk.delete(chatId); // шифрование снова работает — «Без шифрования» больше не действует
+          return g;
+      }
+      // Внутри postMessage: ждёт загрузку ключей (≤3 с), свою смену ключа и ключ/профиль собеседника (≤6 с); «ключа нет» только из
+      // кэша — до конца окна E2E_SRV_WAIT (гейт сам откроется по снимку сервера или по окну); не дождались — ошибка (открытым по
+      // тайм-ауту не шлём никогда); закрыт — бросает owl/e2e-<причина>. peek — только узнать режим (пересылка заранее, правка):
+      // одноразовое согласие «Без шифрования» («пропал») не тратится
+      async function e2eSendMode(chatId, peek) {
+          if (!E2E_SEND || !isE2EChat(chatId)) return "plain";
+          const peer = e2ePeer(chatId), t0 = Date.now();
+          if (!isNest(chatId) && peer && !usersCache[peer]) watchUser(peer);
+          for (let phase = null, since = t0; ;) {
+              const g = e2eGate(chatId); // e2ePeerState сам запускает проверку ключа, как только профиль загрузился
+              if (g.ok && (g.mode === "e2e" || g.mode === "plain")) {
+                  if (g.confirmed && g.reason === "peer-lost" && !peek) { // «пропал» — согласие на одно сообщение
+                      e2ePlainOk.delete(chatId);
+                      if (chatId === currentChatId) applyBlockState(); // плашка «Следующее сообщение уйдёт без шифрования» — уже неправда
+                  }
+                  return g.mode;
+              }
+              if (!g.ok) throw e2eErr(g.reason);
+              if (g.reason !== phase) { phase = g.reason; since = Date.now(); }
+              const chk = peer && e2ePeerChk.get(peer);
+              const winEnd = phase === "loading" ? (E2E.idb && e2eAccUnconfirmed() ? e2eBootAt + E2E_SRV_WAIT : 0)
+                  : phase === "wait" && chk && chk.status !== "pending" ? (chk.at || 0) + E2E_SRV_WAIT : 0;
+              const lim = Math.max(phase === "loading" ? 3000 : 6000, winEnd + 300 - since);
+              if (Date.now() - since >= lim || Date.now() - t0 > E2E_SRV_WAIT + 500) throw e2eErr(phase === "wait" ? "peer" : "wait");
+              await e2eSleep(150);
+          }
+      }
+      async function e2eChatKeysFor(chatId) { // для шифрования: свой текущий ключ + текущий проверенный ключ собеседника (в Гнезде — свой)
+          const lib = E2E.lib, me = E2E.me;
+          if (!lib || !me || e2eState !== "ready") throw e2eErr(["unlinked", "stale", "lost", "broken", "unsupported"].includes(e2eState) ? e2eState : "wait");
+          if (!E2E.acc || E2E.acc.kid !== me.kid) throw e2eErr("wait"); // профиль уже на другом ключе, а пересчёт состояния ещё идёт — ушедшим ключом не шифруем
+          let pk, rk;
+          if (isNest(chatId)) { pk = me.pub; rk = me.kid; }
+          else { const k = e2ePeerKeys.get(e2ePeer(chatId)); if (!k) throw e2eErr("peer"); pk = k.pk; rk = k.kid; }
+          return { keys: await lib.chatKeys(me.priv, pk, chatId, me.kid, rk), sk: me.kid, rk };
+      }
+      function e2eMyKey(kid) { const m = E2E.me; if (m && m.kid === kid && m.priv) return m; const o = E2E.old.get(kid); return o && o.priv ? o : null; }
+      // Не текущий ключ собеседника (прежний «cur», prev-pin, prev-nopin) годится только для переписки ДО его смены: «мой» ключ этого
+      // сообщения — прежний (old:*) или текущий, но появился раньше, чем у собеседника текущий (users.e2e.t), и сообщение собеседника
+      // написано не позже смены (+15 мин). Иначе подложенный в prev (или утёкший прежний) ключ читал бы новые «его» сообщения как настоящие
+      function e2eOldPeerOk(peer, ctx) {
+          if (!ctx || typeof ctx.mine !== "string") return false;
+          if (E2E.old.has(ctx.mine) && !(E2E.me && E2E.me.kid === ctx.mine)) return true;
+          const raw = usersCache[peer] && usersCache[peer].e2e;
+          const srvT = raw && raw.t && typeof raw.t.toMillis === "function" ? raw.t.toMillis() : 0;
+          // время смены ключа собеседника: users.e2e.t, но не позже, чем было при смене, которую видело это устройство (pin.changedAt —
+          // t нового ключа на тот момент): t сервер может потом сдвинуть вперёд, не меняя ключ. Ключа в профиле нет («пропал») — только changedAt
+          const pp = E2E.pins.get(peer), locT = (pp && pp.changedAt) || 0;
+          const peerT = srvT && locT ? Math.min(srvT, locT) : srvT || locT;
+          // время своего ключа — из сейфа (me.vt: keyvault.t, его пишут только создание/смена; есть у подключённых устройств) или из
+          // своего pin (kt: users.e2e.t, когда этот ключ появился): ремонт профиля (e2eRepair) ставит в users.e2e.t время ремонта,
+          // и вся переписка до смены ключа собеседника стала бы «старым ключом»
+          const sp = currentUser && E2E.pins.get(currentUser.uid), me = E2E.me;
+          const myT = me && me.kid === ctx.mine && me.vt ? me.vt : sp && sp.kid === ctx.mine && sp.kt ? sp.kt : E2E.acc && E2E.acc.kid === ctx.mine ? E2E.acc.t : 0;
+          if (!peerT || !myT || myT >= peerT) return false;
+          return !(ctx.author === peer && ctx.ts && ctx.ts > peerT + 15 * 60000);
+      }
+      async function e2ePeerPub(chatId, kid, ctx) { // публичный ключ второй стороны — ТОЛЬКО у e2ePeer(chatId) (§4.2 п.5), не по автору сообщения
+          if (isNest(chatId)) { const k = e2eMyKey(kid); return k ? k.pub : null; }
+          const peer = e2ePeer(chatId); if (!peer) return null;
+          const cur = e2ePeerKeys.get(peer); if (cur && cur.kid === kid) return cur.pk;
+          const rec = E2E.peers.get(peer + "|" + kid), recOk = !!rec && !!rec.pk && rec.uid === peer && E2E_PEER_SRC.has(rec.src);
+          // действующего ключа у собеседника сейчас нет (стёрт/битый — «пропал»; проверка закончена): переписка с ЗАКРЕПЛЁННЫМ ключом
+          // (тем, что пропал из профиля) читается без сверки времени. Более старые его ключи (pin.prevH, прежние «cur») — только по
+          // правилу времени ниже (время смены — pin.changedAt): иначе утёкший давно сменённый ключ снова читался бы как настоящий
+          const chk = e2ePeerChk.get(peer), pin = E2E.pins.get(peer);
+          if (!cur && recOk && (rec.src === "cur" || rec.src === "prev-pin") && pin && rec.h === pin.h && chk && (chk.status === "none" || chk.status === "bad")) return rec.pk;
+          if (!e2eOldPeerOk(peer, ctx)) return null;
+          if (recOk) return rec.pk;
+          // users.e2e.prev — только с той же сверкой с закреплением, что в e2eCheckPeer (иначе подложенный сервером ключ читался бы как настоящий)
+          const raw = usersCache[peer] && usersCache[peer].e2e, p = raw && Array.isArray(raw.prev) && raw.prev.slice(0, 3).find((x) => x && x.kid === kid);
+          if (p && E2E.lib) { const g = await e2eValidPub(E2E.lib, p.kid, p.pk), src = g && e2ePrevSrc(peer, g); if (src) { e2eRememberPeer(peer, g, src); return g.pk; } }
+          return null;
+      }
+      async function e2eKeysForMsg(chatId, authorUid, sk, rk, ts) { // для расшифровки: sk — kid автора, rk — kid получателя, ts — время сообщения
+          const lib = E2E.lib; if (!lib || !currentUser) throw e2eFail("nokey");
+          const mine = authorUid === currentUser.uid ? sk : rk, theirs = authorUid === currentUser.uid ? rk : sk;
+          const my = e2eMyKey(mine); if (!my) throw e2eFail(E2E.me || E2E.old.size ? "oldkey" : "nokey");
+          const pk = await e2ePeerPub(chatId, theirs, { mine, author: authorUid, ts: ts || 0 }); if (!pk) throw e2eFail("nopeer");
+          return lib.chatKeys(my.priv, pk, chatId, mine, theirs);
+      }
+      function e2eShowBar(chatId, reason) { e2eBarNote = reason ? { chatId, reason } : null; if (chatId === currentChatId) applyBlockState(); }
+
+      // ----- Плашка в чате (#e2e-bar) — из applyBlockState; поле ввода не прячет -----
+      function e2ePaintBar(blocked) {
+          paintE2EHeader(); // Т7: замок в шапке — вместе с плашкой (тот же гейт: «Без шифрования», закрепления, «Понятно»)
+          const bar = e2eEl("e2e-bar"); if (!bar) return;
+          const chatId = currentChatId, on = !!currentUser && !blocked && isE2EChat(chatId);
+          const g = on ? e2eGate(chatId) : null, closed = !!g && !g.ok;
+          const mic = e2eEl("voice-btn"), clip = e2eEl("attach-btn"), poll = document.querySelector('#attach-menu [data-attach="poll"]');
+          if (mic) mic.disabled = closed; if (clip) clip.disabled = closed; // голос и фото — после подключения или «Без шифрования»
+          if (poll) poll.style.display = g && g.mode !== "plain" ? "none" : ""; // опросы в зашифрованных личках — в v1.1 (§0.7)
+          let txt = "", sub = "", ico = "lock", warn = false, acts = [];
+          if (on) {
+              const peer = e2ePeer(chatId), name = (peer && usersCache[peer] && usersCache[peer].name) || t("Собеседник");
+              const note = e2eBarNote && e2eBarNote.chatId === chatId ? e2eBarNote.reason : null;
+              const plainBtn = [t("Без шифрования"), "plain"];
+              if (closed) {
+                  warn = true; ico = "lockOpen";
+                  if (g.reason === "unlinked" || g.reason === "stale") { txt = t("Подключите это устройство, чтобы писать в зашифрованный чат"); acts = [[t("Подключить"), "link", 1], plainBtn]; }
+                  else if (g.reason === "lost") { txt = t("Ключ шифрования пропал из профиля"); acts = [[t("Подключить"), "status", 1], plainBtn]; }
+                  else if (g.reason === "broken") { txt = t("Этот браузер сейчас не может шифровать"); acts = [E2E.broken ? [t("Повторить"), "retry", 1] : [t("Подключить"), "link", 1], plainBtn]; }
+                  else if (g.reason === "unsupported") { txt = t("Шифрование недоступно в этом браузере"); acts = [plainBtn]; }
+                  else if (g.reason === "unconfirmed") { txt = t("Нет связи с сервером: не удалось проверить, включено ли шифрование"); acts = [plainBtn]; }
+                  else { txt = t("{name}: шифрование пропало — возможно, вмешательство сервера", { name }); acts = [[t("Подробнее"), "info"], plainBtn]; }
+              } else if (g.confirmed) { // «Без шифрования» подтверждено — видно всё время, пока действует, и его можно отменить (§11 В2)
+                  warn = true; ico = "lockOpen";
+                  txt = g.reason === "peer-lost" ? t("Следующее сообщение уйдёт без шифрования") : t("В этом чате сообщения уходят без шифрования");
+                  acts = [[t("Не писать без шифрования"), "plain-off", 1]];
+              } else if (note === "peer" || note === "wait") {
+                  warn = true; ico = "alert";
+                  txt = note === "peer" ? t("Не удалось проверить ключ собеседника. Попробуйте ещё раз") : t("Сообщение не отправлено. Попробуйте ещё раз");
+                  acts = [[t("Повторить"), "recheck", 1]];
+              } else if (g.mode === "wait") { // ждём не всегда собеседника: свои ключи ещё читаются или идёт своя смена ключа
+                  if (g.reason === "self") txt = t("Включаем шифрование…");
+                  else if (g.reason === "loading") txt = isNest(chatId) || !(e2ePilotOk() || E2E.acc) ? "" : t("Загружаем ключи шифрования…");
+                  else txt = t("Проверяем ключ собеседника…");
+              }
+              else if (g.mode === "e2e" && !isNest(chatId) && e2ePeerState(peer) === "changed") {
+                  ico = ""; txt = t("🔑 {name} заново включил(а) шифрование", { name });
+                  sub = t("Так бывает, если потерян Совиный ключ. Если не уверены, что это действительно {name}, — сверьте Отпечаток совы при встрече или по звонку.", { name });
+                  acts = [[t("Сверить"), "verify"], [t("Понятно"), "ack-peer", 1]];
+              }
+              if (e2eHeld && e2eHeld.chatId === chatId) { // Т5: голос/фото ждут — «Повторить отправку»
+                  if (!txt) { txt = t("Сообщение не отправлено. Попробуйте ещё раз"); ico = "alert"; warn = true; }
+                  acts.push([t("Повторить отправку"), "resend", 1]);
+              }
+          }
+          bar.classList.toggle("on", !!txt); bar.classList.toggle("warn", warn);
+          const key = [txt, sub, ico, acts.map((a) => a[1]).join(",")].join("|");
+          if (bar._k === key) return;
+          bar._k = key;
+          e2eEl("e2e-bar-ico").innerHTML = ico ? icon(ico, 18) : "";
+          e2eEl("e2e-bar-text").innerHTML = iconizeEmoji(escapeHTML(txt));
+          e2eEl("e2e-bar-sub").textContent = sub;
+          e2eEl("e2e-bar-acts").innerHTML = acts.map(([label, act, main]) => `<button type="button" data-e2e-bar="${act}"${main ? ' class="eb-main"' : ""}>${escapeHTML(label)}</button>`).join("");
+      }
+      e2eEl("e2e-bar").addEventListener("click", async (e) => {
+          const b = e.target.closest("[data-e2e-bar]"); if (!b || !currentUser) return;
+          const act = b.getAttribute("data-e2e-bar"), chatId = currentChatId, peer = e2ePeer(chatId);
+          if (act === "link") e2eOpen(e2eState === "stale" ? "stale" : "link");
+          else if (act === "status") e2eOpen("status");
+          else if (act === "retry") e2eRetry();
+          else if (act === "plain") {
+              const g = e2eGate(chatId); if (g.ok) { applyBlockState(); return; } // пока думали, гейт открылся
+              const once = g.reason === "peer-lost"; // возможное вмешательство сервера — согласие только на одно сообщение
+              if (!confirm(once ? t("Отправить без шифрования? Сообщение сможет прочитать сервер.") : t("Писать в этот чат без шифрования до перезапуска Owl? Сервер сможет прочитать новые сообщения."))) return;
+              if (e2eGate(chatId).reason !== g.reason) { applyBlockState(); return; } // причина сменилась, пока было открыто окно
+              e2ePlainOk.set(chatId, g.reason); if (e2eBarNote && e2eBarNote.chatId === chatId) e2eBarNote = null;
+              applyBlockState();
+              if (e2eHeld && e2eHeld.chatId === chatId && typeof e2eResendHeld === "function") e2eResendHeld();
+          }
+          else if (act === "plain-off") { e2ePlainOk.delete(chatId); applyBlockState(); }
+          else if (act === "info") e2eOpenFp(peer, "info");
+          else if (act === "verify") e2eOpenFp(peer, "fp");
+          else if (act === "ack-peer") {
+              const pin = E2E.pins.get(peer), k = e2ePeerKeys.get(peer);
+              if (pin) await e2eSavePin(peer, { ...pin, ...(k ? { h: k.h, kid: k.kid } : {}), ack: true });
+              applyBlockState(); if (typeof paintE2EHeader === "function") paintE2EHeader();
+              if (typeof repaintOpenChat === "function" && isE2EChat(currentChatId)) repaintOpenChat(); // ⚠ с переписки до смены — убрать
+          }
+          else if (act === "recheck") { e2eBarNote = null; if (peer && peer !== currentUser.uid) { e2ePeerChk.delete(peer); if (usersCache[peer]) e2eSeePeer(peer, usersCache[peer].e2e); else watchUser(peer); } if (E2E.broken) e2eRetry(); applyBlockState(); }
+          else if (act === "resend") { if (typeof e2eResendHeld === "function") e2eResendHeld(); }
+      });
+
+      // ----- Окно «Сквозное шифрование» (#e2e-screen) -----
+      let e2eMode = null, e2eOpts = {};
+      function e2eAnyModalOpen() { return [...document.querySelectorAll(".modal-screen")].some((el) => el.style.display === "flex"); }
+      function e2eOpen(mode, opts = {}) {
+          if (!currentUser) return;
+          stopQrScan(); e2eClearSecrets();
+          if (e2eMode === "welcome" && mode !== "welcome") e2eWelcomeDone();
+          e2eMode = mode; e2eOpts = opts;
+          if (mode === "link" || mode === "stale" || mode === "welcome") E2E.shown[mode] = true;
+          const scr = e2eEl("e2e-screen");
+          scr.querySelectorAll("[data-e2e-mode]").forEach((el) => { el.hidden = el.getAttribute("data-e2e-mode") !== mode; });
+          if (mode === "status") e2eFillStatus();
+          else if (mode === "key") e2eFillKey();
+          else if (mode === "reset") { const ask = !opts.confirm; e2eEl("e2e-reset-ask").hidden = !ask; e2eEl("e2e-reset-confirm").hidden = ask; e2eEl("e2e-reset-go").disabled = false; }
+          else if (mode === "stale") e2eEl("e2e-stale-steps").hidden = true;
+          else if (mode === "old") { e2eEl("e2e-old-err").textContent = ""; e2eEl("e2e-old-go").disabled = false; }
+          scr.style.display = "flex";
+          const box = scr.querySelector(".modal-box"); if (box) box.scrollTop = 0;
+          if (mode === "link") e2eFillLink(); // камера — после показа окна
+          if (mode === "old") setTimeout(() => { if (e2eMode === "old") e2eEl("e2e-old-input").focus(); }, 60);
+      }
+      function e2eClose() {
+          stopQrScan(); e2eClearSecrets();
+          if (e2eMode === "welcome") e2eWelcomeDone();
+          const scr = e2eEl("e2e-screen"); if (scr.style.display !== "none") scr.style.display = "none";
+          e2eMode = null; e2eOpts = {}; e2eLastSecret = null;
+          if (e2eLogoutWait) { const r = e2eLogoutWait; e2eLogoutWait = null; r(false); } // закрыли окно перед выходом — не выходим
+          e2eRenderDot(); e2eRenderSettings();
+      }
+      function e2eClearSecrets() { // Совиный ключ не оставляем в разметке закрытого окна
+          e2eEl("e2e-key-text").textContent = ""; e2eEl("e2e-qr").innerHTML = ""; e2eEl("e2e-qr-wrap").hidden = true;
+          e2eEl("e2e-key-input").value = ""; e2eEl("e2e-ack-input").value = ""; e2eEl("e2e-old-input").value = "";
+      }
+      function e2eStatusText() {
+          if (!E2E_SEND) return t("Шифрование временно выключено");
+          switch (e2eState) {
+              case "ready": return t("Новые личные сообщения шифруются на этом устройстве");
+              case "unlinked": return t("Это устройство не подключено к шифрованию");
+              case "stale": return t("Шифрование на вашем аккаунте включили заново на другом устройстве");
+              case "lost": return t("Ключ шифрования пропал из профиля");
+              case "broken": return t("Этот браузер сейчас не может шифровать");
+              case "unsupported": return t("Шифрование недоступно в этом браузере");
+              case "creating": return t("Включаем шифрование…");
+              case "nokey": return E2E.createFailed ? t("Не удалось включить шифрование") : (isIOS() && !isStandalone()) ? t("Шифрование включится в приложении с экрана «Домой»") : t("Шифрование ещё не включено");
+              default: return "…";
+          }
+      }
+      function e2eSafariWarn() { // ключ может стереться: вкладка Safari / Safari на Mac вне Dock (показываем всегда, независимо от persisted())
+          if (isStandalone()) return "";
+          if (isIOS()) return t("Браузер может стереть ключ, если долго не открывать Owl. Установите Owl на экран «Домой» или сохраните Совиный ключ");
+          const ua = navigator.userAgent;
+          if (/Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS/.test(ua)) return t("Safari может стереть ключ, если долго не открывать Owl. Добавьте Owl в Dock или сохраните Совиный ключ");
+          return "";
+      }
+      function e2eFillStatus() {
+          const s = e2eState, hasSecret = !!(E2E.me && E2E.me.secret), canChange = E2E_SEND && E2E_ESCROW_OK && !!E2E.lib && !E2E.busy;
+          const show = (act, on) => e2eEl("e2e-screen").querySelectorAll(`[data-e2e-mode="status"] [data-e2e-act="${act}"]`).forEach((b) => { b.hidden = !on; });
+          e2eEl("e2e-st-hero").className = "e2e-hero" + (s === "ready" ? " ok" : ["unlinked", "stale", "lost", "broken", "unsupported"].includes(s) ? " warn" : "");
+          e2eEl("e2e-st-text").textContent = e2eStatusText();
+          show("link", ["unlinked", "stale"].includes(s) || (s === "broken" && !E2E.broken)); // ключ на устройстве не работает — подключить заново
+          show("link-vault", s === "lost" && !E2E.me);
+          show("enable-here", s === "nokey" && E2E_SEND && e2ePilotOk() && !E2E.createFailed && !E2E.busy && (!navigator.locks || (isIOS() && !isStandalone())));
+          show("retry", s === "broken" && !!E2E.broken);
+          show("show-key", s === "ready" && hasSecret);
+          show("link-other", s === "ready" && hasSecret);
+          show("old", ["ready", "unlinked", "stale"].includes(s) && !!E2E.lib && !!(E2E.acc && E2E.acc.prev.length)); // ключ аккаунта уже меняли — прежний Совиный ключ — открыть историю до «заново» на этом устройстве (§3.4 «Это старый Совиный ключ?»)
+          show("reset", canChange && ["ready", "unlinked", "stale", "lost"].includes(s));
+          e2eEl("e2e-st-reset-hint").hidden = !(canChange && s === "ready");
+          const sw = e2eEl("e2e-st-safari"), warn = e2eSafariWarn();
+          sw.hidden = !warn; sw.textContent = warn;
+      }
+      const e2eKeyRec = () => e2eOpts.rec || E2E.me; // какой ключ показывает окно: обычно свой; перед выходом во время создания — черновик
+      function e2eFillKey() {
+          const me = e2eKeyRec(), lib = E2E.lib, kt = e2eEl("e2e-key-text"), logout = !!e2eOpts.logout, wait = !!e2eOpts.wait;
+          e2eEl("e2e-logout-note").hidden = !logout; e2eEl("e2e-logout-btn").hidden = !logout;
+          kt.classList.toggle("wait", wait);
+          kt.textContent = !me || !me.secret || !lib ? "" : wait ? "…" : lib.formatSecret(me.secret);
+          const acked = !!(me && me.savedAck);
+          e2eEl("e2e-ack").hidden = acked || wait || !!e2eOpts.rec; e2eEl("e2e-ack-err").textContent = "";
+          e2eEl("e2e-ack-done").hidden = !acked; e2eEl("e2e-ack-done").textContent = acked ? "✓ " + t("Я сохранил(а) ключ") : "";
+          e2eEl("e2e-qr-btn").disabled = wait;
+      }
+      async function e2eShowKey() { // §3.5: сначала сверка с сейфом (1 чтение): ключ сменили на другом устройстве — показывать нечего
+          const me = E2E.me;
+          if (e2eState !== "ready" || !me || !me.secret || !E2E.lib) return;
+          e2eOpen("key", { wait: true });
+          let v = null, offline = false;
+          // с сервера, не из кэша: устаревшая копия сейфа в кэше дала бы ложное «сменили» и стёрла бы Совиный ключ. Нет связи (или сервер
+          // молчит 5 с) — ключ всё равно показываем: он лежит на устройстве, а сверка нужна только для «сменили» (без неё ничего не стираем)
+          try {
+              const rd = getDocFromServer(doc(db, "keyvault", E2E.uid)); rd.catch(() => {});
+              const snap = await Promise.race([rd, e2eSleep(5000).then(() => { throw e2eFail("unavailable"); })]);
+              countReads("keyvault/{id}", 1); v = snap.exists() ? snap.data() : null;
+          } catch (e) {
+              if (e && e.code === "unavailable") offline = true;
+              else { if (e2eMode === "key") e2eEl("e2e-key-text").textContent = t("Ошибка: {error}", { error: (e && (e.code || e.message)) || "?" }); return; }
+          }
+          if (!E2E.me || E2E.me.kid !== me.kid) { if (e2eMode === "key") e2eOpen("status"); return; } // пока читали, ключ на устройстве сменился (соседняя вкладка)
+          if (!offline && v && v.kid !== me.kid) { E2E.shown.stale = true; await e2eRetireMe(true, me.kid); await e2eRecompute(); e2eOpen("stale"); return; }
+          if (v && v.gen !== me.gen && Number.isInteger(v.gen)) await e2ePatchMe(me.kid, { gen: v.gen }); // тот же ключ (kid) — уточняем номер
+          if (e2eMode !== "key" || !E2E.me || E2E.me.kid !== me.kid) return; // окно закрыли, пока читали (сверка по kid: объект мог перечитаться)
+          e2eOpts = { ...e2eOpts, wait: false }; e2eFillKey();
+      }
+      async function e2ePatchMe(kid, patch) { // поправить keys/me под замком — только если там всё ещё этот ключ (соседняя вкладка могла сменить)
+          const lib = E2E.lib; if (!lib) return;
+          await e2eLocked(async () => {
+              if (E2E.wiped) return;
+              const cur = await lib.db.get("keys", "me");
+              if (!cur || cur.kid !== kid || cur.uid !== E2E.uid) return;
+              await lib.db.put("keys", "me", { ...cur, ...patch });
+          }).catch((e) => console.log("E2E: запись ключа:", e && (e.name || e.message)));
+          if (E2E.me && E2E.me.kid === kid && !E2E.wiped) Object.assign(E2E.me, patch);
+      }
+      async function e2eCopyKey() {
+          const me = e2eKeyRec(); if (!me || !me.secret || !E2E.lib || e2eOpts.wait) return;
+          const s = E2E.lib.formatSecret(me.secret);
+          try { await navigator.clipboard.writeText(s); showToast(t("Ключ скопирован"), "check"); } catch (_) { prompt(t("Скопируйте текст:"), s); }
+      }
+      async function e2eShowQr() { // QR — только по отдельной кнопке, буквенно-цифровой режим, белая рамка; не ссылка (§2.9)
+          const me = e2eKeyRec(); if (!me || !me.secret || !E2E.lib || e2eOpts.wait) return;
+          const box = e2eEl("e2e-qr");
+          try { await loadScript("lib-qrcode.js"); if (e2eMode !== "key") return; box.innerHTML = plainQrSvg("OWLKEY1:" + E2E.lib.formatSecret(me.secret).replace(/-/g, ""), "Alphanumeric"); }
+          catch (_) { box.innerHTML = `<div class="dev-empty">${escapeHTML(t("Не удалось нарисовать код. Проверьте интернет"))}</div>`; }
+          e2eEl("e2e-qr-wrap").hidden = false;
+      }
+      async function e2eAck() { // «Я сохранил(а) ключ» — только после ввода последней группы (4 знака)
+          const me = E2E.me, lib = E2E.lib; if (!me || !me.secret || !lib) return;
+          const last = lib.formatSecret(me.secret).slice(-4);
+          const got = e2eEl("e2e-ack-input").value.toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
+          if (got !== last) { e2eEl("e2e-ack-err").textContent = t("Не совпадает — проверьте, что ключ сохранён"); return; }
+          await e2ePatchMe(me.kid, { savedAck: true }); me.savedAck = true;
+          e2ePersist(true); e2eBroadcast("changed");
+          e2eFillKey(); e2eRenderDot(); e2eRenderSettings();
+      }
+      function e2eWelcomeDone() { // окно «Шифрование включено ✓» показано — дальше только точка-напоминание до «Я сохранил(а) ключ»
+          const me = E2E.me; if (!me || E2E.welcomeKid === me.kid) return;
+          E2E.welcomeKid = me.kid;
+          if (E2E.lib && E2E.idb && !E2E.wiped) E2E.lib.db.put("prefs", "welcome", { kid: me.kid }).catch(() => {});
+          e2eRenderDot();
+      }
+      // Подключение устройства (§3.4): QR с другого устройства (только OWLKEY1:) или Совиный ключ вручную
+      function e2eFillLink() {
+          e2eEl("e2e-link-err").textContent = ""; e2eEl("e2e-old-btn").hidden = true; e2eEl("e2e-link-go").disabled = false; e2eLastSecret = null;
+          e2eLinkTab("scan");
+      }
+      function e2eLinkTab(tab) {
+          e2eEl("e2e-link-tabs").querySelectorAll(".tab").forEach((el) => { const on = el.getAttribute("data-e2e-lt") === tab; el.classList.toggle("active", on); el.setAttribute("aria-selected", on ? "true" : "false"); });
+          e2eEl("e2e-link-tabs").classList.toggle("second", tab === "type");
+          e2eEl("e2e-link-scan").hidden = tab !== "scan"; e2eEl("e2e-link-type").hidden = tab !== "type";
+          if (tab !== "scan") { stopQrScan(); setTimeout(() => { if (e2eMode === "link") e2eEl("e2e-key-input").focus(); }, 60); return; }
+          const noCam = t("Камера недоступна — введите ключ вручную");
+          startQrScan({
+              video: e2eEl("e2e-video"), hint: e2eEl("e2e-scan-hint"), frame: e2eEl("e2e-frame"), onText: e2eQrText,
+              texts: { ready: t("Наведите камеру этого устройства на QR-код в Owl на другом вашем устройстве (Настройки → Безопасность → Сквозное шифрование → Подключить другое устройство)"),
+                  wrong: t("Это не Совиный ключ"), noApi: noCam, denied: noCam, fail: noCam, lib: t("Не удалось загрузить сканер. Проверьте интернет") },
+              onNoCamera: () => { if (e2eMode !== "link") return; e2eLinkTab("type"); e2eEl("e2e-link-err").textContent = noCam; } // без камеры — сразу ввод (никогда «обычной камерой»)
+          });
+      }
+      function e2eQrText(text) {
+          const s = String(text).trim();
+          if (!/^OWLKEY1:[0-9A-Z]{28}$/i.test(s)) return false;
+          e2eEl("e2e-frame").classList.add("hit"); try { navigator.vibrate && navigator.vibrate(30); } catch (_) {}
+          stopQrScan();
+          e2eLinkWithText(s).then((ok) => { if (!ok && e2eMode === "link") e2eLinkTab("type"); });
+          return true;
+      }
+      async function e2eLinkWithText(text) {
+          const lib = E2E.lib, err = e2eEl("e2e-link-err"), go = e2eEl("e2e-link-go");
+          if (!lib) { err.textContent = t("Этот браузер сейчас не может шифровать"); return false; }
+          let secret;
+          try { secret = lib.parseSecret(text); } // формат и опечатка — до чтения базы
+          catch (e) { err.textContent = e && e.code === "checksum" ? t("В ключе опечатка — проверьте группы символов") : t("Это не Совиный ключ"); return false; }
+          err.textContent = ""; e2eEl("e2e-old-btn").hidden = true; go.disabled = true;
+          try {
+              const res = await e2eLink(secret);
+              if (res === "ok") {
+                  e2eLastSecret = null; showToast(t("Устройство подключено ✓"), "check");
+                  if (e2eMode === "link") e2eOpen("status");
+                  return true;
+              }
+              e2eLastSecret = secret; // для «Это старый Совиный ключ?»
+              err.textContent = t("Ключ не подошёл — возможно, ключ меняли на другом устройстве. Посмотрите актуальный там: Настройки → Безопасность → Сквозное шифрование");
+              e2eEl("e2e-old-btn").hidden = false;
+          } catch (e) {
+              console.log("E2E: подключение:", e);
+              err.textContent = e && e.code === "selftest" ? t("Этот браузер сейчас не может шифровать") : e && e.code === "unavailable" ? t("Нет соединения с интернетом") : t("Ошибка: {error}", { error: (e && (e.code || e.message)) || "?" });
+          } finally { go.disabled = false; }
+          return false;
+      }
+      async function e2eLink(secret) { // → "ok" | "badkey"; сбой сети/хранилища — бросает
+          const lib = E2E.lib, uid = E2E.uid;
+          const r = await e2eLocked(async () => {
+              const snap = await getDoc(doc(db, "keyvault", uid)); // 1 чтение
+              if (!snap.exists()) return "badkey";
+              const v = snap.data(); E2E.vaultExists = true;
+              let jwk;
+              try { jwk = await lib.openVault({ iv: v.iv, ct: v.ct }, secret, uid, v.kid); } catch (_) { return "badkey"; }
+              const pubRaw = lib.pubFromJwk(jwk), kid = await lib.kidOf(pubRaw), pub = lib.b64u(pubRaw), acc = E2E.acc;
+              if (kid !== v.kid || (acc && (acc.kid !== kid || acc.pk !== pub))) return "badkey"; // в «lost» (ключа в профиле нет) — сверка только с сейфом
+              const priv = await lib.importPriv(jwk);
+              if (!(await lib.selfTest(priv, pubRaw))) throw e2eFail("selftest");
+              // vt — время ключа из сейфа (keyvault.t пишут только создание/смена; ремонт профиля его не трогает) — для e2eOldPeerOk
+              const vt = v.t && typeof v.t.toMillis === "function" ? v.t.toMillis() : 0;
+              const rec = { uid, kid, pub, priv, gen: v.gen, secret, vault: { iv: v.iv, ct: v.ct, kid: v.kid, gen: v.gen }, savedAck: true, at: Date.now(), ...(vt ? { vt } : {}) };
+              if (E2E.wiped) throw e2eFail("wiped"); // вышли, пока читали сейф, — ключ на устройство не кладём (§3.8)
+              const prevMe = E2E.me && E2E.me.kid !== kid ? E2E.me : null;
+              if (prevMe) { const o = { uid, kid: prevMe.kid, pub: prevMe.pub, priv: prevMe.priv }; await lib.db.put("keys", "old:" + o.kid, o); E2E.old.set(o.kid, o); }
+              await lib.db.put("keys", "me", rec);
+              E2E.me = rec; E2E.meBad = false; E2E.selfOk = true; E2E.staleFrom = null; e2eIdbGen++;
+              // черновики, которые теперь точно не станут ключом (этот же ключ; gen 1 при другом ключе в профиле), — убрать: иначе
+              // при следующем запуске они снова дали бы «creating» (чужое незавершённое «заново» не трогаем — его повысит/разберёт сервер)
+              for (const r of [...E2E.pend.values()]) if (e2eDeadPend(r)) { await lib.db.del("keys", "pending:" + r.kid).catch(() => {}); E2E.pend.delete(r.kid); }
+              return { rec, republish: !acc };
+          });
+          if (r === "badkey") return r;
+          if (r.republish && E2E_SEND) { // «lost»: ключа в профиле нет — переопубликовать из сейфа (правила сверяют kid с сейфом)
+              try { await updateDoc(doc(db, "users", uid), { e2e: { v: 1, pk: r.rec.pub, kid: r.rec.kid, t: serverTimestamp() } }); }
+              catch (e) { console.log("E2E: ключ в профиль:", e.code || e); }
+          }
+          e2ePersist(true); e2eBroadcast("changed"); e2eEpoch++;
+          await e2eRecompute();
+          return "ok";
+      }
+      // «Это старый Совиный ключ?» (после неудачного подключения) и «Ввести прежний Совиный ключ» (подключённое устройство, окно old):
+      // история сейфов (N чтений) → old:{kid}; состояние устройства не меняется
+      async function e2eTryOldKey(oldMode) {
+          const secret = e2eLastSecret, lib = E2E.lib, uid = E2E.uid;
+          const err = e2eEl(oldMode ? "e2e-old-err" : "e2e-link-err"), btn = e2eEl(oldMode ? "e2e-old-go" : "e2e-old-btn");
+          if (!secret || !lib) return;
+          btn.disabled = true;
+          let found = 0;
+          try {
+              await e2eLocked(async () => {
+                  const snap = await getDocs(collection(db, "keyvault", uid, "old"));
+                  for (const d of snap.docs) {
+                      const v = d.data(); if (!v || v.kid !== d.id) continue;
+                      try {
+                          const jwk = await lib.openVault({ iv: v.iv, ct: v.ct }, secret, uid, v.kid);
+                          const pubRaw = lib.pubFromJwk(jwk); if (await lib.kidOf(pubRaw) !== v.kid) continue;
+                          const priv = await lib.importPriv(jwk); if (!(await lib.selfTest(priv, pubRaw))) continue;
+                          const o = { uid, kid: v.kid, pub: lib.b64u(pubRaw), priv };
+                          if (E2E.wiped) return;
+                          await lib.db.put("keys", "old:" + o.kid, o); E2E.old.set(o.kid, o); e2eIdbGen++; found++;
+                      } catch (_) {}
+                  }
+              });
+          } catch (e) { err.textContent = t("Ошибка: {error}", { error: e.code || e.message }); btn.disabled = false; return; }
+          btn.disabled = false;
+          // устройство не подключено, а ввели ТЕКУЩИЙ Совиный ключ (кнопка «прежний» видна рядом с «Подключить») — не «не подошёл»,
+          // а подключить, как «Подключить это устройство» (1 чтение; e2eLink сам сверяет ключ с сейфом и профилем)
+          if (!found && oldMode && (e2eState === "unlinked" || e2eState === "stale")) {
+              btn.disabled = true;
+              try {
+                  if (await e2eLink(secret) === "ok") {
+                      e2eLastSecret = null; err.textContent = ""; showToast(t("Устройство подключено ✓"), "check");
+                      if (e2eMode === "old") e2eOpen("status");
+                      return;
+                  }
+              } catch (e) {
+                  console.log("E2E: подключение:", e);
+                  err.textContent = e && e.code === "selftest" ? t("Этот браузер сейчас не может шифровать") : e && e.code === "unavailable" ? t("Нет соединения с интернетом") : t("Ошибка: {error}", { error: (e && (e.code || e.message)) || "?" });
+                  return;
+              } finally { btn.disabled = false; }
+          }
+          if (!found) { err.textContent = oldMode ? t("Этот ключ не подошёл ни к одному прежнему ключу") : t("Ключ не подошёл — возможно, ключ меняли на другом устройстве. Посмотрите актуальный там: Настройки → Безопасность → Сквозное шифрование"); return; }
+          e2eLastSecret = null; err.textContent = ""; if (!oldMode) btn.hidden = true;
+          showToast(t("Старые сообщения снова читаются"), "check");
+          e2eEpoch++; e2eBroadcast("changed"); e2eRefreshUi();
+          if (oldMode && e2eMode === "old") e2eOpen("status");
+      }
+      function e2eOldWithText(text) { // окно «Прежний Совиный ключ»: формат и опечатка — до чтения базы
+          const lib = E2E.lib, err = e2eEl("e2e-old-err");
+          if (!lib) { err.textContent = t("Этот браузер сейчас не может шифровать"); return; }
+          try { e2eLastSecret = lib.parseSecret(text); }
+          catch (e) { e2eLastSecret = null; err.textContent = e && e.code === "checksum" ? t("В ключе опечатка — проверьте группы символов") : t("Это не Совиный ключ"); return; }
+          err.textContent = "";
+          e2eTryOldKey(true);
+      }
+      // «Включить шифрование заново» (§3.5): свежий вход → новая пара ключей и новый Совиный ключ; prev в профиле, прежний сейф — в историю
+      // Свежий вход (правила: auth_time не старше 10 мин по часам СЕРВЕРА). Возраст считаем по новому токену: выдан − вход, оба — время
+      // сервера, часы устройства не участвуют (отстают — пароль не спросили бы, а сервер отклонил бы пачку). maxMin — сколько ещё
+      // минут операции нужно уложиться (смена ключа — сразу, удаление аккаунта — после долгих шагов); force — спросить пароль всегда
+      async function e2eFreshLogin(maxMin = 8, force = false) {
+          if (!force) try { const r = await currentUser.getIdTokenResult(true); const at = Date.parse(r.authTime), iat = Date.parse(r.issuedAtTime); if (at && iat && iat - at < maxMin * 60000) return true; } catch (_) {}
+          const pw = prompt(t("Для этого введите пароль от аккаунта ещё раз:")); if (!pw) return false;
+          try { if (!(await reauthWithPassword(pw))) return false; }
+          catch (e) {
+              const c = e && e.code;
+              showToast(c === "auth/invalid-credential" || c === "auth/wrong-password" ? t("Неверный пароль") : c === "auth/network-request-failed" ? t("Нет соединения с интернетом") : t("Ошибка: {error}", { error: c || (e && e.message) || "?" }), "error");
+              return false;
+          }
+          try { await currentUser.getIdToken(true); } catch (_) {}
+          return true;
+      }
+      async function e2eReset(retry) {
+          if (!E2E_SEND || !E2E.lib || E2E.busy) return;
+          if (!e2eEscrowReady()) { showToast(t("Не удалось включить шифрование"), "error"); return; } // до пароля: новый ключ всё равно не создать
+          const btn = e2eEl("e2e-reset-go"); btn.disabled = true;
+          const lib = E2E.lib, uid = E2E.uid;
+          let job = null, again = false, freshAt = 0;
+          try {
+              if (!(await e2eFreshLogin(8, !!retry))) { if (retry) showToast(t("Не удалось включить шифрование"), "error"); return; } // повтор отменили — сказать, что не вышло
+              freshAt = Date.now(); // вход моложе 8 мин (часы сервера), правила дают 10
+              job = await e2eLocked(async () => {
+                  if (E2E.wiped) throw e2eFail("wiped");
+                  const vs = await getDoc(doc(db, "keyvault", uid)); // 1 чтение: gen и точная копия прежнего сейфа
+                  const oldV = vs.exists() ? vs.data() : null;
+                  const raw = usersCache[uid] && usersCache[uid].e2e, oldAcc = e2eParseAcc(raw);
+                  const id = await lib.generateIdentity(), secret = lib.newSecret(), sealed = await lib.sealVault(id.jwk, secret, uid, id.kid);
+                  const escrow = await lib.escrowSeal(id.jwk, uid, id.kid, E2E_ESCROW); // копия для запросов; не вышло — ни черновика, ни записи
+                  const gen = oldV && Number.isInteger(oldV.gen) ? oldV.gen + 1 : 1;
+                  const rec = { uid, kid: id.kid, pub: lib.b64u(id.pubRaw), priv: await lib.importPriv(id.jwk), gen, secret,
+                      vault: { iv: sealed.iv, ct: sealed.ct, kid: id.kid, gen }, escrow, savedAck: false, at: Date.now() };
+                  if (E2E.wiped) throw e2eFail("wiped");
+                  await lib.db.put("keys", "pending:" + rec.kid, rec);
+                  E2E.pend.set(rec.kid, rec); E2E.busy = { kid: rec.kid, gen: Math.max(gen, 2) }; e2eIdbGen++; // смена ключа: отправка ждёт (не открытым)
+                  const e2e = { v: 1, pk: rec.pub, kid: rec.kid, t: serverTimestamp() };
+                  if (oldAcc) e2e.prev = [{ kid: raw.kid, pk: raw.pk }, ...(Array.isArray(raw.prev) ? raw.prev : [])].slice(0, 3); // точно как сверяют правила
+                  const batch = writeBatch(db);
+                  batch.update(doc(db, "users", uid), { e2e });
+                  batch.set(doc(db, "keyvault", uid), { v: 1, kid: rec.kid, iv: sealed.iv, ct: sealed.ct, gen, t: serverTimestamp() });
+                  batch.set(doc(db, "escrow", uid + "_" + rec.kid), { ...rec.escrow, t: serverTimestamp() });
+                  if (oldV && typeof oldV.kid === "string") batch.set(doc(db, "keyvault", uid, "old", oldV.kid), oldV); // точная копия прежнего сейфа
+                  return { rec, commit: batch.commit() };
+              });
+              e2eBroadcast("changed"); // соседние вкладки видят черновик смены
+              e2eRecompute();
+              await job.commit;
+              E2E.welcomeKid = job.rec.kid; // новый ключ показываем сразу — окно «включено ✓» не нужно
+              if (lib && E2E.idb) lib.db.put("prefs", "welcome", { kid: job.rec.kid }).catch(() => {});
+              await e2ePromote(job.rec);
+              e2ePersist(false);
+              e2eOpen("key");
+          } catch (e) {
+              console.log("E2E: включить заново:", e && (e.code || e.message));
+              if (job && job.rec) { try { await lib.db.del("keys", "pending:" + job.rec.kid); } catch (_) {} E2E.pend.delete(job.rec.kid); e2eIdbGen++; e2eBroadcast("changed"); }
+              E2E.busy = null; e2eRecompute();
+              if (E2E.pend.size) e2eSettlePending();
+              // отказ правил из-за «вход не свежий» возможен, только если пачка шла дольше ~1,5 мин после проверки (офлайн-очередь,
+              // долгое ожидание замка): тогда один раз спросить пароль и повторить; иначе отказ не из-за входа — сразу сказать
+              if (E2E.wiped) { /* вышли из аккаунта — молча */ }
+              else if (e && e.code === "permission-denied" && !retry && job && Date.now() - freshAt > 90000) again = true;
+              else showToast(e && (e.code === "permission-denied" || e.code === "escrow") ? t("Не удалось включить шифрование") : e && e.code === "unavailable" ? t("Нет соединения с интернетом") : t("Ошибка: {error}", { error: (e && (e.code || e.message)) || "?" }), "error");
+          } finally { btn.disabled = false; }
+          if (again) return e2eReset(true);
+      }
+      function e2eEnableHere() { // «Включить здесь»: вкладка Safari на iPhone, браузер без navigator.locks
+          if (!E2E_SEND || E2E.createFailed) return;
+          E2E.wantHere = true;
+          if (!navigator.onLine) { showToast(t("Не удалось включить шифрование: нет связи. Попробуем снова позже"), "offline"); e2eWaitOnline(); return; }
+          E2E.createTried = false; e2eMaybeCreate();
+          if (e2eMode === "status") e2eFillStatus();
+      }
+      e2eEl("e2e-close").addEventListener("click", e2eClose);
+      // тап по затемнению закрывает окно, только если и нажатие, и отпускание — на самом затемнении (как ui.js): выделение ключа мышью
+      // с отпусканием за краем окна не стирает введённое и не отменяет выход
+      let e2eDownEl = null;
+      e2eEl("e2e-screen").addEventListener("pointerdown", (e) => { e2eDownEl = e.target; });
+      e2eEl("e2e-screen").addEventListener("click", (e) => {
+          if (e.target.id === "e2e-screen") { if (e2eDownEl === e.target) e2eClose(); return; }
+          const lt = e.target.closest("[data-e2e-lt]"); if (lt) { e2eLinkTab(lt.getAttribute("data-e2e-lt")); return; }
+          const b = e.target.closest("[data-e2e-act]"); if (!b || b.disabled) return;
+          switch (b.getAttribute("data-e2e-act")) {
+              case "link": case "link-vault": case "reset-have": e2eOpen("link"); break;
+              case "enable-here": e2eEnableHere(); break;
+              case "retry": e2eRetry(); break;
+              case "show-key": case "link-other": e2eShowKey(); break;
+              case "reset": e2eOpen("reset", { confirm: e2eState === "ready" }); break;
+              case "reset-notme": e2eOpen("reset", { confirm: true }); break; // «Это не я»: другого подключённого устройства нет — сразу подтверждение
+              case "reset-none": e2eEl("e2e-reset-ask").hidden = true; e2eEl("e2e-reset-confirm").hidden = false; break;
+              case "reset-go": e2eReset(); break;
+              case "status": e2eOpen("status"); break;
+              case "faq-escrow": { // «Подробнее» в окне «Шифрование включено ✓» — пункт «Может ли кто-то ещё прочитать переписку?»
+                  e2eOpen("status");
+                  const d = e2eEl("e2e-faq-escrow"); d.open = true;
+                  d.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+                  break;
+              }
+              case "later": e2eClose(); break;
+              case "copy-key": e2eCopyKey(); break;
+              case "show-qr": e2eShowQr(); break;
+              case "ack": e2eAck(); break;
+              case "logout-anyway": { const r = e2eLogoutWait; e2eLogoutWait = null; e2eClose(); if (r) r(true); break; }
+              case "link-submit": e2eLinkWithText(e2eEl("e2e-key-input").value); break;
+              case "old-key": e2eTryOldKey(); break;
+              case "old": e2eOpen("old"); break;
+              case "old-submit": e2eOldWithText(e2eEl("e2e-old-input").value); break;
+              case "stale-notme": e2eEl("e2e-stale-steps").hidden = false; break;
+          }
+      });
+      e2eEl("e2e-link-tabs").addEventListener("keydown", (e) => { // вкладки «Сканировать / Ввести ключ» — и с клавиатуры
+          const lt = e.target.closest("[data-e2e-lt]"); if (!lt || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault(); e2eLinkTab(lt.getAttribute("data-e2e-lt"));
+      });
+      e2eEl("e2e-key-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e2eLinkWithText(e2eEl("e2e-key-input").value); } });
+      e2eEl("e2e-old-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e2eOldWithText(e2eEl("e2e-old-input").value); } });
+      e2eEl("e2e-ack-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e2eAck(); } });
+      e2eEl("e2e-open").addEventListener("click", () => e2eOpen("status"));
+
+      // ----- Значки и отпечаток (Т7, §7.2, §2.10): замок в шапке, «Отпечаток совы» и пояснение (#e2e-fp-screen),
+      //       кнопка в профиле собеседника, строка «Совиного взгляда» -----
+      const e2eName = (uid) => (uid && usersCache[uid] && usersCache[uid].name) || t("Собеседник");
+      const e2eDmId = (uid) => currentUser.uid < uid ? currentUser.uid + "_" + uid : uid + "_" + currentUser.uid;
+      // Замок открытого чата (§7.2): "on" 🔒 зашифровано (гейт даёт e2e) · "changed" 🔑⚠ собеседник заново включил(а) шифрование
+      // (до «Понятно») · "bad" ⚠🔓 гейт закрыт, отправка «Без шифрования» или собеседник «пропал» · "off" аварийная сборка ·
+      // null — без значка: у собеседника (или у меня) ещё нет шифрования — обычный переходный период; ключ ещё проверяем — тоже
+      // без значка (не обещаем шифрование, пока не уверены, и не мигаем ⚠ при запуске)
+      function e2eLockState(chatId) {
+          if (!currentUser || !isE2EChat(chatId)) return null;
+          const nest = isNest(chatId), peer = e2ePeer(chatId);
+          if (!E2E_SEND) return E2E.acc && (nest || e2ePeerHas(peer)) ? "off" : null; // «временно выключено» — только где шифрование было бы
+          const g = e2eGate(chatId);
+          if (!g.ok || g.confirmed) return "bad";
+          if (!nest && e2ePeerState(peer) === "lost") return "bad";
+          if (g.mode !== "e2e") return null;
+          return !nest && e2ePeerState(peer) === "changed" ? "changed" : "on";
+      }
+      function paintE2EHeader() { // из refreshHeaderStatus (и так из loadChat), applyBlockState (плашка), смены состояний и проверки ключа
+          if (!currentUser) return;
+          const title = e2eEl("current-chat-title"); if (!title) return;
+          const chatId = currentChatId, st = e2eLockState(chatId);
+          let el = title.querySelector("[data-e2e-hd]");
+          if (!st) { if (el) el.remove(); return; }
+          const [cls, icons, label] = st === "on" ? ["", ["lock"], t("Сообщения зашифрованы")]
+              : st === "changed" ? [" warn", ["key", "alert"], t("{name} заново включил(а) шифрование", { name: e2eName(e2ePeer(chatId)) })]
+              : st === "off" ? [" off", ["lockOpen"], t("Шифрование временно выключено")]
+              : [" warn", ["alert", "lockOpen"], t("Шифрование не работает")];
+          const key = st + "|" + label;
+          if (el && el._k === key) return;
+          // ПЕРЕД именем: на телефоне заголовок — одна строка с многоточием, и замок после длинного имени ушёл бы под обрезку
+          // (на компьютере заголовок — flex, там .e2e-hd { order } ставит его после имени и значков)
+          if (!el) { el = document.createElement("button"); el.type = "button"; el.setAttribute("data-e2e-hd", ""); }
+          if (title.firstChild !== el) title.insertBefore(el, title.firstChild);
+          el._k = key; el.className = "e2e-hd" + cls; el.title = label; el.setAttribute("aria-label", label);
+          el.innerHTML = icons.map((n) => icon(n, n === "alert" ? 13 : 15)).join("");
+      }
+      // нажатие на замок — пояснение; клик по шапке (профиль) его пропускает (chat-header-info)
+      e2eEl("current-chat-title").addEventListener("click", (e) => {
+          if (!currentUser || !e.target.closest("[data-e2e-hd]")) return;
+          e2eOpenFp(e2ePeer(currentChatId), "info");
+      });
+
+      function e2eFillFp(uid, mode) {
+          const scr = e2eEl("e2e-fp-screen"); if (!scr || !currentUser) return false;
+          const nest = !uid || uid === currentUser.uid, name = nest ? "" : e2eName(uid);
+          const pk = !nest && e2ePeerKeys.get(uid), me = E2E.me, acc = E2E.acc;
+          // своя половина — ключ ЭТОГО устройства (keys/me), и только когда он же стоит в профиле (ready): копия users/я.e2e с сервера
+          // в stale/unlinked/creating может быть чужим ключом (сменили пароль и «заново», подмена сервером) — тогда цифры совпали бы
+          // с собеседником и «посередине никого нет» соврало бы. Нет своего ключа на устройстве — цифр нет, вместо них статус
+          const mine = e2eState === "ready" && me && acc && me.kid === acc.kid && me.pub === acc.pk ? me.pub : null;
+          let digits = ""; // §2.10: 8 групп по 5 цифр из публичных ключей обоих — одинаково у обоих, свой секретный ключ не нужен
+          try { if (E2E.lib && mine && pk) digits = E2E.lib.fingerprint(currentUser.uid, mine, uid, pk.pk); } catch (_) {}
+          if (typeof digits !== "string" || !/^\d{5}( \d{5}){7}$/.test(digits)) digits = "";
+          scr.querySelectorAll("[data-fp-mode]").forEach((el) => { el.hidden = el.getAttribute("data-fp-mode") !== mode; });
+          scr.dataset.uid = nest ? "" : uid; scr.dataset.mode = mode;
+          const hero = e2eEl("e2e-fp-hero");
+          if (mode === "fp") {
+              hero.className = "e2e-hero" + (digits ? " ok" : "");
+              e2eEl("e2e-fp-digits").innerHTML = digits ? digits.split(" ").map((g) => `<span>${g}</span>`).join("") : "";
+              let hint;
+              if (digits) hint = t("Сравните эти цифры с теми, что {name} видит у себя, — при встрече или по звонку. Совпадают — значит, ключи настоящие и посередине никого нет.", { name });
+              else if (!nest && !pk && mine) { // свой ключ есть, а сравнивать не с чем: ключа собеседника нет, он пропал или ещё проверяется
+                  const ps = e2ePeerState(uid);
+                  hint = ps === "lost" ? t("{name}: шифрование пропало — возможно, вмешательство сервера", { name }) : ps === "unknown" ? t("Проверяем ключ собеседника…") : t("{name}: шифрования ещё нет", { name });
+              } else hint = e2eStatusText(); // своего ключа на этом устройстве нет (не подключено, сменили, создаётся…) — сначала это
+              e2eEl("e2e-fp-hint").textContent = hint;
+          } else {
+              const chatId = nest ? nestId() : e2eDmId(uid), st = e2eLockState(chatId), g = e2eGate(chatId);
+              let head, sub = "", cls = "";
+              if (!E2E_SEND) { head = t("Шифрование временно выключено"); cls = " warn"; sub = t("Новые сообщения пока отправляются без шифрования. Уже зашифрованные по-прежнему читаются."); }
+              else if (st === "on") { head = t("Сообщения зашифрованы"); cls = " ok"; sub = nest ? t("Новые личные сообщения шифруются на этом устройстве") : t("Новые сообщения в этом чате шифруются на устройствах — вашем и собеседника. В базе Owl их содержимое лежит только в виде шифра. Реакции, пометка «Срочно» и отметка о правке не шифруются."); }
+              else if (st === "changed") { head = t("🔑 {name} заново включил(а) шифрование", { name }); cls = " warn"; sub = t("Так бывает, если потерян Совиный ключ. Если не уверены, что это действительно {name}, — сверьте Отпечаток совы при встрече или по звонку.", { name }); }
+              else if (st === "bad") {
+                  head = t("Шифрование не работает"); cls = " warn";
+                  sub = g.confirmed ? (g.reason === "peer-lost" ? t("Следующее сообщение уйдёт без шифрования") : t("В этом чате сообщения уходят без шифрования")) // «Без шифрования» подтверждено
+                      : (g.reason === "peer-lost" || (!nest && e2ePeerState(uid) === "lost")) ? t("{name}: шифрование пропало — возможно, вмешательство сервера", { name })
+                      : g.reason === "unconfirmed" ? t("Нет связи с сервером: не удалось проверить, включено ли шифрование") : e2eStatusText();
+              }
+              else if (g.mode === "wait") head = g.reason === "self" ? t("Включаем шифрование…") : g.reason === "loading" ? t("Загружаем ключи шифрования…") : t("Проверяем ключ собеседника…");
+              else { head = t("Не зашифровано"); sub = !nest && !e2ePeerHas(uid) ? t("{name}: шифрования ещё нет — сообщения идут как раньше", { name }) : e2eStatusText(); } // «без значка»
+              hero.className = "e2e-hero" + cls;
+              e2eEl("e2e-fp-info").innerHTML = iconizeEmoji(escapeHTML(head)); e2eEl("e2e-fp-info-sub").textContent = sub;
+              e2eEl("e2e-fp-show").hidden = !digits;
+          }
+          return true;
+      }
+      function e2eOpenFp(uid, mode = "fp") {
+          if (!e2eFillFp(uid, mode)) return;
+          const scr = e2eEl("e2e-fp-screen");
+          scr.style.display = "flex"; window.raiseModal(scr); // поверх профиля собеседника
+      }
+      function e2eRefreshFp() { // окно открыто, а состояние поменялось (ключ собеседника проверен, «Понятно», подключили устройство)
+          const scr = e2eEl("e2e-fp-screen");
+          if (currentUser && scr && scr.style.display === "flex") e2eFillFp(scr.dataset.uid || currentUser.uid, scr.dataset.mode || "fp");
+      }
+      e2eEl("e2e-fp-screen").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-fp-act]"); if (!b) return;
+          const uid = e2eEl("e2e-fp-screen").dataset.uid || null;
+          if (b.getAttribute("data-fp-act") === "fp") e2eOpenFp(uid, "fp");
+          else { e2eEl("e2e-fp-screen").style.display = "none"; e2eOpen("status"); }
+      });
+
+      // Профиль собеседника: «Отпечаток совы» — не себе и только когда ключи есть у обоих (§7.1, §4.1 п.32). Ключ собеседника
+      // проверяется только для «круга» (§3.7): профиль из поиска чужого человека кнопку не покажет
+      function e2ePaintProfileFp(uid) {
+          const b = e2eEl("public-fp-btn"); if (!b) return;
+          const other = !!currentUser && !!uid && uid !== currentUser.uid && !groupsCache[uid];
+          if (other && !e2ePeerChk.has(uid) && usersCache[uid] && e2eInCircle(uid)) e2eSeePeer(uid, usersCache[uid].e2e); // проверим — покажем по готовности
+          const on = other && !!E2E.lib && e2eState === "ready" && !!e2ePeerKeys.get(uid); // «оба с ключом»: свой — на ЭТОМ устройстве (как e2eFillFp)
+          b.style.display = on ? "inline-flex" : "none";
+          if (!on) return;
+          b.innerHTML = icon("lock", 14) + escapeHTML(t("Отпечаток совы")); b.setAttribute("data-action-uid", uid);
+      }
+      function e2eRefreshProfileFp() {
+          if (currentUser && window.__profileUid && e2eEl("public-profile-screen").style.display === "flex") e2ePaintProfileFp(window.__profileUid);
+      }
+      e2eEl("public-fp-btn").addEventListener("click", (e) => {
+          const uid = e.currentTarget.getAttribute("data-action-uid");
+          if (uid && currentUser && uid !== currentUser.uid) e2eOpenFp(uid, "fp");
+      });
+
+      // «Совиный взгляд»: строка про шифрование — через rows.unshift (как «Почта»), вне EYE_ROWS и подсчёта уровня (§4.1 п.33).
+      // Видна тем же, кому карточка «Сквозное шифрование» в настройках; нажатие — окно «Сквозное шифрование»
+      let e2eEyeHtml = "";
+      function e2eEyeRow() {
+          if (!currentUser || !(e2ePilotOk() || !!E2E.acc || ["unlinked", "stale", "lost"].includes(e2eState))) return "";
+          let txt, cls = "open";
+          if (!E2E_SEND) txt = t("Шифрование временно выключено");
+          else if (e2eState === "ready") { txt = t("шифруются, если у собеседника тоже включено"); cls = "closed"; }
+          else if ((e2eState === "unlinked" || e2eState === "stale") && E2E.acc) txt = t("шифруются") + " · " + t("не на этом устройстве");
+          else txt = e2eStatusText();
+          const hint = t("Новые личные сообщения шифруются, когда шифрование включено и у собеседника (в шапке чата — 🔒). Старые сообщения остаются как были.");
+          return `<div class="eye-row" data-e2e-eye role="button" tabindex="0" title="${escapeHTML(hint)}" style="cursor:pointer"><span class="eye-ico">${icon("lock", 17)}</span><span class="eye-txt"><b>${escapeHTML(t("Новые личные сообщения"))}</b><span class="${cls}">${escapeHTML(txt)}</span></span><span class="eye-chev">›</span></div>`;
+      }
+      function e2eRefreshEye() { // окно открыто, а состояние шифрования поменялось — перерисовать (только если строка другая)
+          const scr = e2eEl("owl-eye-screen");
+          if (currentUser && scr && scr.style.display !== "none" && e2eEyeRow() !== e2eEyeHtml) renderOwlEye();
+      }
+      const e2eEyeOpen = (e) => {
+          if (!e.target.closest("[data-e2e-eye]") || !currentUser) return;
+          if (e.type === "keydown") { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); }
+          e2eOpen("status"); window.raiseModal(e2eEl("e2e-screen"));
+      };
+      e2eEl("eye-list").addEventListener("click", e2eEyeOpen);
+      e2eEl("eye-list").addEventListener("keydown", e2eEyeOpen);
+
+      // ----- Карточка вверху списка чатов, сводка в настройках, точка-напоминание -----
+      function e2eRenderCard() {
+          const box = e2eEl("e2e-card"); if (!box) return;
+          const s = e2eState, card = (txt, acts, closable) => `<div class="gi-card">${closable ? `<button type="button" class="e2e-card-x" data-e2e-card="dismiss" aria-label="${escapeHTML(t("Закрыть"))}">${icon("x", 14)}</button>` : ""}<p>${icon("lock", 16)}<span>${escapeHTML(txt)}</span></p>${acts.length ? `<div class="gi-actions">${acts.map(([label, act, main]) => `<button type="button" class="${main ? "gi-ok" : "gi-no"}" data-e2e-card="${act}">${escapeHTML(label)}</button>`).join("")}</div>` : ""}</div>`;
+          let html = "";
+          if (currentUser && !iAmBanned && !E2E.wiped) {
+              if (s === "unlinked") html = card(t("Это устройство не подключено к шифрованию"), [[t("Подключить"), "link", 1]]);
+              else if (s === "stale") html = card(t("Шифрование на вашем аккаунте включили заново на другом устройстве"), [[t("Подключить"), "stale", 1]]);
+              else if (s === "lost") html = card(t("Ключ шифрования пропал из профиля"), [[t("Подключить"), "status", 1]]);
+              else if (s === "broken" && (E2E.acc || e2ePilotOk())) html = card(t("Этот браузер сейчас не может шифровать"), [E2E.broken ? [t("Повторить"), "retry", 1] : [t("Подключить"), "link", 1]]);
+              else if (s === "nokey" && E2E_SEND && e2ePilotOk() && !e2eCardDismissed) {
+                  if (E2E.createFailed) html = card(t("Не удалось включить шифрование"), [], true);
+                  else if (isIOS() && !isStandalone()) html = card(t("Шифрование включится в приложении с экрана «Домой»"), [[t("Включить здесь"), "enable-here", 1]], true);
+              }
+          }
+          if (box._html !== html) { box._html = html; box.innerHTML = html; }
+      }
+      e2eEl("e2e-card").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-e2e-card]"); if (!b) return;
+          const act = b.getAttribute("data-e2e-card");
+          if (act === "dismiss") { e2eCardDismissed = true; e2eRenderCard(); }
+          else if (act === "link") e2eOpen("link");
+          else if (act === "stale") e2eOpen(e2eStaleRaced() ? "link" : "stale");
+          else if (act === "status") e2eOpen("status");
+          else if (act === "retry") e2eRetry();
+          else if (act === "enable-here") e2eEnableHere();
+      });
+      function e2eRenderSettings() {
+          const btn = e2eEl("e2e-open"); if (!btn) return;
+          const visible = !!currentUser && (e2ePilotOk() || !!E2E.acc || ["unlinked", "stale", "lost"].includes(e2eState));
+          btn.style.display = visible ? "" : "none";
+          if (!visible) return;
+          const remind = e2eState === "ready" && !!E2E.me && !E2E.me.savedAck;
+          btn.classList.toggle("remind", remind);
+          e2eEl("e2e-sum").textContent = remind ? t("Сохраните Совиный ключ") : e2eStatusText();
+      }
+      function e2eRenderDot() { // точка на шапке профиля (вход в настройки) — после «Позже», пока ключ не отмечен как сохранённый
+          const el = e2eEl("open-settings-btn"); if (!el) return;
+          el.classList.toggle("e2e-remind", !!currentUser && e2eState === "ready" && !!E2E.me && !E2E.me.savedAck && E2E.welcomeKid === E2E.me.kid);
+      }
+
+      // ----- Окна, которые открываются сами: подключение (unlinked, раз за сессию), «сменили ключ» (stale), «включено ✓» (§3.3 п.6) -----
+      let e2eAutoTimer = null, e2eAutoTries = 0;
+      // проиграли гонку первого создания: наш gen 1 только что отклонён, а в сейфе gen 1 с чужим kid (e2eCreateRejected). По своему
+      // бывшему ключу (gen/at) судить нельзя: так «заново» в первые 10 минут выглядело бы гонкой и пропускало окно «Это не я» (§3.5)
+      const e2eStaleRaced = () => !!E2E.raceLostAt && Date.now() - E2E.raceLostAt < 10 * 60000;
+      function e2eWantedWindow() {
+          const s = e2eState;
+          if (s === "unlinked" && !E2E.shown.link) return "link";
+          if (s === "stale" && !E2E.shown.stale) return "stale";
+          const me = E2E.me;
+          if (s !== "ready" || !me || me.savedAck || E2E.welcomeKid === me.kid || E2E.shown.welcome) return null;
+          if (obShown) return null; // не в той же сессии, где показывали онбординг
+          const meU = currentUser && usersCache[currentUser.uid]; if (!meU || !myPrivate) return null; // онбординг ещё не решился
+          const created = createdAtOf(meU), isNew = !!created && Date.now() - created < 3 * 24 * 3600e3;
+          if (isNew && E2E.createdNow && !E2E.dmOpened) return null; // новым — при следующем запуске или первом открытии лички
+          return "welcome";
+      }
+      function e2eAutoWindows(trigger) {
+          clearTimeout(e2eAutoTimer); e2eAutoTimer = null;
+          if (!currentUser || iAmBanned || E2E.wiped) return;
+          if (trigger === "dm") E2E.dmOpened = true;
+          const want = e2eWantedWindow(); if (!want) { e2eAutoTries = 0; return; }
+          const loader = e2eEl("global-loader");
+          const busy = (loader && loader.style.display !== "none") || e2eAnyModalOpen() || !!window.__pendingAdd || document.visibilityState !== "visible";
+          if (busy) { if (++e2eAutoTries < 150) e2eAutoTimer = setTimeout(() => e2eAutoWindows(), 2500); return; } // не поверх других окон
+          e2eAutoTries = 0; E2E.shown[want] = true;
+          if (want === "stale") e2eOpen(e2eStaleRaced() ? "link" : "stale");
+          else e2eOpen(want);
+      }
+      function e2eAfterUsersChanged() { // из usersChangedNow (после онбординга): ключи собеседников круга, авто-создание, окна
+          if (!currentUser || E2E.wiped) return;
+          for (const uid of e2eCircle()) { const u = usersCache[uid]; if (u) e2eSeePeer(uid, u.e2e); }
+          if (e2eState === "nokey") e2eMaybeCreate();
+          e2eRenderSettings(); e2eRenderCard();
+          e2eAutoWindows();
+      }
+
+      // ----- Выход и стирание (§3.8) -----
+      // Ключ не отмечен как сохранённый — сначала окно с ним и «Выйти всё равно». Идёт создание/смена ключа — дождаться ответа сервера
+      // (≤5 с); не дождались — показать Совиный ключ черновика: пачка может пройти и после выхода, и тогда он единственная копия
+      async function e2eConfirmLogout() {
+          for (let i = 0; i < 25 && E2E.busy; i++) await e2eSleep(200);
+          if (!E2E.lib) return true;
+          // черновик могла только что записать соседняя вкладка (авто-создание, «заново») — в памяти этой его нет: перечитать под замком
+          if (E2E.idb && !E2E.wiped) await e2eLocked(() => e2eLoadIdb(true), 3000).catch(() => {});
+          const pend = e2eLivePends().filter((r) => r.secret).sort((a, b) => (b.at || 0) - (a.at || 0))[0] || null, me = E2E.me;
+          if (!pend && (!me || !me.secret || me.savedAck)) return true;
+          return new Promise((resolve) => { e2eLogoutWait = resolve; e2eOpen("key", { logout: true, rec: pend }); });
+      }
+      function e2eMarkWipe() { try { localStorage.setItem("owl-e2e-wipe", (currentUser && currentUser.uid) || "1"); } catch (_) {} }
+      async function e2eSessionOff() { // метка сессии: service worker расшифровывает push только при on && uid == me.uid
+          if (E2E.wiped || E2E.unsupported || !E2E.uid) return;
+          const lib = E2E.lib || globalThis.OwlE2E; if (!lib) return;
+          try { await Promise.race([lib.db.put("prefs", "session", { uid: E2E.uid, on: false }), e2eSleep(1000)]); } catch (_) {}
+      }
+      function e2eDropMemory() {
+          E2E.me = null; E2E.pend = new Map(); E2E.old = new Map(); E2E.peers = new Map(); E2E.pins = new Map(); E2E.selfOk = false;
+          e2ePeerChk.clear(); e2ePeerKeys.clear(); e2eMemo.clear(); previewPlain.clear(); e2ePlainOk.clear();
+          e2eLastSecret = null; e2eHeld = null;
+      }
+      function e2eRawDelete() { // e2e.js не загрузился — удаляем базу напрямую (≤2 с)
+          return new Promise((resolve) => {
+              let done = false; const fin = (v) => { if (!done) { done = true; resolve(v); } };
+              setTimeout(() => fin(false), 2000);
+              try { const r = indexedDB.deleteDatabase("owl-e2e"); r.onsuccess = () => fin(true); r.onerror = () => fin(false); } catch (_) { fin(false); }
+          });
+      }
+      // флаг (owl-e2e-wipe) ставит вызывающий; соседние вкладки бросают ключи по BroadcastChannel; база: clearAll одной транзакцией →
+      // deleteDatabase (≤2 с); флаг снимаем, только если стёрли; не успели — сотрём при следующем запуске до всего остального
+      async function e2eWipeDevice(opts = {}) {
+          if (!opts.startup) { E2E.wiped = true; e2eIdbGen++; e2eBroadcast("wipe"); } // операции в полёте (создание, подключение, повышение) больше не пишут ключ
+          e2eSrvSeen.clear(); e2eSrvAll = false;
+          await e2eLocked(async () => {
+              const lib = E2E.lib || await Promise.race([e2eLoad, e2eSleep(3000)]) || globalThis.OwlE2E || null;
+              let ok = false;
+              if (lib) { try { const r = await lib.db.wipe(); ok = !!(r && (r.cleared || r.deleted)); } catch (_) {} }
+              else if (typeof indexedDB !== "undefined" && indexedDB) ok = await e2eRawDelete();
+              if (ok) try { localStorage.removeItem("owl-e2e-wipe"); } catch (_) {}
+          }, 3000).catch((e) => console.log("E2E: стирание:", e && (e.name || e.message)));
+          if (!opts.startup) E2E.wiped = true;
+          e2eDropMemory(); E2E.idb = false;
+      }
+      async function e2eOnSignedOut() { // общая ветка выхода (в т. ч. невольного — отзыв токена): метка сессии off, отписка push
+          if (e2eLoggingOut) return; // явный «Выйти» уже всё сделал
+          await e2eSessionOff();
+          try { // токен не нужен: Worker на следующем push получит 410 и удалит подписку
+              await Promise.race([(async () => {
+                  const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+                  const sub = reg && reg.pushManager && await reg.pushManager.getSubscription();
+                  if (sub) await sub.unsubscribe();
+              })(), e2eSleep(1500)]);
+          } catch (_) {}
+      }
+      // Вернулись в приложение — перечитать хранилище (соседняя вкладка могла подключить/сменить ключ); «broken» — попробовать снова
+      let e2eVisTimer = null;
+      document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState !== "visible" || !currentUser || !E2E.uid || E2E.wiped) return;
+          clearTimeout(e2eVisTimer);
+          e2eVisTimer = setTimeout(() => { if (E2E.broken) e2eRetry(); else e2eRefreshFromIdb(); }, 400);
+      });
+      // Незавершённое стирание (вышли, а база не успела удалиться) — стираем при запуске, до входа
+      let e2eWipeAtStart = null;
+      try { if (localStorage.getItem("owl-e2e-wipe")) e2eWipeAtStart = e2eWipeDevice({ startup: true }); } catch (_) {}
+      // ==================== /СКВОЗНОЕ ШИФРОВАНИЕ ====================
+
+      // ==================== СКВОЗНОЕ ШИФРОВАНИЕ: СООБЩЕНИЯ (Т5, план §4.2–4.6) ====================
+      // Гидратация переписки (расшифровка по белому списку полей), точка шифрования в postMessage, превью списка чатов,
+      // 🔓 у открытых сообщений после начала шифрования, гейт без потери ввода (e2eHeld). Расшифрованное — только в памяти
+      // (e2eMemo, previewPlain, loadedMsgs), на диск не пишется. Офлайн-копия Firestore хранит шифротекст.
+      const E2E_CONTENT = ["text", "imageUrl", "audioUrl", "sticker", "replyTo", "forwardedFrom"];   // шифруется (§2.2)
+      const E2E_OPEN = ["id", "chatId", "uid", "sender", "timestamp", "read", "reactions", "votes", "edited", "urgent", "e2e", "_pending"]; // открыто (§4.2 п.7)
+      const E2E_NEVER = ["guard", "call", "i18n", "mentions", "poll"]; // у e2e-сообщения законно не бывает — сервер мог дописать (§4.2 п.2)
+      const E2E_MEMO_MAX = 300, E2E_MEMO_BYTES = 8 * 1024 * 1024;
+      const E2E_PH = "🔒 Зашифрованное сообщение"; // = OwlE2E.PH (§2.3): открытый text e2e-сообщения и превью
+      let renderSeq = 0; // номер отрисовки открытого чата: устаревший снимок (пока его расшифровывали, пришёл новый) не рисуем
+      const e2eMemoKey = (chatId, uid, id, e) => [chatId, uid, id, e.sk, e.rk, e.iv].join("|"); // все входы AAD + ключи + IV (§4.2 п.3)
+      const e2eHidden = (m) => !!m && !!m._e2e && m._e2e !== "ok"; // e2e, которое на этом устройстве не прочитать (ответ/копия/пересылка/выбор/правка — нельзя)
+      const e2eFieldsSize = (f) => { let n = 200; for (const k of ["text", "imageUrl", "audioUrl"]) if (typeof f[k] === "string") n += f[k].length; return n; };
+      const e2eIsFields = (v) => !!v && typeof v === "object" && !v._fail && typeof v.then !== "function";
+      function e2eMemoPut(key, val) { // ≤300 записей и ≤8 МБ; вытесняются самые давние
+          e2eMemo.delete(key); e2eMemo.set(key, val);
+          let bytes = 0; for (const v of e2eMemo.values()) if (e2eIsFields(v)) bytes += e2eFieldsSize(v);
+          for (const k of e2eMemo.keys()) {
+              if (e2eMemo.size <= E2E_MEMO_MAX && bytes <= E2E_MEMO_BYTES) break;
+              if (k === key) continue;
+              const v = e2eMemo.get(k); if (e2eIsFields(v)) bytes -= e2eFieldsSize(v);
+              e2eMemo.delete(k);
+          }
+      }
+      function e2eMemoTrim(keepChatId) { for (const k of [...e2eMemo.keys()]) if (k.indexOf(keepChatId + "|") !== 0) e2eMemo.delete(k); } // смена чата — память не копится
+      function e2ePickContent(src) { const f = {}; for (const k of E2E_CONTENT) if (src[k] !== undefined && src[k] !== null && src[k] !== "") f[k] = src[k]; return f; }
+      function e2eOpenPart(m) { const o = {}; for (const k of E2E_OPEN) if (m[k] !== undefined) o[k] = m[k]; return o; }
+      function e2eOkMsg(m, f, key) {
+          const o = e2eOpenPart(m); for (const k of E2E_CONTENT) if (f[k] !== undefined) o[k] = f[k]; o._e2e = "ok"; o._k = key;
+          // ключ собеседника в этом сообщении — не его текущий проверенный (переписка до его смены ключа или подложенный прежний) — ⚠ у пузыря;
+          // текущего нет («пропал») — сверяем с закреплённым. Без ⚠ — только когда смена признана (pin.ack: «Понятно» / первое знакомство):
+          //  • ключ из pin.acks (признан на этом устройстве) — сообщение не позже его смены (u, серверное время, записано при смене);
+          //  • прежний ключ из профиля при первом знакомстве (prev-nopin; так на новом устройстве и после «Выйти») — не позже смены
+          //    текущего: users.e2e.t, но не позже pin.changedAt (t сервер может потом сдвинуть вперёд, не меняя ключ).
+          // Ключ, сменённый до «Понятно» (две смены подряд, в т.ч. «вернули прежний»), и сообщения после смены — с ⚠
+          const peer = !isNest(m.chatId) && e2ePeer(m.chatId), cur = peer && e2ePeerKeys.get(peer), e = m.e2e, pin = peer && E2E.pins.get(peer);
+          const ref = cur ? cur.kid : pin ? pin.kid : null, mk = e && (m.uid === (currentUser && currentUser.uid) ? e.rk : e.sk);
+          if (ref && e && ref !== mk) {
+              const raw = cur && usersCache[peer] && usersCache[peer].e2e;
+              const srvT = raw && raw.t && typeof raw.t.toMillis === "function" ? raw.t.toMillis() : 0;
+              const chT = (pin && pin.changedAt) || 0, lim = srvT && chT ? Math.min(srvT, chT) : srvT || chT;
+              const r = pin && pin.ack !== false ? E2E.peers.get(peer + "|" + mk) : null, rOk = !!r && r.uid === peer;
+              // pin без acks (запись прежней сборки черновика) — признанным считаем только pin.prevH
+              const acks = pin && Array.isArray(pin.acks) ? pin.acks : pin && pin.prevH ? [{ h: pin.prevH, u: pin.changedAt }] : [];
+              const a = rOk ? acks.find((x) => x && x.h === r.h) : null;
+              const until = a ? (a.u && lim ? Math.min(a.u, lim) : a.u || lim) : rOk && r.src === "prev-nopin" ? lim : 0;
+              if (!(until && getTime(m.timestamp) <= until)) o._oldPeer = true;
+          }
+          return o;
+      }
+      function e2eFailMsg(m, code) { const o = e2eOpenPart(m); o._e2e = code; return o; } // тот же белый список, без содержимого
+      const e2eFailCode = (err) => { const c = err && err.code; return c === "nokey" || c === "oldkey" || c === "nopeer" || c === "wait" || c === "newer" ? c : "fail"; };
+      const e2eMirror = (e) => ({ v: e.v, iv: e.pv.iv, ct: e.pv.ct, sk: e.sk, rk: e.rk }); // lastMessageEnc = зеркало pv сообщения (§2.8); звать только после e2eShapeOk
+      const E2E_IV_RE = /^[A-Za-z0-9_-]{16}$/, E2E_PVCT_RE = /^[A-Za-z0-9_-]{363}$/, E2E_MSG_KEYS = ["v", "iv", "ct", "sk", "rk", "pv"];
+      const e2eStr = (v, re) => typeof v === "string" && re.test(v);
+      function e2eShapeOk(e) { // форма m.e2e = e2eMsgOk правил (§5.1; тип ct — Bytes — проверяет decryptMsg): законно другой не бывает
+          if (!e || typeof e !== "object" || e.v !== 1 || e.ct === undefined || e.ct === null) return false;
+          const ks = Object.keys(e); if (ks.length !== E2E_MSG_KEYS.length || !E2E_MSG_KEYS.every((k) => ks.includes(k))) return false;
+          const pv = e.pv;
+          return e2eStr(e.iv, E2E_IV_RE) && e2eStr(e.sk, E2E_KID_RE) && e2eStr(e.rk, E2E_KID_RE)
+              && !!pv && typeof pv === "object" && Object.keys(pv).length === 2 && e2eStr(pv.iv, E2E_IV_RE) && e2eStr(pv.ct, E2E_PVCT_RE);
+      }
+      function e2eLockFlag(m, chatId) { // 🔓 (§4.6): открытое сообщение (не звонок и не «Сова на страже») ПОСЛЕ начала шифрования в чате
+          if (m.call || m.guard) return false;
+          const pin = E2E.pins.get(e2ePeer(chatId)); // pin собеседника; в Гнезде — свой
+          return !!(pin && pin.since) && getTime(m.timestamp) > pin.since + 120000;
+      }
+      let e2eRepaintTimer = null, e2eListTimer = null;
+      function e2eRepaintSoon() { if (e2eRepaintTimer) return; e2eRepaintTimer = setTimeout(() => { e2eRepaintTimer = null; if (typeof repaintOpenChat === "function" && isE2EChat(currentChatId)) repaintOpenChat(); }, 60); }
+      function e2eListSoon() { if (e2eListTimer) return; e2eListTimer = setTimeout(() => { e2eListTimer = null; if (currentUser) renderChatList(document.getElementById("search-input").value); }, 100); }
+
+      // ----- Гидратация (§4.2): null — всё готово синхронно (не E2E-чат, нет e2e или всё в кэше); иначе Promise -----
+      function hydrateMsgs(list, chatId) {
+          if (!isE2EChat(chatId)) return null;
+          const waits = [];
+          for (let i = 0; i < list.length; i++) {
+              const m = list[i]; let r;
+              try { r = e2eHydrateOne(m, chatId); } catch (e) { console.log("E2E: сообщение:", e && e.message); r = e2eFailMsg(m, "fail"); } // один битый документ не роняет чат
+              if (r && typeof r.then === "function") waits.push(r.then((v) => { list[i] = v; }, () => { list[i] = e2eFailMsg(m, "fail"); }));
+              else list[i] = r;
+          }
+          if (!waits.length) { e2eNotePreview(list, chatId); return null; }
+          return Promise.all(waits).then(() => e2eNotePreview(list, chatId));
+      }
+      function e2eHydrateOne(m, chatId) {
+          const e = m.e2e;
+          if (e === undefined || e === null) { m._plain = true; m._lock = e2eLockFlag(m, chatId); return m; }
+          // проверки: автор — участник ЭТОГО чата, формат, лишние поля (правила внутрь шифра не видят, сервер мог дописать)
+          if (m.chatId !== chatId || typeof m.uid !== "string" || !chatId.split("_").includes(m.uid) || typeof e !== "object") return e2eFailMsg(m, "fail");
+          if (e.v !== 1) return e2eFailMsg(m, "newer");
+          if (E2E_NEVER.some((k) => m[k] !== undefined)) return e2eFailMsg(m, "fail");
+          if (!e2eShapeOk(e)) return e2eFailMsg(m, "fail"); // нет/битый pv, sk, rk, iv, лишние ключи — не читаем (и не уведём в превью при удалении)
+          const key = e2eMemoKey(chatId, m.uid, m.id, e);
+          // кэш 1-го уровня — то же сообщение, уже расшифрованное в этом чате; 2-го — e2eMemo (поля, Promise в работе или провал)
+          const prev = Object.prototype.hasOwnProperty.call(loadedMsgs, m.id) ? loadedMsgs[m.id] : null;
+          if (prev && prev._k === key && prev._e2e === "ok") return e2eOkMsg(m, prev, key);
+          const hit = e2eMemo.get(key);
+          if (hit) {
+              if (typeof hit.then === "function") return hit.then((f) => e2eOkMsg(m, f, key), (err) => e2eFailMsg(m, e2eFailCode(err)));
+              if (!hit._fail) { e2eMemo.delete(key); e2eMemo.set(key, hit); return e2eOkMsg(m, hit, key); }
+              if (hit._ep === e2eEpoch) return e2eFailMsg(m, hit._fail); // известный провал — до смены ключей/состояний
+          }
+          // шифровать/читать нечем (браузер не может; на устройстве нет ни своего ключа, ни прежних) — сразу, без хранилища
+          if (e2eState === "broken" || e2eState === "unsupported" || (e2eState !== "loading" && E2E.idb && !E2E.me && !E2E.old.size)) {
+              e2eMemoPut(key, { _fail: "nokey", _ep: e2eEpoch });
+              return e2eFailMsg(m, "nokey");
+          }
+          const ep = e2eEpoch, p = e2eDecryptOne(m, chatId);
+          e2eMemoPut(key, p);
+          p.then((f) => {
+              if (e2eMemo.get(key) !== p) return; // вытеснено или память очищена (выход) — обратно не кладём
+              if (E2E.wiped || !currentUser) e2eMemo.delete(key); else e2eMemoPut(key, f);
+          }, (err) => {
+              if (e2eMemo.get(key) !== p) return;
+              const c = e2eFailCode(err);
+              if (c === "wait" || E2E.wiped) e2eMemo.delete(key); else e2eMemoPut(key, { _fail: c, _ep: ep });
+              if (ep !== e2eEpoch) e2eRepaintSoon(); // пока расшифровывали, ключи/состояние сменились — попробовать ещё раз
+          });
+          return p.then((f) => e2eOkMsg(m, f, key), (err) => {
+              const c = e2eFailCode(err);
+              if (c === "fail") console.log("E2E: сообщение не расшифровалось:", m.id, err && (err.code || err.message));
+              return e2eFailMsg(m, c);
+          });
+      }
+      async function e2eDecryptOne(m, chatId) {
+          const e = m.e2e;
+          if (e2eState === "loading") { // ключи ещё читаются — подождать (≤3 с), пузырей-ошибок пока не рисовать
+              await Promise.race([e2eReady, e2eSleep(3000)]);
+              if (e2eState === "loading") throw e2eFail("wait");
+          }
+          const lib = E2E.lib;
+          if (!lib || !currentUser || e2eState === "broken" || e2eState === "unsupported") throw e2eFail("nokey");
+          const mine = m.uid === currentUser.uid ? e.sk : e.rk;
+          // своего ключа нет: это текущий ключ аккаунта (или ключей на устройстве нет вовсе) — «не подключено», иначе — «старым ключом»
+          if (!e2eMyKey(mine)) throw e2eFail((E2E.acc && E2E.acc.kid === mine) || (!E2E.me && !E2E.old.size) ? "nokey" : "oldkey");
+          let keys;
+          try { keys = await e2eKeysForMsg(chatId, m.uid, e.sk, e.rk, getTime(m.timestamp)); }
+          catch (err) {
+              if (!err || err.code !== "nopeer" || isNest(chatId)) throw err;
+              // ключ собеседника ещё проверяется или профиль не загружен — подождать (≤3 с) и попробовать снова
+              const peer = e2ePeer(chatId), chk = e2ePeerChk.get(peer);
+              if (chk && chk.status !== "pending" && chk.status !== "fail") throw err; // проверен — такого kid у собеседника нет
+              await e2eWaitPeer(peer, 3000);
+              keys = await e2eKeysForMsg(chatId, m.uid, e.sk, e.rk, getTime(m.timestamp));
+          }
+          return lib.decryptMsg(keys, { chatId, uid: m.uid, msgId: m.id }, e, STICKER_IDS);
+      }
+      const e2ePeerWaits = new Map(); // uid → Promise: один ожидающий на собеседника, сколько бы сообщений его ни ждали
+      function e2eWaitPeer(peer, ms) {
+          let w = e2ePeerWaits.get(peer); if (w) return w;
+          w = (async () => {
+              const end = Date.now() + ms;
+              if (!usersCache[peer]) watchUser(peer);
+              while (!usersCache[peer] && Date.now() < end) await e2eSleep(200);
+              const p = e2ePeerPromise(peer);
+              if (p) await Promise.race([p, e2eSleep(Math.max(0, end - Date.now()))]);
+          })().catch(() => {}).finally(() => { e2ePeerWaits.delete(peer); });
+          e2ePeerWaits.set(peer, w);
+          return w;
+      }
+      // Расшифровано сообщение, которое сейчас в превью чата, — превью списка берём из его ct, а не из pv (§2.5, §4.5)
+      function e2eNotePreview(list, chatId) {
+          const meta = chatsMetaCache[chatId], lib = E2E.lib;
+          if (!meta || !meta.lastMessageId || !lib) return;
+          const m = list.find((x) => x && x.id === meta.lastMessageId);
+          if (!m || m._e2e !== "ok" || !m.e2e || !m.e2e.pv) return;
+          const k = [chatId, m.uid, m.id, m.e2e.sk, m.e2e.rk, m.e2e.pv.iv].join("|");
+          let text; try { text = lib.previewOf(e2ePickContent(m)); } catch (_) { return; }
+          const cur = previewPlain.get(chatId);
+          if (cur && cur.k === k && cur.text === text) return;
+          previewPlain.set(chatId, { k, text });
+          e2eListSoon();
+      }
+
+      // ----- Превью списка чатов и уведомления в приложении (§4.5) -----
+      function e2ePvKey(chatId, meta) { // «chatId|автор|lastMessageId|sk|rk|iv» — все входы AAD превью + ключи + IV
+          const enc = meta && meta.lastMessageEnc;
+          if (!enc || typeof enc !== "object" || enc.v !== 1 || typeof enc.sk !== "string" || typeof enc.rk !== "string" || typeof enc.iv !== "string" || typeof enc.ct !== "string") return null;
+          const uid = meta.lastMessageSenderUid, mid = meta.lastMessageId;
+          if (typeof uid !== "string" || !chatId.split("_").includes(uid) || typeof mid !== "string" || !SAFE_ID.test(mid)) return null;
+          return [chatId, uid, mid, enc.sk, enc.rk, enc.iv].join("|");
+      }
+      const e2ePvBusy = new Map(); // k → Promise (одна расшифровка на превью)
+      function wantPreview(chatId, meta) { // из applyMeta, при переходе в ready, после проверки ключа собеседника, из previewTextFor
+          if (!currentUser || E2E.wiped || !isE2EChat(chatId)) return null;
+          const k = e2ePvKey(chatId, meta); if (!k) return null;
+          const cur = previewPlain.get(chatId);
+          if (cur && cur.k === k && (typeof cur.text === "string" || cur.ep === e2eEpoch)) return null; // есть или известный провал
+          if (e2ePvBusy.has(k)) return e2ePvBusy.get(k);
+          if (!E2E.lib || e2eState === "loading") return null; // ключи ещё грузятся — позовут из e2eSetState / previewTextFor
+          const enc = meta.lastMessageEnc, uid = meta.lastMessageSenderUid, mid = meta.lastMessageId, ep = e2eEpoch;
+          const stillHere = () => { const m2 = chatsMetaCache[chatId]; return !!currentUser && !E2E.wiped && (!m2 || e2ePvKey(chatId, m2) === k); };
+          const p = (async () => {
+              const keys = await e2eKeysForMsg(chatId, uid, enc.sk, enc.rk, getTime(meta.timestamp));
+              const text = await E2E.lib.decryptPreview(keys, { chatId, uid, msgId: mid }, { iv: enc.iv, ct: enc.ct });
+              if (!stillHere()) return;
+              const now = previewPlain.get(chatId);
+              if (now && now.k === k && typeof now.text === "string") return; // уже есть — из расшифрованного сообщения (ct)
+              previewPlain.set(chatId, { k, text: String(text) });
+              e2eListSoon();
+          })().catch(() => { // молча: покажется lastMessageText; повтор — после смены ключей/состояний (e2eEpoch)
+              if (!stillHere()) return;
+              const now = previewPlain.get(chatId);
+              if (!now || now.k !== k || typeof now.text !== "string") previewPlain.set(chatId, { k, ep });
+          }).finally(() => { e2ePvBusy.delete(k); });
+          e2ePvBusy.set(k, p);
+          return p;
+      }
+      function previewTextFor(chatId, meta) { // список чатов: расшифрованное превью (k совпал) или lastMessageText
+          const txt = meta && meta.lastMessageText;
+          if (!meta || !meta.lastMessageEnc || !isE2EChat(chatId)) return txt;
+          const k = e2ePvKey(chatId, meta), r = k && previewPlain.get(chatId);
+          if (r && r.k === k && typeof r.text === "string" && r.text) return (typeof txt === "string" && txt.indexOf("✏️ ") === 0 ? "✏️ " : "") + r.text;
+          if (k && (!r || r.k !== k || r.ep !== e2eEpoch)) wantPreview(chatId, meta); // ещё не пробовали в этом состоянии — в фоне
+          return txt;
+      }
+      async function e2ePreviewFor(chatId, meta, ms) { // уведомление в приложении: расшифровку превью ждём не дольше ms
+          if (!meta) return "";
+          if (!isE2EChat(chatId) || !meta.lastMessageEnc) return meta.lastMessageText;
+          const end = Date.now() + ms;
+          if (e2eState === "loading") await Promise.race([e2eReady, e2eSleep(ms)]);
+          const p = wantPreview(chatId, meta);
+          if (p) await Promise.race([p, e2eSleep(Math.max(0, end - Date.now()))]);
+          return previewTextFor(chatId, meta);
+      }
+
+      // ----- Отправка: синхронный гейт, ошибки без потери ввода, «Повторить отправку» (§4.3) -----
+      function e2eGateOk(chatId) { // до очистки поля, до записи голоса, до выбора фото/стикера; закрыт — плашка с причиной
+          const g = e2eGate(chatId);
+          if (g.ok) return true;
+          applyBlockState();
+          showToast(e2eSendErrorText({ code: "owl/e2e-" + g.reason, chatId }), "lock");
+          try { if (navigator.vibrate) navigator.vibrate([10, 40, 10]); } catch (_) {}
+          return false;
+      }
+      const e2eIsSendErr = (err) => !!err && typeof err.code === "string" && err.code.indexOf("owl/e2e-") === 0;
+      function e2eSendError(err, chatId) { // любая ошибка шифрования — owl/e2e-* (ввод возвращается), с чатом для текста ошибки
+          const e = e2eIsSendErr(err) ? err : Object.assign(new Error("e2e encrypt"), { code: "owl/e2e-fail", cause: err });
+          try { if (!e.chatId) e.chatId = chatId; } catch (_) {}
+          return e;
+      }
+      function e2eSendErrorText(err) {
+          const peer = err.chatId && e2ePeer(err.chatId), name = (peer && usersCache[peer] && usersCache[peer].name) || t("Собеседник");
+          switch (String(err.code).slice(8)) {
+              case "unlinked": case "stale": return t("Подключите это устройство, чтобы писать в зашифрованный чат");
+              case "lost": return t("Ключ шифрования пропал из профиля");
+              case "broken": return t("Этот браузер сейчас не может шифровать");
+              case "unsupported": return t("Шифрование недоступно в этом браузере");
+              case "unconfirmed": return t("Нет связи с сервером: не удалось проверить, включено ли шифрование");
+              case "peer": return t("Не удалось проверить ключ собеседника. Попробуйте ещё раз");
+              case "peer-lost": return t("{name}: шифрование пропало — возможно, вмешательство сервера", { name });
+              default: return t("Сообщение не отправлено. Попробуйте ещё раз"); // wait, fail
+          }
+      }
+      function e2eRestoreReply(r) {
+          if (!r || replyingTo || editingMsgId) return;
+          replyingTo = r;
+          document.getElementById("reply-bar-name").innerText = r.sender || "";
+          document.getElementById("reply-bar-text").innerHTML = iconizePreview(escapeHTML(r.text || ""));
+          document.getElementById("reply-bar").classList.add("on");
+      }
+      // Гейт не пустил (или не дождались ключа): текст — обратно в поле/черновик, ответ — обратно; голос/фото/стикер — в e2eHeld
+      function e2eKeepInput(chatId, d) {
+          const err = d.err, reason = String(err.code).slice(8);
+          if (reason === "peer" || reason === "wait" || reason === "fail") e2eShowBar(chatId, reason === "peer" ? "peer" : "wait");
+          if (d.imageUrl || d.audioUrl || d.sticker) {
+              e2eHeld = { chatId, args: [d.text || null, d.imageUrl || null, d.audioUrl || null, chatId, d.sticker || null], reply: d.reply || null };
+          } else if (d.text) {
+              const input = document.getElementById("message-input");
+              if (currentChatId === chatId && !editingMsgId) {
+                  const cur = input.value;
+                  input.value = cur.trim() ? d.text + "\n" + cur : d.text; // поле успели заполнить снова — ничего не теряем
+                  input.dispatchEvent(new Event("owl-fit"));
+                  setDraft(chatId, input.value);
+                  if (d.reply && currentChatId === chatId) e2eRestoreReply(d.reply);
+              } else {
+                  const dr = getDraft(chatId);
+                  setDraft(chatId, dr && dr.trim() ? d.text + "\n" + dr : d.text);
+              }
+              renderChatList(document.getElementById("search-input").value);
+          }
+          if (chatId === currentChatId) applyBlockState();
+          showToast(sendErrorText(err), "lock");
+      }
+      e2eResendHeld = () => { // «Повторить отправку» на плашке (и сразу после «Без шифрования»)
+          const h = e2eHeld; if (!h || !currentUser || h.chatId !== currentChatId) return;
+          if (!e2eGateOk(h.chatId)) return;
+          e2eHeld = null; e2eShowBar(h.chatId, null);
+          sendMessage(h.args[0], h.args[1], h.args[2], h.args[3], h.args[4], { replyTo: h.reply || null });
+      };
+      // Правка зашифрованного сообщения (§4.4): тот же msgId, новый IV, весь контейнер заново (фото с подписью — целиком)
+      async function e2eEditMessage(chatId, id, om, text) {
+          try {
+              await null; // кнопка «Отправить» чистит поле сразу после вызова — текст при ошибке возвращаем уже после этого
+              if (om._e2e !== "ok" || om.uid !== currentUser.uid) throw e2eErr("fail");
+              await e2eSendMode(chatId, true); // гейт как у отправки: закрыт — бросает owl/e2e-* (согласие «Без шифрования» не тратит)
+              const k = await e2eChatKeysFor(chatId);
+              const f = { ...e2ePickContent(om), text };
+              const e = await E2E.lib.encryptMsg(k.keys, { chatId, uid: currentUser.uid, msgId: id }, f, STICKER_IDS);
+              const ne = { v: 1, iv: e.iv, ct: Bytes.fromUint8Array(e.ct), sk: k.sk, rk: k.rk, pv: e.pv };
+              e2eMemoPut(e2eMemoKey(chatId, currentUser.uid, id, ne), f); // своё исправленное рисуется сразу
+              // сначала само сообщение, превью — отдельно и после (как в открытом пути): правила сверяют зеркало превью с ПОСЛЕДНИМ
+              // сообщением на сервере, и если там уже другое (ответ собеседника ещё не дошёл до нас), отказ превью не роняет правку
+              await updateDoc(doc(db, "messages", id), { e2e: ne, edited: true });
+              if (chatsMetaCache[chatId] && chatsMetaCache[chatId].lastMessageId === id) setDoc(doc(db, "chats_metadata", chatId), { lastMessageText: "✏️ " + E2E.lib.PH, lastMessageEnc: e2eMirror(ne) }, { merge: true }).catch((e) => console.log("Превью чата:", e && (e.code || e)));
+              if (e2eBarNote && e2eBarNote.chatId === chatId) e2eShowBar(chatId, null);
+              return true;
+          } catch (err) {
+              const er = e2eSendError(err, chatId);
+              console.log("E2E: правка не ушла:", er.code, err && (err.code || err.message));
+              if (er.code === "owl/e2e-peer" || er.code === "owl/e2e-wait" || er.code === "owl/e2e-fail") e2eShowBar(chatId, er.code === "owl/e2e-peer" ? "peer" : "wait");
+              const input = document.getElementById("message-input");
+              if (currentChatId === chatId && !editingMsgId && !input.value.trim() && loadedMsgs[id]) { // текст и режим правки — обратно
+                  cancelReply(); editingMsgId = id; input.value = text; input.dispatchEvent(new Event("owl-fit"));
+                  document.getElementById("send-button").innerHTML = checkIconSVG;
+              }
+              showToast(sendErrorText(er), "error");
+              return false;
+          }
+      }
+
+      // ----- Переписка: пузырь-ошибка, 🔓, черта «Дальше сообщения зашифрованы» (§4.1 п.17, §4.6) -----
+      function e2eFailText(code) { // → [текст, нажатие открывает окно: nokey — подключение, oldkey — ввод прежнего Совиного ключа]
+          if (code === "nokey") return [t("🔒 Сообщение недоступно: это устройство не подключено"), true];
+          if (code === "oldkey") return [t("🔒 Сообщение зашифровано старым ключом"), true];
+          if (code === "nopeer") return [t("🔒 Сообщение зашифровано прежним ключом собеседника"), false]; // не наш ключ — Совиный ключ не поможет
+          if (code === "newer") return [t("🔒 Сообщение из более новой версии Owl — обновите приложение"), false];
+          if (code === "wait") return [t("🔒 Зашифрованное сообщение"), false]; // ключи не успели загрузиться — перерисуем, когда загрузятся
+          return [t("🔒 Не удалось расшифровать сообщение"), false];
+      }
+      function e2ePlaceSep(box) { // перед первым загруженным e2e-сообщением (после расстановки дат)
+          const row = box.querySelector('.message-row[data-enc="1"]'); if (!row) return;
+          const sep = document.createElement("div"); sep.className = "e2e-sep";
+          sep.innerHTML = iconizeEmoji(escapeHTML(t("🔒 Дальше сообщения зашифрованы")));
+          box.insertBefore(sep, row);
+      }
+      const e2eFailTap = (e) => {
+          const b = e.target.closest(".e2e-fail.tap"); if (!b || !currentUser || selMode) return;
+          if (e.type === "keydown") { if (e.key !== "Enter" && e.key !== " ") return; e.preventDefault(); }
+          e.stopPropagation();
+          if (b.getAttribute("data-e2e-fail") === "oldkey") { e2eOpen("old"); return; } // прежний Совиный ключ — история до «заново»
+          const s = e2eState;
+          e2eOpen(s === "stale" ? (e2eStaleRaced() ? "link" : "stale") : s === "unlinked" ? "link" : "status");
+      };
+      document.getElementById("chat-box").addEventListener("click", e2eFailTap);
+      document.getElementById("chat-box").addEventListener("keydown", e2eFailTap);
+      // ==================== /СКВОЗНОЕ ШИФРОВАНИЕ: СООБЩЕНИЯ ====================
+
       document.getElementById("chat-box").addEventListener("click", (e) => {
           const b = e.target.closest("[data-tr]"); if (!b) return;
           e.stopPropagation();
@@ -5565,6 +7594,10 @@
           const q = document.getElementById("report-quote");
           q.style.display = message ? "block" : "none";
           if (message) q.innerHTML = iconizePreview(escapeHTML(msgPreviewText(message).slice(0, 300)));
+          // зашифрованное (§11 В5): расшифровано — текст увидит модератор; не расшифровано — в жалобу уйдёт только «🔒»
+          const rpNote = document.getElementById("report-e2e-note");
+          rpNote.style.display = message && message.e2e ? "" : "none";
+          if (message && message.e2e) rpNote.textContent = message._e2e === "ok" ? t("Текст сообщения увидит модератор") : t("Текст недоступен на этом устройстве — модератор увидит только жалобу");
           document.querySelectorAll('input[name="rp-reason"]').forEach(r => r.checked = false);
           document.getElementById("report-comment").value = "";
           document.getElementById("public-profile-screen").style.display = "none";
@@ -5609,7 +7642,7 @@
       }
 
       function startEdit(id) {
-          const m = loadedMsgs[id]; if (!m || m.uid !== currentUser.uid || !m.text) return;
+          const m = loadedMsgs[id]; if (!m || m.uid !== currentUser.uid || !m.text || e2eHidden(m)) return; // нерасшифрованное не правим
           cancelReply(); editingMsgId = id;
           const input = document.getElementById("message-input"); input.value = m.text; input.focus();
           document.getElementById("send-button").innerHTML = checkIconSVG;
@@ -5669,19 +7702,20 @@
           const m = loadedMsgs[id], row = document.getElementById("msg-" + id);
           if (!m || !row || menuMsgId === id) return;
           const me = currentUser.uid, isMe = m.uid === me, hidden = row.classList.contains("from-blocked");
+          const sealed = e2eHidden(m); // зашифровано и здесь не прочитать: только реакции, удаление, жалоба
           menuMsgId = id; menuOpenedAt = Date.now();
           row.classList.add("msg-selected");
           const myR = m.reactions && m.reactions[me];
           document.getElementById("mm-reacts").style.display = hidden ? "none" : "";
           document.getElementById("mm-reacts").innerHTML = MENU_REACTIONS.map(r => `<button data-react="${r}" class="${myR === r ? "on" : ""}">${r === "❤" ? "❤️" : r}</button>`).join("");
           const acts = [];
-          if (!hidden && !(m.chatId === NEWS_ID && !isAdmin)) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), t("Ответить")]);
-          if (!hidden && m.text) acts.push(["copy", icon("copy", 20), t("Копировать текст")]);
-          if (!hidden && m.imageUrl) acts.push(["photo", icon("image", 20), t("Открыть фото")]);
-          if (!hidden && !m.poll) acts.push(["forward", icon("forward", 20), t("Переслать")]);
-          if (!hidden && !m.poll && !isNest(m.chatId)) acts.push(["nest", NEST_SVG(20), t("Сохранить в Гнездо")]);
-          if (!hidden) acts.push(["select", icon("check", 20), t("Выбрать")]);
-          if (isMe && m.text) acts.push(["edit", icon("pencil", 20), t("Изменить")]);
+          if (!hidden && !sealed && !(m.chatId === NEWS_ID && !isAdmin)) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), t("Ответить")]);
+          if (!hidden && !sealed && m.text) acts.push(["copy", icon("copy", 20), t("Копировать текст")]);
+          if (!hidden && !sealed && m.imageUrl) acts.push(["photo", icon("image", 20), t("Открыть фото")]);
+          if (!hidden && !sealed && !m.poll) acts.push(["forward", icon("forward", 20), t("Переслать")]);
+          if (!hidden && !sealed && !m.poll && !isNest(m.chatId)) acts.push(["nest", NEST_SVG(20), t("Сохранить в Гнездо")]);
+          if (!hidden && !sealed) acts.push(["select", icon("check", 20), t("Выбрать")]);
+          if (isMe && !sealed && m.text) acts.push(["edit", icon("pencil", 20), t("Изменить")]);
           if (isMe || isAdmin) acts.push(["delete", icon("trash", 20), t("Удалить"), "danger"]);
           if (!isMe && !isAdmin) acts.push(["report", icon("flag", 20), t("Пожаловаться"), "danger"]);
           document.getElementById("mm-actions").innerHTML = acts.map(([a, ic, t, cls]) => `<button data-act="${a}" class="${cls || ""}">${ic}<span>${t}</span></button>`).join("");
@@ -5765,6 +7799,7 @@
       function toggleSel(id) {
           const row = document.getElementById("msg-" + id);
           if (!row || !loadedMsgs[id] || row.classList.contains("from-blocked")) return;
+          if (!selIds.has(id) && e2eHidden(loadedMsgs[id])) return; // нерасшифрованное не выбирается (§4.1 п.20)
           if (selIds.has(id)) selIds.delete(id);
           else { if (selIds.size >= SEL_MAX) return showToast(t("Можно выбрать до {n} сообщений", { n: SEL_MAX }), "info"); selIds.add(id); }
           row.classList.toggle("msg-picked", selIds.has(id));
@@ -5863,27 +7898,37 @@
       // Несколько сообщений пересылаются по одному, в порядке переписки; на первой ошибке останавливаемся
       async function forwardManyTo(list, target, savedToast) {
           if (target.targetUid && (blockedMe(target.targetUid) || !canWriteTo(target.targetUid))) return showToast(t("Пользователь ограничил, кто может ему писать"), "block");
+          // Шифрование (§4.3 «Пересылка», §11 В4): нерасшифрованные пропускаем; режим цели узнаём заранее (гейт закрыт — тост, ничего
+          // не ушло); расшифрованное уйдёт открыто (беседа, у собеседника нет ключа, «Без шифрования») — только после вопроса
+          list = list.filter(m => !e2eHidden(m));
+          if (!list.length) return showToast(t("Эти сообщения нельзя переслать"), "info");
+          let mode = "plain";
+          if (isE2EChat(target.chatId)) { try { mode = await e2eSendMode(target.chatId, true); } catch (err) { return showToast(sendErrorText(e2eSendError(err, target.chatId)), "lock"); } }
+          const fromE2E = list.some(m => m._e2e === "ok");
+          if (fromE2E && mode !== "e2e" && !confirm(t("Сообщение из зашифрованного чата уйдёт в «{chat}» без шифрования. Переслать?", { chat: target.title }))) return;
+          const fwOpts = mode === "e2e" ? { e2eOnly: true } : {}; // режим сменился по ходу — открыто без вопроса не отправим
           let sent = 0;
-          try { for (const m of list) { await forwardOne(m, target); sent++; } }
+          try { for (const m of list) { await forwardOne(m, target, fwOpts); sent++; } }
           catch (err) { return showToast(sent ? t("Переслано {n} из {total}: {error}", { n: sent, total: list.length, error: sendErrorText(err) }) : sendErrorText(err), "error"); }
           showToast(savedToast || t("Переслано в «{chat}»", { chat: target.title }), savedToast ? "check" : "forward");
       }
-      async function forwardOne(m, target) {
+      async function forwardOne(m, target, opts = {}) { // шифрует postMessage — ключом ЦЕЛЕВОГО чата и новым msgId
           const orig = m.chatId === NEWS_ID ? { uid: "", name: "Owl Messenger" } : m.forwardedFrom && m.forwardedFrom.name ? m.forwardedFrom : { uid: m.uid || "", name: usersCache[m.uid]?.name || m.sender || "" };
           const data = { chatId: target.chatId, sender: currentUser.displayName, uid: currentUser.uid, timestamp: new Date(), read: false, forwardedFrom: orig };
           if (m.text) data.text = m.chatId === NEWS_ID ? newsText(m) : m.text; if (m.imageUrl) data.imageUrl = m.imageUrl; if (m.audioUrl) data.audioUrl = m.audioUrl; if (m.sticker && STICKER_IDS.has(m.sticker)) data.sticker = m.sticker;
           // превью — из того, что реально уходит (пост канала при en/de/pl уходит переводом, а не русским оригиналом)
           const preview = data.text ? data.text : data.imageUrl ? "📷 Фотография" : data.audioUrl ? "🎤 Голосовое сообщение" : data.sticker ? "🦉 Стикер" : "Сообщение";
-          await postMessage(target.chatId, data, preview);
+          await postMessage(target.chatId, data, preview, opts);
       }
 
       // ===== ОТВЕТ НА СООБЩЕНИЕ =====
       let replyingTo = null;
-      function msgPreviewText(m) { return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : (m.poll ? "📊 Опрос: " + m.poll.q : (m.sticker ? "🦉 Стикер" : "Сообщение")))); }
+      function msgPreviewText(m) { if (m._e2e && m._e2e !== "ok") return "🔒"; return m.text ? m.text : (m.imageUrl ? "📷 Фотография" : (m.audioUrl ? "🎤 Голосовое сообщение" : (m.poll ? "📊 Опрос: " + m.poll.q : (m.sticker ? "🦉 Стикер" : "Сообщение")))); }
       window.startReply = (msgId) => {
-          let m = loadedMsgs[msgId]; if (!m) return;
+          let m = loadedMsgs[msgId]; if (!m || e2eHidden(m)) return; // на нерасшифрованное не отвечаем (§4.1 п.19)
           if (editingMsgId) { editingMsgId = null; document.getElementById("message-input").value = ""; document.getElementById("send-button").innerHTML = sendIconSVG; }
           replyingTo = { id: m.id, uid: m.uid || "", sender: m.sender || "", text: msgPreviewText(m).slice(0, 140) };
+          if (m.e2e) e2eEncReplies.add(replyingTo); // цитата зашифрованного: тот же объект едет в e2eHeld и обратно в replyingTo
           document.getElementById("reply-bar-name").innerText = replyingTo.sender;
           document.getElementById("reply-bar-text").innerHTML = iconizePreview(escapeHTML(replyingTo.text));
           document.getElementById("reply-bar").classList.add("on");
@@ -6007,6 +8052,7 @@
             }
 
             document.getElementById("chat-box").innerHTML = ""; loadedMsgs = {}; newBelow = 0; updateToBottom();
+            repaintOpenChat = null; e2eMemoTrim(chatId); // расшифрованное других чатов — из памяти (§4.2)
             // Liquid Glass: на компьютере переписка и заголовок нового чата мягко проявляются
             if (window.innerWidth > 768 && !reduceMotion()) ["chat-box", "main-chat"].forEach(id => {
                 const el = id === "chat-box" ? document.getElementById(id) : document.querySelector("#main-chat .chat-header");
@@ -6015,32 +8061,54 @@
             });
             const isPrivateChat = !!dmPeer(chatId);
             watchPeerBlock(isPrivateChat ? dmPeer(chatId) : null);
+            if (e2eBarNote && e2eBarNote.chatId !== chatId) e2eBarNote = null;
             applyBlockState();
+            if (isE2EChat(chatId)) e2eAutoWindows("dm"); // у новых аккаунтов окно Совиного ключа — при первом открытии лички
 
             msgLimit = PAGE_SIZE; hasMoreMsgs = true; loadingOlder = false;
 
             subscribeMessages = () => {
             if (activeListener) activeListener();
+            repaintOpenChat = null; // до первого снимка новой подписки перерисовывать нечего
             const q = query(collection(db, "messages"), where("chatId", "==", chatId), orderBy("timestamp", "desc"), limit(msgLimit));
             let firstSnap = true; // первый снимок (в т.ч. после подгрузки истории) — без звука
-            
-            // ВАЖНО: Умная отрисовка (Smart Render) работает БЕЗ морганий
+            let pendingFresh = 0, subPainted = false; // «новых ниже» копятся, пока снимок расшифровывается; локально для этой подписки
+
+            // ВАЖНО: Умная отрисовка (Smart Render) работает БЕЗ морганий.
+            // Сквозное шифрование (§4.2): снимок сначала гидратируется (в личке/Гнезде — расшифровка, может быть асинхронной), потом
+            // рисуется; устаревший снимок (пока расшифровывали, пришёл новый — он полный) не рисуется. Звук и учёт — сразу, по сырому снимку
             activeListener = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
               if (currentChatId !== chatId) return;
-              let messages = [];
               trackPendingWrites(snapshot);
 
-              const firstLoad = firstSnap;
+              const firstSnapNow = firstSnap;
               if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added" && !change.doc.metadata.hasPendingWrites) { let msg = change.doc.data(); if (msg.uid !== currentUser.uid && !iBlocked(msg.uid)) { playNotifySound(); } } });
               firstSnap = false;
+              if (!firstSnapNow) pendingFresh += snapshot.docChanges().filter(c => c.type === "added" && !c.doc.metadata.hasPendingWrites && c.doc.data().uid !== currentUser.uid && getTime(c.doc.data().timestamp) > Date.now() - 60000).length;
 
-              snapshot.forEach(docSnap => {
-                if (!SAFE_ID.test(docSnap.id)) return;
-                let msg = { ...docSnap.data(), id: docSnap.id, _pending: docSnap.metadata.hasPendingWrites };
-                messages.push(msg); loadedMsgs[docSnap.id] = msg;
-              });
+              const raw = [];
+              snapshot.forEach(docSnap => { if (SAFE_ID.test(docSnap.id)) raw.push({ ...docSnap.data(), id: docSnap.id, _pending: docSnap.metadata.hasPendingWrites }); });
+              const info = { firstLoad: firstSnapNow, fromCache: snapshot.metadata.fromCache, size: snapshot.size };
+              const run = (src, inf) => {
+                if (currentChatId !== chatId) return;
+                const messages = src.map(m => ({ ...m })); // свежие объекты: гидратация их меняет
+                const seq = ++renderSeq;
+                const paint = () => {
+                  if (seq !== renderSeq || currentChatId !== chatId) return;
+                  paintSnapshot(messages, inf.firstLoad || !subPainted, inf);
+                  subPainted = true;
+                };
+                let p = null;
+                try { p = hydrateMsgs(messages, chatId); } catch (e) { console.log("E2E: гидратация:", e); p = null; }
+                if (p) p.then(paint, paint); else paint();
+              };
+              run(raw, info);
+              repaintOpenChat = () => run(raw, { ...info, firstLoad: false }); // ключ пришёл / устройство подключили — БЕЗ новой подписки (Spark)
+            });
+            function paintSnapshot(messages, firstLoad, inf) {
+              messages.forEach(m => { loadedMsgs[m.id] = m; });
               markVisibleAsRead();
-              
+
               messages.sort((a, b) => getTime(a.timestamp) - getTime(b.timestamp));
 
               let chatBox = document.getElementById("chat-box");
@@ -6052,14 +8120,18 @@
                   for (const r of chatBox.children) { if (!r.classList.contains("message-row")) continue; if (r.offsetTop + r.offsetHeight > chatBox.scrollTop) { anchorRow = r; anchorOffset = r.offsetTop - chatBox.scrollTop; break; } }
               }
 
-              chatBox.querySelectorAll(".day-sep").forEach(el => el.remove()); // расставим заново после раскладки
+              chatBox.querySelectorAll(".day-sep, .e2e-sep").forEach(el => el.remove()); // расставим заново после раскладки
               let currentIds = [];
               let prevRow = null;
 
               messages.forEach((msg) => {
                 currentIds.push(`msg-${msg.id}`);
                 let existingRow = document.getElementById(`msg-${msg.id}`);
-                
+                // Шифрование: сменилось «расшифровано/ошибка/🔓» (ключ пришёл, устройство подключили) — строку собираем заново
+                const e2eKey = (msg._e2e || "") + "|" + (msg._lock ? 1 : 0) + (msg._oldPeer ? "|o" : "");
+                if (existingRow && existingRow.getAttribute("data-e2e") !== e2eKey) { existingRow.remove(); existingRow = null; }
+                const e2eBad = e2eHidden(msg);
+
                 let isMe = (msg.uid === currentUser.uid);
                 // Пост канала: всегда слева, от имени Owl Messenger (ник админа не показываем); правит и удаляет — админ
                 const chPost = chatId === NEWS_ID, authorIsMe = isMe;
@@ -6102,14 +8174,17 @@
                     messageRow.setAttribute("data-msg-id", msg.id);
                     messageRow.setAttribute("data-uid", msg.uid || "");
                     messageRow.setAttribute("data-ts", String(getTime(msg.timestamp) || 0));
+                    messageRow.setAttribute("data-e2e", e2eKey);
+                    if (msg.e2e) messageRow.setAttribute("data-enc", "1"); // для черты «Дальше сообщения зашифрованы»
                     if (!chPost) watchUser(msg.uid);
                     if (!isMe && !isPrivateChat && !chPost && iBlocked(msg.uid)) messageRow.classList.add("from-blocked");
 
                     let avatarHtml = chPost ? `<img src="${avatarUrl}" class="avatar chat-msg-avatar" alt="">` : `<img src="${avatarUrl}" class="avatar chat-msg-avatar" data-profile-target="${escapeHTML(msg.uid)}" title="${t("Смотреть профиль")}">`;
                     let contentHtml = `<div class="message-content">`;
 
-                    let actionsHtml = `<div class="msg-actions"><button class="msg-action-btn reply-btn" data-id="${msg.id}" title="${t("Ответить")}">${replyIconSVG}</button><button class="msg-action-btn" data-rx="👍">👍</button><button class="msg-action-btn" data-rx="❤">❤️</button><button class="msg-action-btn" data-rx="😂">😂</button>`;
-                    if ((isMe || (chPost && authorIsMe)) && !msg.guard && !msg.call) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" data-text="${escapeHTML(msg.text || '')}" title="${t("Редактировать")}">${editIconSVG}</button>`;
+                    // нерасшифрованное (§4.1 п.19): ни ответа, ни правки; текст для правки берётся из loadedMsgs (дубль data-text убран)
+                    let actionsHtml = `<div class="msg-actions">${e2eBad ? "" : `<button class="msg-action-btn reply-btn" data-id="${msg.id}" title="${t("Ответить")}">${replyIconSVG}</button>`}<button class="msg-action-btn" data-rx="👍">👍</button><button class="msg-action-btn" data-rx="❤">❤️</button><button class="msg-action-btn" data-rx="😂">😂</button>`;
+                    if ((isMe || (chPost && authorIsMe)) && !msg.guard && !msg.call && !e2eBad) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" title="${t("Редактировать")}">${editIconSVG}</button>`;
                     if (isMe || isAdmin) actionsHtml += `<button class="msg-action-btn delete-btn" data-id="${msg.id}" title="${t("Удалить")}">${deleteIconSVG}</button>`;
                     if (!isMe && !isAdmin) actionsHtml += `<button class="msg-action-btn report-btn" data-id="${msg.id}" title="${t("Пожаловаться")}">${icon("flag", 16)}</button>`;
                     actionsHtml += `</div>`; contentHtml += actionsHtml;
@@ -6132,6 +8207,9 @@
                     if (msg.guard) messageRow.classList.add(msg.guard.kind === "ok" ? "guard-ok-msg" : "guard-msg");
                     if (msg.call) { messageRow.classList.add("call-msg"); contentHtml += callNoteHtml(msg, isMe); }
                     if (msg.text && !msg.call) { const shown = chPost ? newsText(msg) : msg.guard ? guardMsgText(msg) : msg.text; let body = highlightMentions(linkify(shown), msg); if (msg.guard) body = body.replace(/^(⚠\uFE0F?|✅)/u, (e) => emojiIcon(e)); contentHtml += `<span class="msg-text-content" data-raw="${escapeHTML(shown)}">${body}</span>`; }
+                    // Шифрование: пузырь-ошибка (у «не подключено» нажатие открывает подключение); «Сова на страже» в зашифрованном чате — открыта
+                    if (e2eBad) { const [ftxt, tap] = e2eFailText(msg._e2e); contentHtml += `<span class="e2e-fail${tap ? " tap" : ""}" data-e2e-fail="${escapeHTML(msg._e2e)}"${tap ? ' role="button" tabindex="0"' : ""}>${iconizeEmoji(escapeHTML(ftxt))}</span>`; }
+                    if (msg.guard && isE2EChat(chatId) && E2E.pins.has(e2ePeer(chatId))) contentHtml += `<div class="e2e-svc">${escapeHTML(t("Служебное сообщение, не зашифровано"))}</div>`;
                     if (chPost && LANG !== "ru" && msg.i18n && msg.i18n[LANG]) contentHtml += `<button type="button" class="tr-note" data-tr="${escapeHTML(msg.id)}">${emojiIcon("🌐")} ${t(newsOrig.has(msg.id) ? "Показать перевод" : "Переведено автоматически · оригинал")}</button>`;
                     if (Array.isArray(msg.mentions) && msg.mentions.includes(currentUser.uid) && !isMe) messageRow.classList.add("mentions-me");
                     if (isDataUrl(msg.imageUrl, "image")) contentHtml += `<img src="${escapeHTML(msg.imageUrl)}">`;
@@ -6142,12 +8220,14 @@
                     }
                     if (isDataUrl(msg.audioUrl, "audio")) contentHtml += voicePlayerHtml(msg.id, msg.audioUrl);
                     if (msg.poll) contentHtml += `<div class="poll" data-poll="${escapeHTML(msg.id)}">${pollInner(msg)}</div>`;
-                    { const lu = msg.text && firstExternalLink(msg.text); if (lu) contentHtml += `<a class="lp" data-lp-url="${escapeHTML(lu)}" href="${escapeHTML(lu)}" target="_blank" rel="noopener noreferrer nofollow"></a>`; }
+                    { const lu = msg.text && !msg.e2e && firstExternalLink(msg.text); if (lu) contentHtml += `<a class="lp" data-lp-url="${escapeHTML(lu)}" href="${escapeHTML(lu)}" target="_blank" rel="noopener noreferrer nofollow"></a>`; }
 
                     let editedHtml = `<span class="edited-marker" style="font-size:10px; opacity:0.5; margin-right:4px; display:${msg.edited ? 'inline' : 'none'};">${t("(изм.)")}</span>`;
                     let ticksHtml = isMe ? ticksHtmlFor(msg) : "";
                     
-                    contentHtml += `<div class="msg-meta">${editedHtml}<span class="msg-time">${timeString}</span>${ticksHtml}</div>`;
+                    const lockHtml = msg._lock ? `<span class="msg-lock" role="img" aria-label="${escapeHTML(t("Не зашифровано"))}" title="${escapeHTML(t("Не зашифровано"))}">${icon("lockOpen", 12)}</span>` // 🔓 (§4.6)
+                        : msg._oldPeer ? `<span class="msg-lock" role="img" aria-label="${escapeHTML(t("Зашифровано прежним ключом собеседника"))}" title="${escapeHTML(t("Зашифровано прежним ключом собеседника"))}">${icon("alert", 12)}</span>` : "";
+                    contentHtml += `<div class="msg-meta">${lockHtml}${editedHtml}<span class="msg-time">${timeString}</span>${ticksHtml}</div>`;
                     contentHtml += `<div class="reactions-list-container">${buildReactionsHtml(msg)}</div>`;
                     contentHtml += `</div>`;
 
@@ -6165,16 +8245,16 @@
                   if (!currentIds.includes(child.id)) child.remove();
               });
               placeDaySeparators(chatBox);
+              e2ePlaceSep(chatBox);
               observeVoices(chatBox);
               loadLinkPreviews(chatBox);
               if (chatSearchQuery) runChatSearch(false);
-              if (!firstLoad && !isScrolledToBottom) {
-                  const fresh = snapshot.docChanges().filter(c => c.type === "added" && !c.doc.metadata.hasPendingWrites && c.doc.data().uid !== currentUser.uid && getTime(c.doc.data().timestamp) > Date.now() - 60000).length;
-                  if (fresh) { newBelow += fresh; updateToBottom(); }
-              }
+              // новые чужие сообщения ниже экрана (счёт по сырым снимкам — копится, пока снимок расшифровывается)
+              if (!firstLoad && !isScrolledToBottom && pendingFresh) { newBelow += pendingFresh; updateToBottom(); }
+              pendingFresh = 0;
 
               // Пока ответ пришёл только из локального кэша и он неполный — ждём сервер, чтобы не решить, что истории больше нет
-              if (!snapshot.metadata.fromCache || snapshot.size >= msgLimit) { hasMoreMsgs = snapshot.size >= msgLimit; loadingOlder = false; }
+              if (!inf.fromCache || inf.size >= msgLimit) { hasMoreMsgs = inf.size >= msgLimit; loadingOlder = false; }
 
               if (isScrolledToBottom || !initialChatLoads[chatId + "_scroll"]) {
                   chatBox.scrollTop = chatBox.scrollHeight;
@@ -6185,7 +8265,7 @@
 
               // Если сообщений мало и прокрутки нет — сразу догружаем ещё
               if (hasMoreMsgs && !loadingOlder && chatBox.scrollHeight <= chatBox.clientHeight + 150) loadOlderMessages();
-            });
+            }
             };
             subscribeMessages();
         } catch (err) { console.error("Ошибка загрузки чата: ", err); }
@@ -6304,6 +8384,7 @@
       }
       async function startVoice(e) {
           if (rec || !currentChatId) return;
+          if (!e2eGateOk(currentChatId)) return; // гейт шифрования — до записи (§4.1 п.11): записанное не пропадёт зря
           rec = { chatId: currentChatId, startedAt: 0, x0: e.clientX, y0: e.clientY, pressAt: Date.now(), locked: false, tapPending: false, pointerId: e.pointerId, smooth: 0 };
           try { voiceBtn.setPointerCapture(e.pointerId); } catch (_) {}
           const my = rec;
@@ -6425,7 +8506,9 @@
           if (rest) parts.push(rest);
           return parts;
       }
-      async function sendMessage(text, imageUrl = null, audioUrl = null, targetChat = null, sticker = null) {
+      // opts (шифрование, §4.3): restoreText — что вернуть в поле при отказе гейта (у длинного текста — непосланный остаток),
+      // replyTo — ответ из e2eHeld («Повторить отправку»), а не из полоски ответа
+      async function sendMessage(text, imageUrl = null, audioUrl = null, targetChat = null, sticker = null, opts = {}) {
         if (sticker && !STICKER_IDS.has(sticker)) return;
         if (!currentUser || iAmBanned) return;
         { const peer = dmPeer(targetChat || currentChatId); if (peer && (iBlocked(peer) || blockedMe(peer) || !canWriteTo(peer))) { applyBlockState(); return showToast(iBlocked(peer) ? t("Вы заблокировали этого пользователя") : t("Пользователь ограничил, кто может ему писать"), "block"); } }
@@ -6436,7 +8519,7 @@
             const parts = splitLongText(text);
             for (let i = 0; i < parts.length; i++) {
                 if (i && chatId === "global") await new Promise(r => setTimeout(r, 1200)); // в общем чате — не чаще раза в секунду
-                if (!(await sendMessage(parts[i], null, null, chatId))) return false; // на ошибке останавливаемся, чтобы не нарушить порядок
+                if (!(await sendMessage(parts[i], null, null, chatId, null, { restoreText: parts.slice(i).join("\n\n") }))) return false; // на ошибке останавливаемся, чтобы не нарушить порядок
             }
             return true;
         }
@@ -6444,6 +8527,8 @@
         if (editingMsgId && text) {
             const editedId = editingMsgId;
             editingMsgId = null; document.getElementById("send-button").innerHTML = sendIconSVG;
+            const om = loadedMsgs[editedId];
+            if (om && om.e2e) return e2eEditMessage(chatId, editedId, om, text); // зашифрованное — заново шифруем (§4.4)
             const upd = { text: text, edited: true };
             if (chatId === NEWS_ID && isAdmin) { const tr = await translateNews(text); upd.i18n = tr || deleteField(); } // пост канала — переводы заново
             const edit = updateDoc(doc(db, "messages", editedId), upd);
@@ -6458,7 +8543,8 @@
         const mentioned = text ? mentionsIn(text, chatId) : [];
         if (mentioned.length) msgData.mentions = mentioned;
         if (text) msgData.text = text; if (imageUrl) msgData.imageUrl = imageUrl; if (audioUrl) msgData.audioUrl = audioUrl; if (sticker) msgData.sticker = sticker;
-        if (replyingTo) { msgData.replyTo = replyingTo; cancelReply(); }
+        const reply = opts.replyTo !== undefined ? opts.replyTo : replyingTo;
+        if (reply) { msgData.replyTo = reply; if (opts.replyTo === undefined) cancelReply(); }
         if (nightUrgent && dmPeer(chatId) === currentChatTargetUid && peerNight(currentChatTargetUid)?.u) msgData.urgent = true; // разбудить собеседника
         if (nightUrgent) { nightUrgent = false; refreshNightBar(); }
         // Пост в канале — от имени Owl Messenger и сразу с переводами на en/de/pl
@@ -6472,7 +8558,12 @@
 
         let sentRef;
         try { sentRef = await postMessage(chatId, msgData, previewText); }
-        catch (err) { showToast(sendErrorText(err), "error"); return false; }
+        catch (err) {
+            // гейт шифрования не пустил / не дождались ключа: ввод не теряем — текст и ответ обратно, голос/фото/стикер в e2eHeld
+            if (e2eIsSendErr(err)) { e2eKeepInput(chatId, { err, text: opts.restoreText != null ? opts.restoreText : text, imageUrl, audioUrl, sticker, reply }); return false; }
+            showToast(sendErrorText(err), "error"); return false;
+        }
+        if (e2eBarNote && e2eBarNote.chatId === chatId) e2eShowBar(chatId, null); // ушло — «не отправлено» на плашке больше не нужно
         // Упомянутым — уведомление в колокольчик (в беседе им ещё придёт обычный push)
         if (mentioned.length) {
             const where = chatId === "global" ? "глобальном чате" : `беседе «${groupsCache[chatId]?.name || "Беседа"}»`;
@@ -6481,7 +8572,7 @@
         }
         return true;
       }
-      const sendErrorText = (err) => err && err.code === "owl/rate" ? t("Не так быстро — в общий чат можно писать раз в секунду") : err && err.code === "owl/rate-min" ? t("Слишком много сообщений подряд — подождите минуту") : err && err.code === "permission-denied" ? t("Сообщение не отправлено: нет доступа к этому чату") : t("Сообщение не отправлено. Попробуйте ещё раз");
+      const sendErrorText = (err) => e2eIsSendErr(err) ? e2eSendErrorText(err) : err && err.code === "owl/rate" ? t("Не так быстро — в общий чат можно писать раз в секунду") : err && err.code === "owl/rate-min" ? t("Слишком много сообщений подряд — подождите минуту") : err && err.code === "permission-denied" ? t("Сообщение не отправлено: нет доступа к этому чату") : t("Сообщение не отправлено. Попробуйте ещё раз");
       // Записать сообщение в чат: само сообщение и превью пишем одновременно, не дожидаясь сервера —
       // Firestore сразу обновляет локальную копию, поэтому список чатов меняется мгновенно
       // Глобальный чат видят все — не чаще одного сообщения в секунду от человека. Вместе с сообщением пишем
@@ -6584,6 +8675,34 @@
         }
         const msgRef = doc(collection(db, "messages"));
         const metaRef = doc(db, "chats_metadata", chatId);
+        // ТОЧКА ШИФРОВАНИЯ (§4.3): личка/Гнездо — режим по гейту (ждёт ключи ≤3 с и ключ собеседника ≤5 с; закрыт или не дождались —
+        // бросает owl/e2e-*, открытым по тайм-ауту НЕ шлём). Содержимое — в шифр, открыто — заглушка; превью — зеркало pv.
+        // Повторы commit ниже переиспользуют этот же msgData (шифр один). Звонки (call) не шифруются (§2.2)
+        let enc = null, unspend = () => {};
+        if (isE2EChat(chatId) && !msgData.call) {
+            try {
+                const once = e2ePlainOk.get(chatId) === "peer-lost";
+                const mode = await e2eSendMode(chatId);
+                // одноразовое согласие «Без шифрования» потрачено, а сообщение не ушло (лимит, отказ базы) — вернуть его
+                if (once && mode === "plain" && !e2ePlainOk.has(chatId)) unspend = () => { if (!e2ePlainOk.has(chatId)) { e2ePlainOk.set(chatId, "peer-lost"); if (chatId === currentChatId) applyBlockState(); } };
+                if (opts.e2eOnly && mode !== "e2e") throw e2eErr("peer"); // пересылка из зашифрованного: режим сменился по ходу — без вопроса не шлём
+                if (mode === "e2e") {
+                    if (msgData.poll) throw e2eErr("fail"); // опросов в зашифрованных личках нет (кнопка скрыта, правила не пустят)
+                    const f = e2ePickContent(msgData);
+                    const k = await e2eChatKeysFor(chatId);
+                    const e = await E2E.lib.encryptMsg(k.keys, { chatId, uid: currentUser.uid, msgId: msgRef.id }, f, STICKER_IDS);
+                    for (const x of E2E_CONTENT) delete msgData[x];
+                    delete msgData.mentions; // в личках упоминаний нет; у e2e правила их не пустят
+                    msgData.text = E2E.lib.PH;
+                    msgData.e2e = { v: 1, iv: e.iv, ct: Bytes.fromUint8Array(e.ct), sk: k.sk, rk: k.rk, pv: e.pv };
+                    enc = e2eMirror(msgData.e2e);
+                    previewText = E2E.lib.PH;
+                    e2eMemoPut(e2eMemoKey(chatId, currentUser.uid, msgRef.id, msgData.e2e), f); // своё «отправляется» рисуется сразу
+                } else if (msgData.replyTo && (e2eEncReplies.has(msgData.replyTo) || (loadedMsgs[msgData.replyTo.id] && loadedMsgs[msgData.replyTo.id].e2e))) {
+                    msgData.replyTo = { ...msgData.replyTo, text: "" }; // страховка: цитата зашифрованного не уходит открыто
+                }
+            } catch (err) { unspend(); throw e2eSendError(err, chatId); }
+        }
         if (resetArmed && resetArmed.id === chatId) resetArmed = null; // написал сам — отложенный сброс непрочитанных уже не нужен
         // Превью пишем ОДНОЙ пачкой с сообщением: правила базы сверяют его с этим сообщением, «+1 непрочитанное» —
         // ровно одно на сообщение, а повтор пачки несёт и превью (раньше превью шло отдельно и при повторе терялось)
@@ -6592,6 +8711,7 @@
             lastMessageText: previewText,
             lastMessageSender: chatId === NEWS_ID ? "Owl Messenger" : msgData.sender,   // ровно как в сообщении — так сверяют правила
             ...(chatId === NEWS_ID && msgData.i18n ? { lastMessageI18n: msgData.i18n } : {}),
+            ...(isE2EChat(chatId) ? { lastMessageEnc: enc || deleteField() } : {}), // зашифрованное превью — зеркало pv; открытое — стираем прежнее
             lastMessageSenderUid: currentUser.uid,
             lastMessageId: msgRef.id,
             timestamp: msgData.timestamp,
@@ -6602,7 +8722,7 @@
         else {
             const st = await loadRl();
             const fresh = Date.now() - st.mw > 62000; // окно точно истекло (с запасом на расхождение часов)
-            if (!fresh && st.mc >= MSG_PER_MIN) throw Object.assign(new Error("rate"), { code: "owl/rate-min" });
+            if (!fresh && st.mc >= MSG_PER_MIN) { unspend(); throw Object.assign(new Error("rate"), { code: "owl/rate-min" }); }
             // last — номер этого сообщения: правила пускают ровно одно сообщение на шаг счётчика
             const commit = (useNew, withMeta = true) => {
                 const b = writeBatch(db);
@@ -6627,7 +8747,7 @@
             })();
         }
         try { await saving; }
-        catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); throw err; }
+        catch (err) { delete pendingSince[msgRef.id]; evalNet(); console.error(err); unspend(); throw err; }
         if (chatId !== "global" && chatId !== NEWS_ID && !isNest(chatId) && !opts.noPush) notifyPushServer(msgRef.id);
         if (chatId === NEWS_ID && isAdmin && document.getElementById("channel-push").checked) newsPush(previewText, msgData.i18n);
         setDoc(doc(db, "stats", dayKey()), { messages: increment(1) }, { merge: true }).catch(() => {}); // счётчик сообщений за день
@@ -6663,13 +8783,20 @@
       }
       // Удалили последнее сообщение (одно или несколько выбранных) — превью переводим на самое свежее из оставшихся
       function fixPreviewAfterDelete(deleted) {
-          const ids = [].concat(deleted), latest = latestLoadedMsg();
-          if (!latest || !ids.includes(latest.id) || !currentChatId) return;
-          const prev = latestLoadedMsg(ids);
-          const data = prev
-              ? { lastMessageText: msgPreviewText(prev), lastMessageSender: prev.sender || "", lastMessageSenderUid: prev.uid || "", lastMessageId: prev.id }
-              : { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), lastMessageId: deleteField() };
-          setDoc(doc(db, "chats_metadata", currentChatId), data, { merge: true }).catch(e => console.log("Превью чата:", e));
+          try { // превью — не повод не удалить: setDoc с битыми данными бросает синхронно, а deleteDoc зовут после нас
+              const ids = [].concat(deleted), latest = latestLoadedMsg();
+              if (!latest || !ids.includes(latest.id) || !currentChatId) return;
+              const prev = latestLoadedMsg(ids);
+              // зашифрованное (есть e2e, даже битый): в превью — только заглушка; msgPreviewText вернул бы расшифрованный текст — утечка
+              // на сервер (§4.1 п.25). Зеркало pv — только у целого e2e; иначе lastMessageEnc стираем
+              const enc = !!prev && prev.e2e !== undefined && prev.e2e !== null;
+              const mirror = enc && e2eShapeOk(prev.e2e) ? e2eMirror(prev.e2e) : null;
+              const data = prev
+                  ? { lastMessageText: enc ? E2E_PH : msgPreviewText(prev), lastMessageSender: prev.sender || "", lastMessageSenderUid: prev.uid || "", lastMessageId: prev.id }
+                  : { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), lastMessageId: deleteField() };
+              if (isE2EChat(currentChatId)) data.lastMessageEnc = mirror || deleteField();
+              setDoc(doc(db, "chats_metadata", currentChatId), data, { merge: true }).catch(e => console.log("Превью чата:", e));
+          } catch (e) { console.log("Превью чата:", e && (e.code || e.message)); }
       }
 
       let msgInput = document.getElementById("message-input");
@@ -6689,7 +8816,14 @@
           else if ((e.key === "Enter" || e.key === "Tab") && mentionList[mentionSel]) { e.preventDefault(); e.stopImmediatePropagation(); insertMention(mentionList[mentionSel].uid); }
           else if (e.key === "Escape") box.classList.remove("on");
       }, true);
-      document.getElementById("send-button").addEventListener("click", () => { let txt = msgInput.value.trim().replace(/\n{3,}/g, "\n\n"); if (txt && editingMsgId && txt.length > MAX_TEXT) { showToast(t("Слишком длинно: в сообщении можно до {n} символов", { n: MAX_TEXT }), "alert"); return; } if (txt && !editingMsgId && globalTooFast()) { showToast(t("Не так быстро — в общий чат можно писать раз в секунду"), "clock"); return; } if(txt){ sendMessage(txt); msgInput.value = ""; clearTimeout(draftTimer); if (getDraft(currentChatId)) { setDraft(currentChatId, ""); renderChatList(document.getElementById("search-input").value); } document.getElementById("mention-box").classList.remove("on"); }});
+      // Правка ОТКРЫТОГО сообщения (до включения шифрования) в чате, где шифрование уже включено: текст снова уйдёт открытым — спросить
+      const e2eChatEncrypted = (chatId) => {
+          if (!E2E_SEND || !currentUser || !isE2EChat(chatId)) return false;
+          if (E2E.pins.has(isNest(chatId) ? currentUser.uid : e2ePeer(chatId))) return true; // шифрование с этим собеседником уже было
+          const g = e2eGate(chatId); return !g.ok || !!g.confirmed || g.mode === "e2e" || g.mode === "wait";
+      };
+      document.getElementById("send-button").addEventListener("click", () => { let txt = msgInput.value.trim().replace(/\n{3,}/g, "\n\n");
+        if (txt && editingMsgId && loadedMsgs[editingMsgId] && !loadedMsgs[editingMsgId].e2e && e2eChatEncrypted(currentChatId) && !confirm(t("Это сообщение отправлено без шифрования — исправленный текст тоже не будет зашифрован. Изменить?"))) return; if (txt && editingMsgId && txt.length > MAX_TEXT) { showToast(t("Слишком длинно: в сообщении можно до {n} символов", { n: MAX_TEXT }), "alert"); return; } if (txt && !editingMsgId && globalTooFast()) { showToast(t("Не так быстро — в общий чат можно писать раз в секунду"), "clock"); return; } if (txt && (!editingMsgId || (loadedMsgs[editingMsgId] && loadedMsgs[editingMsgId].e2e)) && !e2eGateOk(currentChatId)) return; /* гейт шифрования закрыт — текст остаётся в поле, причина на плашке */ if(txt){ sendMessage(txt); msgInput.value = ""; clearTimeout(draftTimer); if (getDraft(currentChatId)) { setDraft(currentChatId, ""); renderChatList(document.getElementById("search-input").value); } document.getElementById("mention-box").classList.remove("on"); }});
       msgInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !matchMedia("(pointer: coarse)").matches) { e.preventDefault(); document.getElementById("send-button").click(); } });
       
       // Сжатие фото для сообщения: фото хранится прямо в документе (лимит Firestore — 1 МБ на документ),
@@ -6729,6 +8863,7 @@
       }
       document.getElementById("image-input").addEventListener("change", function(e) {
         let file = e.target.files[0]; if(!file) return;
+        if (!e2eGateOk(currentChatId)) { e.target.value = ""; return; } // гейт закрылся, пока выбирали файл — подпись остаётся в поле
         sendImageFile(file, msgInput.value.trim());
         msgInput.value = ""; e.target.value = "";
       });
@@ -6743,6 +8878,7 @@
       function openImgSend(file) {
           if (!file || !/^image\//.test(file.type)) return false;
           if (file.size > 40 * 1024 * 1024) { showToast(t("Картинка слишком большая"), "alert"); return true; }
+          if (!e2eGateOk(currentChatId)) return true; // гейт шифрования закрыт — причина на плашке (§4.3)
           closeImgSend();
           imgSend = { file, url: URL.createObjectURL(file), chatId: currentChatId };
           document.getElementById("img-send-preview").src = imgSend.url;
@@ -6759,6 +8895,7 @@
       function confirmImgSend() {
           if (!imgSend) return;
           const { file, chatId, fromInput } = imgSend, caption = document.getElementById("img-send-caption").value.trim();
+          if (chatId === currentChatId && !e2eGateOk(chatId)) return; // гейт закрылся — окно с фото не закрываем, ничего не теряем
           closeImgSend();
           if (chatId !== currentChatId) return showToast(t("Чат сменился — фото не отправлено"), "alert");
           sendImageFile(file, caption, chatId);
@@ -6836,7 +8973,7 @@
                   for (const m of metas.docs) {
                       const msgs = await getDocs(query(collection(db, "messages"), where("chatId", "==", m.id)));
                       await deleteRefsInChunks(msgs.docs.map(d => d.ref));
-                      await deleteDoc(m.ref).catch(() => setDoc(m.ref, { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), unreadCount: 0 }, { merge: true }));
+                      await deleteDoc(m.ref).catch(() => setDoc(m.ref, { lastMessageText: deleteField(), lastMessageSender: deleteField(), lastMessageSenderUid: deleteField(), lastMessageEnc: deleteField(), unreadCount: 0 }, { merge: true }));
                   }
               });
               await step("уведомления", async () => {
@@ -6853,12 +8990,39 @@
               });
               await step("подписки", () => deleteFollowEdges(uidToDelete));
               await step("почта", () => deleteDoc(doc(db, "users_private", uidToDelete)));
-              await deleteDoc(doc(db, "users", uidToDelete)); await deleteUser(currentUser);
+              // Профиль и сейф Совиного ключа (с историей) — одной пачкой: правило сейфа требует, чтобы профиля после пачки не было,
+              // так сирот не остаётся (§3.8). Пачка не прошла (правила без сейфа) — профиль удаляем, как раньше
+              let oldVaults = [];
+              try { oldVaults = (await getDocs(collection(db, "keyvault", uidToDelete, "old"))).docs.map(d => d.ref); } catch (e) { console.log("Удаление аккаунта, история сейфа:", e.code || e); }
+              // Пачку и запасное удаление профиля с ключом правила пускают только со входом не старше 10 мин, а шаги выше могли идти дольше
+              // (большие переписки, медленная сеть): проверить заранее и при отказе один раз переспросить пароль. Не вышло — аккаунт не
+              // удаляем (deleteUser не зовём): человек повторит, уже удалённое не вернётся, но и «полуудалённого» входа без профиля не будет
+              const unfinished = () => Object.assign(new Error(t("Удаление не закончено — нажмите «Удалить аккаунт навсегда» ещё раз")), { code: "owl/unfinished" });
+              if (!(await e2eFreshLogin(4))) throw unfinished();
+              const freshAt = Date.now(); // вход здесь моложе 4 мин (часы сервера), правила дают 10 — ещё ~6 мин отказ не из-за входа
+              const delProfile = async () => {
+                  const batch = writeBatch(db);
+                  batch.delete(doc(db, "users", uidToDelete)); batch.delete(doc(db, "keyvault", uidToDelete)); oldVaults.forEach(r => batch.delete(r));
+                  await batch.commit();
+              };
+              try { await delProfile(); }
+              catch (e) {
+                  console.log("Удаление аккаунта, сейф:", e.code || e);
+                  let done = false;
+                  // вход мог «устареть» (пачка шла дольше ~5 мин) — пароль ещё раз и повтор; иначе отказ не из-за входа (правила без сейфа)
+                  if (e && e.code === "permission-denied" && Date.now() - freshAt > 5 * 60000) {
+                      if (await e2eFreshLogin(4, true)) try { await delProfile(); done = true; } catch (e2) { console.log("Удаление аккаунта, сейф (повтор):", e2.code || e2); }
+                  }
+                  if (!done) { try { await deleteDoc(doc(db, "users", uidToDelete)); } catch (e3) { console.log("Удаление аккаунта, профиль:", e3.code || e3); throw unfinished(); } } // правила без сейфа — профиль, как раньше
+              }
+              e2eMarkWipe(); await e2eSessionOff(); await e2eWipeDevice(); e2eLoggingOut = true; // ключи с устройства — до выхода (deleteUser сразу разлогинит)
+              await deleteUser(currentUser);
               showToast(t("Аккаунт успешно удален"), "trash"); document.getElementById("settings-screen").style.display = "none";
           } catch (error) {
               console.error("Ошибка при удалении аккаунта:", error);
               if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') { alert(t("Неверный пароль. Аккаунт не удалён.")); }
               else if (error.code === 'auth/requires-recent-login') { alert(t("В целях безопасности, чтобы удалить аккаунт, вам нужно выйти и зайти заново (ввести пароль).")); signOut(auth); } 
+              else if (error.code === "owl/unfinished") { alert(error.message); }
               else { alert(t("Произошла ошибка при удалении аккаунта: ") + error.message); }
           }
       });

@@ -1,12 +1,16 @@
-const CACHE = 'owl-shell-v89';
+const CACHE = 'owl-shell-v90';
 // Приложение — index.html + boot.js/app.js/ui.js (?v= — как CACHE): кладём их сразу, иначе без сети после обновления не запустится
-const SHELL = ['/', '/boot.js?v=89', '/app.js?v=89', '/ui.js?v=89', '/i18n-en.js?v=89', '/i18n-de.js?v=89', '/i18n-pl.js?v=89',
-    '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const SHELL = ['/', '/boot.js?v=90', '/app.js?v=90', '/ui.js?v=90', '/i18n-en.js?v=90', '/i18n-de.js?v=90', '/i18n-pl.js?v=90',
+    '/e2e.js?v=90', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+// Ядро шифрования (globalThis.OwlE2E) — для расшифровки текста в push. Номер ?v= — тот же, что у CACHE и SHELL.
+// Без try: не загрузилось — новый service worker не ставится, остаётся прежний, браузер повторит позже.
+importScripts('/e2e.js?v=90');
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE)
-            .then((c) => Promise.all(SHELL.map((u) => c.add(u).catch(() => {}))))
+            // e2e.js — без «.catch»: без него приложение офлайн не расшифрует сообщения, лучше остаться на прежней версии
+            .then((c) => Promise.all(SHELL.map((u) => u.indexOf('/e2e.js?') === 0 ? c.add(u) : c.add(u).catch(() => {}))))
             .then(() => self.skipWaiting())
     );
 });
@@ -99,6 +103,7 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('push', (event) => {
     let d = {};
     try { d = event.data ? event.data.json() : {}; } catch (_) { d = { body: event.data ? event.data.text() : '' }; }
+    if (!d || typeof d !== 'object') d = {};
     const tag = d.tag || 'owl';
     const opts = {
         body: d.body || 'Новое сообщение',
@@ -108,21 +113,42 @@ self.addEventListener('push', (event) => {
     };
     // «Сова на страже»: тревога и напоминания — громко, с вибрацией и не исчезают сами
     if (d.loud) { opts.requireInteraction = true; opts.silent = false; opts.vibrate = [400, 150, 400, 150, 800]; }
+    const title = d.title || 'Owl Messenger';
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+        // Список окон не получили — считаем, что приложение закрыто: уведомление показать нужно в любом случае
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).catch(() => []).then((list) => {
             // Owl открыт на экране — уведомление покажет само приложение.
             // Safari требует показывать уведомление на каждый push, поэтому показываем и сразу убираем.
             // Входящий звонок при открытом приложении показывает экран звонка — уведомление тоже убираем.
             const inApp = (!d.loud || d.call) && list.some((c) => c.visibilityState === 'visible' && c.focused);
-            return self.registration.showNotification(d.title || 'Owl Messenger', opts).then(() => {
-                if (inApp) return self.registration.getNotifications({ tag: tag }).then((ns) => ns.forEach((n) => n.close()));
-            }).then(() => {
-                // Пришло сообщение в этот чат (например, «Пропущенный звонок») — убираем устаревшее «звонит»
-                if (d.call || !d.chatId) return;
-                return self.registration.getNotifications().then((ns) => ns.forEach((n) => {
-                    if (n.tag && n.tag.indexOf('owl-call-') === 0 && n.data && n.data.chatId === d.chatId) n.close();
-                }));
-            });
+            // Зашифрованное сообщение (d.e): пробуем расшифровать превью ключом с этого устройства — не дольше 1,5 с.
+            // Только текущим закреплённым ключом собеседника (прежний или незакреплённый ключ, в т.ч. e.pk из push, — null, см. e2e.js trustedPub).
+            // Любая ошибка или тайм-аут → null → остаётся запасной текст Worker'а («🔒 Новое сообщение» на языке получателя).
+            // Уведомление показываем ВСЕГДА (iOS отзывает подписку после нескольких push без уведомления).
+            let timer = null;
+            const dec = (!inApp && d.e && typeof d.e === 'object' && typeof d.chatId === 'string' && self.OwlE2E)
+                ? Promise.race([
+                    Promise.resolve().then(() => self.OwlE2E.pushPreview(d.e, d.chatId)).catch(() => null),
+                    new Promise((r) => { timer = setTimeout(() => r(null), 1500); })
+                ]).then((txt) => { clearTimeout(timer); return txt; })
+                : Promise.resolve(null);
+            return dec
+                .then((txt) => {
+                    if (typeof txt === 'string' && txt) opts.body = txt;   // расшифрованное — только в тексте, не в data
+                    return self.registration.showNotification(title, opts);
+                })
+                // Не показалось (например, браузер не принял параметры) — показываем простое, с запасным текстом
+                .catch(() => self.registration.showNotification(title, { body: d.body || 'Новое сообщение', tag: tag, data: opts.data }))
+                .then(() => {
+                    if (inApp) return self.registration.getNotifications({ tag: tag }).then((ns) => ns.forEach((n) => n.close()));
+                })
+                .then(() => {
+                    // Пришло сообщение в этот чат (например, «Пропущенный звонок») — убираем устаревшее «звонит»
+                    if (d.call || !d.chatId) return;
+                    return self.registration.getNotifications().then((ns) => ns.forEach((n) => {
+                        if (n.tag && n.tag.indexOf('owl-call-') === 0 && n.data && n.data.chatId === d.chatId) n.close();
+                    }));
+                });
         })
     );
 });

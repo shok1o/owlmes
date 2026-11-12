@@ -25,7 +25,7 @@
          owlCalm() — «без лишнего движения»: этот режим или системное «Уменьшение движения» -->
     <!-- Защита от чужих скриптов (CSP): что странице можно загружать. Та же строка — в boot.js (OWL_CSP); менять обе вместе -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://www.gstatic.com/firebasejs/10.11.0/ https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://push.owlmes.ru https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/ https://challenges.cloudflare.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com https://www.google.com/recaptcha/ https://push.owlmes.ru; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/ https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-    <script src="boot.js?v=89"></script>
+    <script src="boot.js?v=90"></script>
 
     <style>
       :root {
@@ -1636,6 +1636,87 @@
       #public-premium-badge, #settings-premium-badge { cursor: pointer; }
       @media (prefers-reduced-motion: reduce) { .prem-hero::before, .prem-hero i { animation: none !important; } .prem-hero i { opacity: .6; } }
       html.owl-simple .prem-hero::before, html.owl-simple .prem-hero i { animation: none !important; }
+
+      /* ===================== СКВОЗНОЕ ШИФРОВАНИЕ (E2E): окна ключа, плашка в чате, карточки, значки ===================== */
+      /* Окно «Сквозное шифрование» (#e2e-screen): режимы — секции [data-e2e-mode], видна одна (атрибут hidden) */
+      .e2e-box { max-width: 400px; }
+      .e2e-box [hidden] { display: none !important; }
+      .e2e-box h2 { margin: 0 0 8px; }
+      .e2e-box h3 { margin: 14px 0 6px; font-size: 16px; color: var(--text-main); }
+      .e2e-box p { color: var(--text-muted); font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
+      .e2e-hero { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, var(--accent), #2b1d63); box-shadow: 0 10px 26px -10px var(--accent); }
+      .e2e-hero.ok { background: linear-gradient(135deg, #2fb36d, #146b3f); box-shadow: 0 10px 26px -10px #2fb36d; }
+      .e2e-hero.warn { background: linear-gradient(135deg, #ff9f0a, #a85a00); box-shadow: 0 10px 26px -10px #ff9f0a; }
+      .e2e-box p.e2e-state { color: var(--text-main); font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+      .e2e-box .e2e-warn { background: color-mix(in srgb, #ff9f0a 13%, transparent); border: 1px solid color-mix(in srgb, #ff9f0a 45%, transparent); color: var(--text-main); border-radius: 12px; padding: 10px 12px; text-align: left; font-size: 13px; }
+      .e2e-actions { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+      .e2e-actions .modal-btn { margin-top: 4px; }
+      .e2e-linkbtn { background: none; border: none; color: var(--accent); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 8px; margin-top: 4px; }
+      .e2e-linkbtn:disabled { opacity: .5; cursor: default; }
+      .e2e-box .e2e-small { font-size: 12px; }
+      .e2e-small .e2e-linkbtn { font-size: inherit; padding: 0; margin: 0; } /* ссылка внутри строки */
+      .e2e-danger { background: #ff3b30 !important; color: #fff !important; }
+      .e2e-key { font: 600 17px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0; background: var(--input-bg); color: var(--text-main); border-radius: 14px; padding: 14px 10px; margin: 0 0 10px; -webkit-user-select: all; user-select: all; overflow-wrap: anywhere; }
+      .e2e-key.wait { color: var(--text-muted); font-weight: 500; letter-spacing: 0; }
+      .e2e-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+      .e2e-row .ob-mini-btn { margin-top: 0; }
+      /* QR с Совиным ключом — всегда в белой рамке: чёрные модули без фона в тёмной теме сканер (jsQR, dontInvert) не прочтёт */
+      .e2e-qr { background: #fff; border-radius: 16px; padding: 14px; width: 220px; max-width: 78%; margin: 4px auto 8px; }
+      .e2e-qr svg { display: block; width: 100%; height: auto; }
+      .e2e-qr .dev-empty { color: #6d5bb0; padding: 10px 0; }
+      .e2e-ack { border-top: 1px solid var(--border-color); margin-top: 12px; padding-top: 12px; }
+      .e2e-ack label { display: block; font-size: 13px; color: var(--text-muted); }
+      #e2e-ack-input, #e2e-key-input, #e2e-old-input { text-align: center; font: 600 18px ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 2px; text-transform: uppercase; }
+      #e2e-key-input, #e2e-old-input { font-size: 15px; letter-spacing: 1px; }
+      .e2e-err { color: #ff3b30; font-size: 13px; min-height: 18px; margin: 4px 0; line-height: 1.35; }
+      .e2e-done { color: #2fb36d; font-weight: 600; font-size: 14px; margin: 10px 0 0; }
+      #e2e-screen .seg2 { margin-top: 4px !important; }
+      #e2e-screen .qr-cam { margin-bottom: 2px; }
+      .e2e-faq { text-align: left; margin-top: 18px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+      .e2e-faq h3 { font-size: 12px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); margin: 6px 0 8px; }
+      .e2e-faq details { background: var(--input-bg); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; }
+      .e2e-faq summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--text-main); }
+      .e2e-faq details p { margin: 8px 0 0; font-size: 13px; }
+      /* Плашка шифрования в чате (#e2e-bar) — над полем ввода, рядом с «ночь»/«блокировка»; поле ввода она не прячет */
+      #e2e-bar { display: none; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin: 0 10px 6px; padding: 8px 10px 8px 12px; border: 1px solid var(--lg-edge, var(--border-color)); border-radius: 18px; background-color: var(--lg-fill-strong, var(--bg-panel)); background-image: var(--lg-gloss, none); box-shadow: var(--lg-shine, none), 0 8px 22px -12px rgba(4,2,14,.5); -webkit-backdrop-filter: var(--lg-blur, none); backdrop-filter: var(--lg-blur, none); font-size: 13px; color: var(--text-main); line-height: 1.35; }
+      #e2e-bar.on { display: flex; animation: barUp .22s cubic-bezier(.2,.8,.2,1); }
+      #e2e-bar.warn { border-color: color-mix(in srgb, #ff9f0a 55%, transparent); }
+      #e2e-bar .eb-ico { flex-shrink: 0; display: flex; color: var(--accent); }
+      #e2e-bar.warn .eb-ico { color: #ff9f0a; }
+      #e2e-bar .eb-text { flex: 1 1 180px; min-width: 0; }
+      #e2e-bar .eb-text small { display: block; color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+      #e2e-bar .eb-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+      #e2e-bar button { border: 1px solid var(--lg-edge, var(--border-color)); background: var(--lg-chip, var(--input-bg)); color: var(--text-main); border-radius: 12px; padding: 6px 11px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+      #e2e-bar button.eb-main { background: var(--accent); border-color: var(--accent); color: #fff; }
+      html.owl-simple #e2e-bar { background-color: var(--bg-panel); background-image: none; }
+      /* Пока гейт шифрования закрыт: микрофон и скрепка недоступны (текст в поле остаётся) */
+      .input-area button:disabled { opacity: .35; pointer-events: none; }
+      /* Карточка вверху списка чатов: «Это устройство не подключено к шифрованию — Подключить» */
+      #e2e-card:empty { display: none; }
+      #e2e-card .gi-card { display: flex; flex-direction: column; }
+      #e2e-card .gi-card p { display: flex; gap: 8px; align-items: flex-start; }
+      #e2e-card .gi-card p svg { flex-shrink: 0; color: #ff9f0a; margin-top: 1px; }
+      #e2e-card .e2e-card-x { flex: 0 0 auto; align-self: flex-end; background: none; border: none; color: var(--text-muted); font-weight: 500; padding: 4px 6px; margin-top: -4px; }
+      /* Точка-напоминание «сохраните Совиный ключ» на шапке профиля (открывает настройки) */
+      #open-settings-btn .sph-top { position: relative; }
+      #open-settings-btn.e2e-remind .sph-top::before { content: ""; position: absolute; left: 42px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: #ff9f0a; border: 2px solid var(--bg-panel); z-index: 2; pointer-events: none; }
+      #e2e-open.remind small { color: #ff9f0a; }
+      /* Значки в переписке (Т5/Т7): черта «Дальше сообщения зашифрованы», пузырь-ошибка, 🔓 у открытых, замок в шапке */
+      .e2e-sep { align-self: center; display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 2px; padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--text-main); background: color-mix(in srgb, #2fb36d 13%, var(--bg-panel)); border: 1px solid color-mix(in srgb, #2fb36d 40%, transparent); -webkit-user-select: none; user-select: none; }
+      .message-row .e2e-fail { display: inline-flex; align-items: center; gap: 6px; font-style: italic; opacity: .85; }
+      .message-row .e2e-fail.tap { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+      .msg-lock { display: inline-flex; align-items: center; color: #ff9f0a; cursor: help; }
+      .msg-lock svg { width: 12px; height: 12px; }
+      .e2e-svc { font-size: 11px; opacity: .7; margin-top: 4px; }
+      .e2e-hd { display: inline-flex; align-items: center; justify-content: center; gap: 2px; order: 9; min-width: 30px; padding: 7px 6px; margin: -7px 2px -7px 0; background: none; border: 0; color: #2fb36d; cursor: pointer; vertical-align: middle; }
+      .e2e-hd.warn { color: #ff9f0a; }
+      .e2e-hd.off { color: var(--text-muted); }
+      /* «Отпечаток совы» и пояснение к замку (#e2e-fp-screen) */
+      .e2e-fp-digits { display: grid; grid-template-columns: repeat(4, auto); justify-content: center; justify-content: safe center; gap: 8px clamp(8px, 3vw, 16px); font: 600 clamp(15px, 5.2vw, 19px) ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--text-main); background: var(--input-bg); border-radius: 14px; padding: 14px 10px; margin: 6px 0 14px; }
+      .e2e-fp-digits:empty { display: none; }
+      #public-fp-btn:hover { color: var(--accent); }
+      .rp-e2e { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
+      @media (prefers-reduced-motion: reduce) { #e2e-bar.on { animation: none !important; } }
     </style>
   </head>
   <body>
@@ -1703,6 +1784,7 @@
         <button id="public-follow-btn" class="modal-btn" style="background: var(--accent); margin-bottom: 10px;">Подписаться</button>
         <button id="public-msg-btn" class="modal-btn" style="background: var(--input-bg); color: var(--text-main);">Написать сообщение</button>
         <div style="display:flex; justify-content:center; gap:14px; flex-wrap:wrap;">
+          <button id="public-fp-btn" class="link-btn" style="display:none;"></button>
           <button id="public-block-btn" class="link-btn" style="display:none;"></button>
           <button id="public-report-btn" class="link-btn" style="display:none;"></button>
         </div>
@@ -1718,6 +1800,7 @@
         <h2 style="margin-top: 0;">Пожаловаться</h2>
         <p class="rp-target" id="report-target"></p>
         <div class="rp-quote" id="report-quote" style="display:none;"></div>
+        <p class="rp-e2e" id="report-e2e-note" style="display:none;">Текст сообщения увидит модератор</p>
         <div class="rp-reasons">
           <label><input type="radio" name="rp-reason" value="Спам или реклама">Спам или реклама</label>
           <label><input type="radio" name="rp-reason" value="Оскорбления или травля">Оскорбления или травля</label>
@@ -2028,6 +2111,11 @@
         <div class="st-sec">Безопасность</div>
         <div class="st-card"><div class="st-row"><span class="st-label"><svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>Вход с кодом</span><label class="st-toggle"><input type="checkbox" id="mfa-toggle"><span></span></label></div>
           <div id="mfa-state" style="font-size:12px; color:var(--text-muted); margin-top:6px;"></div></div>
+        <!-- Сквозное шифрование: статус и вход в окно #e2e-screen (видно участникам пилота и тем, у кого ключ уже есть) -->
+        <button type="button" class="st-card eye-entry" id="e2e-open" style="margin-top:10px; display:none;">
+          <svg class="eye-mini" viewBox="0 0 24 24" width="46" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3M12 14.5v2.5"/></svg>
+          <span><b>Сквозное шифрование</b><small id="e2e-sum" data-no-i18n></small></span><span class="eye-chev">›</span>
+        </button>
 
         <div class="st-sec">О приложении</div>
         <div class="st-card st-links">
@@ -2203,6 +2291,158 @@
         <div id="qr-scan" style="display:none">
           <div class="qr-cam"><video id="qr-video" playsinline muted></video><div class="qr-frame"><i></i><i></i><i></i><i></i><b></b></div></div>
           <p class="qr-hint" id="qr-scan-hint">Наведите камеру на QR-код друга из Owl</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- СКВОЗНОЕ ШИФРОВАНИЕ: статус, Совиный ключ, подключение устройства, «включить заново», окно перед выходом.
+         Режимы — секции [data-e2e-mode] (показывает e2eOpen в app.js). Закрытие — своей кнопкой (гасит камеру), не data-close -->
+    <div id="e2e-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box e2e-box">
+        <button class="icon-btn" id="e2e-close" type="button" title="Закрыть" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+
+        <!-- Статус (из настроек) -->
+        <div data-e2e-mode="status">
+          <div class="e2e-hero" id="e2e-st-hero"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3M12 14.5v2.5"/></svg></div>
+          <h2>Сквозное шифрование</h2>
+          <p class="e2e-state" id="e2e-st-text" data-no-i18n></p>
+          <p>Новые личные сообщения шифруются, когда шифрование включено и у собеседника (в шапке чата — 🔒). Старые сообщения остаются как были.</p>
+          <p class="e2e-warn" id="e2e-st-safari" data-no-i18n hidden></p>
+          <div class="e2e-actions">
+            <button type="button" class="modal-btn" data-e2e-act="link" hidden>Подключить это устройство</button>
+            <button type="button" class="modal-btn" data-e2e-act="link-vault" hidden>Подключить Совиным ключом</button>
+            <button type="button" class="modal-btn" data-e2e-act="enable-here" hidden>Включить здесь</button>
+            <button type="button" class="modal-btn" data-e2e-act="retry" hidden>Повторить</button>
+            <button type="button" class="modal-btn" data-e2e-act="show-key" hidden>Показать Совиный ключ</button>
+            <button type="button" class="modal-btn bk-ghost" data-e2e-act="link-other" hidden>Подключить другое устройство</button>
+            <button type="button" class="e2e-linkbtn" data-e2e-act="old" hidden>Ввести прежний Совиный ключ</button>
+            <button type="button" class="e2e-linkbtn" data-e2e-act="reset" hidden>Включить шифрование заново</button>
+            <p class="e2e-small" id="e2e-st-reset-hint" hidden>Ключ мог утечь? Включите шифрование заново — старый ключ перестанет работать для новых сообщений</p>
+          </div>
+          <div class="e2e-faq">
+            <h3>Вопросы</h3>
+            <details id="e2e-faq-escrow"><summary>Может ли кто-то ещё прочитать переписку?</summary><p>Сообщения шифруются на ваших устройствах — в базе Owl их содержимое лежит только в виде шифра. Закон РФ (149-ФЗ, ст. 10.1) обязывает организаторов распространения информации, которые шифруют сообщения, передавать ФСБ сведения, необходимые для их расшифровки. Поэтому копия вашего ключа хранится запертой отдельным ключом для запросов. Этот ключ хранится у администрации Owl в отдельном зашифрованном хранилище и в бумажной резервной копии, не на сервере, и используется только по официальному запросу; каждое использование записывается. Если закон потребует передать сами ключи человека, получатель сможет без нас расшифровать ими всю его зашифрованную переписку — прошлую и будущую, пока человек не включит шифрование заново. Для восстановления потерянных переписок ключ для запросов не используют. Кроме того, собеседник видит ваши сообщения и может пожаловаться на сообщение — тогда модератор увидит его текст.</p></details>
+            <details><summary>Что такое Совиный ключ?</summary><p>Это 28 символов — пароль от сейфа, где лежит запертая копия вашего шифрования. С ним можно подключить новое устройство и вернуть зашифрованные переписки, если все устройства потеряны. Сохраните его в менеджере паролей или на бумаге и никому не показывайте.</p></details>
+            <details><summary>Как подключить второе устройство?</summary><p>На новом устройстве откройте Настройки → Безопасность → Сквозное шифрование → «Подключить это устройство». Отсканируйте QR-код в Owl на устройстве, где шифрование уже работает (там — «Подключить другое устройство»), или введите Совиный ключ. Вкладка Safari и Owl на экране «Домой» считаются разными устройствами.</p></details>
+            <details><summary>Почему «Сообщение недоступно»?</summary><p>Сообщение зашифровано, а это устройство ещё не подключено: ключ есть только на других ваших устройствах. Подключите это устройство — и сообщения откроются.</p></details>
+            <details><summary>«Сообщение зашифровано старым ключом»?</summary><p>Так выглядят сообщения до того, как шифрование включили заново. Если у вас сохранён прежний Совиный ключ, нажмите на такое сообщение или «Ввести прежний Совиный ключ» здесь — они снова откроются на этом устройстве.</p></details>
+            <details><summary>Что значит ⚠ у сообщения?</summary><p>Сообщение зашифровано прежним ключом собеседника: шифрование у него недавно включили заново. Если не уверены, что это сделал сам собеседник, — сверьте с ним Отпечаток совы при встрече или по звонку. Если ⚠ у нового сообщения, пришедшего уже после смены, — Отпечаток совы его не проверяет: спросите собеседника, писал ли он это (возможно, с другого своего устройства, где Owl ещё не обновился).</p></details>
+            <details><summary>Что значит 🔓?</summary><p>Сообщение пришло без шифрования: его отправили кнопкой «Без шифрования», со старой версии Owl — или его подменил кто-то посередине. Не отправляйте так ничего секретного.</p></details>
+            <details><summary>Что делать, если ключ потерян?</summary><p>Если Owl работает на другом вашем устройстве — посмотрите ключ там: «Показать Совиный ключ». Если нет ни устройства, ни ключа — нажмите «Включить шифрование заново». Зашифрованные переписки до этого момента прочитать не получится, а собеседники увидят, что вы заново включили шифрование. Кнопка «Выйти из аккаунта» в настройках стирает ключ с устройства.</p></details>
+          </div>
+        </div>
+
+        <!-- Шифрование включилось (один раз после создания ключа) -->
+        <div data-e2e-mode="welcome" hidden>
+          <div class="e2e-hero ok"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3M12 14.5v2.5"/></svg></div>
+          <h2>Шифрование включено ✓</h2>
+          <p>Новые личные сообщения шифруются, когда шифрование включено и у собеседника (в шапке чата — 🔒). Старые сообщения остаются как были.</p>
+          <p class="e2e-small">Копия вашего ключа хранится запертой — на случай официального запроса по закону РФ. <button type="button" class="e2e-linkbtn" data-e2e-act="faq-escrow">Подробнее</button></p>
+          <h3>Сохраните Совиный ключ</h3>
+          <p>Совиный ключ — единственный способ вернуть зашифрованные переписки, если вы потеряете все устройства. Сохраните его в менеджере паролей или на бумаге.</p>
+          <button type="button" class="modal-btn" data-e2e-act="show-key">Показать Совиный ключ</button>
+          <button type="button" class="modal-btn bk-ghost" data-e2e-act="later">Позже</button>
+        </div>
+
+        <!-- Совиный ключ (показ, перед выходом, после «включить заново») -->
+        <div data-e2e-mode="key" hidden>
+          <h2>Совиный ключ</h2>
+          <p class="e2e-warn" id="e2e-logout-note" hidden>После выхода Совиный ключ сотрётся с этого устройства. Без него или другого подключённого устройства зашифрованные переписки будет не прочитать. Сохраните ключ сейчас.</p>
+          <p class="e2e-warn">Не показывайте этот код никому: с ним и доступом к аккаунту можно читать ваши личные переписки.</p>
+          <div class="e2e-key" id="e2e-key-text" data-no-i18n></div>
+          <div class="e2e-row">
+            <button type="button" class="ob-mini-btn" data-e2e-act="copy-key">Скопировать</button>
+            <button type="button" class="ob-mini-btn" data-e2e-act="show-qr" id="e2e-qr-btn">Показать QR-код</button>
+          </div>
+          <div id="e2e-qr-wrap" hidden>
+            <div class="e2e-qr" id="e2e-qr" data-no-i18n></div>
+            <p class="e2e-small">Сканируйте только в Owl: Настройки → Безопасность → Сквозное шифрование → Подключить это устройство</p>
+          </div>
+          <div class="e2e-ack" id="e2e-ack">
+            <p class="e2e-small">Совиный ключ — единственный способ вернуть зашифрованные переписки, если вы потеряете все устройства. Сохраните его в менеджере паролей или на бумаге.</p>
+            <label for="e2e-ack-input">Введите последние 4 символа ключа</label>
+            <input type="text" id="e2e-ack-input" maxlength="4" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX">
+            <div class="e2e-err" id="e2e-ack-err" data-no-i18n></div>
+            <button type="button" class="modal-btn" data-e2e-act="ack">Я сохранил(а) ключ</button>
+          </div>
+          <p class="e2e-done" id="e2e-ack-done" data-no-i18n hidden></p>
+          <button type="button" class="modal-btn e2e-danger" data-e2e-act="logout-anyway" id="e2e-logout-btn" hidden>Выйти всё равно</button>
+        </div>
+
+        <!-- Подключение этого устройства: QR с другого устройства или Совиный ключ -->
+        <div data-e2e-mode="link" hidden>
+          <h2>Подключить это устройство</h2>
+          <p>Отсканируйте QR-код на устройстве, где Owl уже подключён, или введите Совиный ключ</p>
+          <div class="tabs-container seg2" id="e2e-link-tabs" role="tablist"><div class="tab active" data-e2e-lt="scan" role="tab" tabindex="0" aria-selected="true">Сканировать QR-код</div><div class="tab" data-e2e-lt="type" role="tab" tabindex="0" aria-selected="false">Ввести ключ</div></div>
+          <div id="e2e-link-scan">
+            <div class="qr-cam"><video id="e2e-video" playsinline muted></video><div class="qr-frame" id="e2e-frame"><i></i><i></i><i></i><i></i><b></b></div></div>
+            <p class="qr-hint" id="e2e-scan-hint" data-no-i18n></p>
+          </div>
+          <div id="e2e-link-type" hidden>
+            <input type="text" id="e2e-key-input" aria-label="Совиный ключ" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+            <button type="button" class="modal-btn" data-e2e-act="link-submit" id="e2e-link-go">Подключить</button>
+          </div>
+          <div class="e2e-err" id="e2e-link-err" data-no-i18n></div>
+          <button type="button" class="e2e-linkbtn" data-e2e-act="old-key" id="e2e-old-btn" hidden>Это старый Совиный ключ?</button>
+        </div>
+
+        <!-- «Включить шифрование заново»: сначала вопрос (если устройство не подключено), затем подтверждение -->
+        <div data-e2e-mode="reset" hidden>
+          <div class="e2e-hero warn"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 19 4M16 7l2.5 2.5M14 9l2 2"/></svg></div>
+          <h2>Включить шифрование заново</h2>
+          <div id="e2e-reset-ask">
+            <p>Есть телефон или компьютер, где Owl уже работает?</p>
+            <button type="button" class="modal-btn" data-e2e-act="reset-have">Да, подключить через него</button>
+            <button type="button" class="modal-btn bk-ghost" data-e2e-act="reset-none">Нет</button>
+          </div>
+          <div id="e2e-reset-confirm" hidden>
+            <p class="e2e-warn">Другие ваши устройства отключатся — подключите их новым ключом. Сообщения до этого момента откроются только там, где уже открывались, или с прежним Совиным ключом. Собеседники увидят, что вы заново включили шифрование.</p>
+            <button type="button" class="modal-btn e2e-danger" data-e2e-act="reset-go" id="e2e-reset-go">Включить шифрование заново</button>
+            <button type="button" class="modal-btn bk-ghost" data-e2e-act="status">Отмена</button>
+          </div>
+        </div>
+
+        <!-- Ключ сменили на другом устройстве -->
+        <div data-e2e-mode="stale" hidden>
+          <div class="e2e-hero warn"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 19 4M16 7l2.5 2.5M14 9l2 2"/></svg></div>
+          <h2>Сквозное шифрование</h2>
+          <p class="e2e-state">Шифрование на вашем аккаунте включили заново на другом устройстве</p>
+          <button type="button" class="modal-btn" data-e2e-act="link">Это я — ввести новый Совиный ключ</button>
+          <button type="button" class="modal-btn bk-ghost" data-e2e-act="stale-notme">Это не я</button>
+          <div id="e2e-stale-steps" hidden>
+            <p class="e2e-warn" style="margin-top:12px;">Смените пароль, включите «Вход с кодом», затем включите шифрование заново и предупредите собеседников</p>
+            <button type="button" class="e2e-linkbtn" data-e2e-act="reset-notme">Включить шифрование заново</button>
+          </div>
+        </div>
+
+        <!-- Прежний Совиный ключ (подключённое устройство): история сейфов → старые сообщения до «заново» снова читаются -->
+        <div data-e2e-mode="old" hidden>
+          <h2>Прежний Совиный ключ</h2>
+          <p>Введите Совиный ключ, который был до того, как шифрование включили заново, — старые сообщения снова откроются на этом устройстве</p>
+          <input type="text" id="e2e-old-input" aria-label="Совиный ключ" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+          <button type="button" class="modal-btn" data-e2e-act="old-submit" id="e2e-old-go">Открыть старые сообщения</button>
+          <div class="e2e-err" id="e2e-old-err" data-no-i18n></div>
+          <button type="button" class="modal-btn bk-ghost" data-e2e-act="status">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- «ОТПЕЧАТОК СОВЫ» и пояснение к замку в шапке чата (режимы [data-fp-mode]: fp — цифры, info — почему 🔒/нет значка/⚠) -->
+    <div id="e2e-fp-screen" class="modal-screen" style="display: none;">
+      <div class="modal-box e2e-box">
+        <button class="icon-btn" data-close="e2e-fp-screen" type="button" title="Закрыть" style="position: absolute; top: 12px; right: 12px;"><svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        <div class="e2e-hero" id="e2e-fp-hero"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3M12 14.5v2.5"/></svg></div>
+        <div data-fp-mode="info" hidden>
+          <h2>Сквозное шифрование</h2>
+          <p class="e2e-state" id="e2e-fp-info" data-no-i18n></p>
+          <p id="e2e-fp-info-sub" data-no-i18n></p>
+          <button type="button" class="modal-btn" id="e2e-fp-show" data-fp-act="fp">Отпечаток совы</button>
+          <button type="button" class="modal-btn bk-ghost" id="e2e-fp-more" data-fp-act="settings">Сквозное шифрование</button>
+        </div>
+        <div data-fp-mode="fp" hidden>
+          <h2>Отпечаток совы</h2>
+          <div class="e2e-fp-digits" id="e2e-fp-digits" data-no-i18n></div>
+          <p id="e2e-fp-hint" data-no-i18n></p>
         </div>
       </div>
     </div>
@@ -2424,13 +2664,14 @@
         </div>
         
         <div id="guard-bar" role="button" tabindex="0"><span class="gb-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M4.5 3.5 8 5.8Q12 4.4 16 5.8l3.5-2.3V11c0 4.9-3.2 8.6-7.5 10.5C7.7 19.6 4.5 15.9 4.5 11z" fill="currentColor"/><circle cx="9.3" cy="12" r="2.3" fill="#fff"/><circle cx="14.7" cy="12" r="2.3" fill="#fff"/><circle cx="9.5" cy="12.2" r="1.1" fill="#1a1430"/><circle cx="14.9" cy="12.2" r="1.1" fill="#1a1430"/></svg></span><span class="gb-text" id="guard-bar-text"></span><button type="button" id="guard-bar-ok">Я в порядке</button></div>
+        <div id="e2e-card" data-no-i18n></div>
         <div id="group-invites"></div>
         <div id="chat-pager"><div id="chat-track"><div class="chat-list" id="chat-list"></div><div class="chat-list" id="chat-list-peek" aria-hidden="true"></div></div></div>
         <!-- Новая беседа: плавающая кнопка над списком чатов -->
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.118.1</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.119</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2486,6 +2727,8 @@
         </div>
         
         <div id="night-bar" aria-live="polite"><span aria-hidden="true" class="nb-moon"><svg class="ei" viewBox="0 0 24 24" width="18" height="18" style="color:#f5b942" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="f" d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M17.5 3.5v3M16 5h3"/></svg></span><span class="nb-text" id="night-bar-text"></span><button id="night-urgent-btn" type="button">⚡ Срочно</button></div>
+        <!-- Плашка шифрования лички/Гнезда: причина закрытого гейта или «собеседник заново включил шифрование» (тексты и кнопки — из app.js) -->
+        <div id="e2e-bar" aria-live="polite" data-no-i18n><span class="eb-ico" id="e2e-bar-ico" aria-hidden="true"></span><span class="eb-text"><span id="e2e-bar-text"></span><small id="e2e-bar-sub"></small></span><span class="eb-acts" id="e2e-bar-acts"></span></div>
         <div class="input-area">
           <input type="file" id="image-input" accept="image/*" style="display: none;">
           <button id="attach-btn" class="icon-btn" title="Прикрепить фото">
@@ -2516,7 +2759,7 @@
       </div>
     </div>
 
-    <script type="module" src="app.js?v=89"></script>
-    <script src="ui.js?v=89"></script>
+    <script type="module" src="app.js?v=90"></script>
+    <script src="ui.js?v=90"></script>
   </body>
 </html>
