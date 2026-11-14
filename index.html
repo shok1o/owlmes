@@ -25,7 +25,7 @@
          owlCalm() — «без лишнего движения»: этот режим или системное «Уменьшение движения» -->
     <!-- Защита от чужих скриптов (CSP): что странице можно загружать. Та же строка — в boot.js (OWL_CSP); менять обе вместе -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://www.gstatic.com/firebasejs/10.11.0/ https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://push.owlmes.ru https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/ https://challenges.cloudflare.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com https://www.google.com/recaptcha/ https://push.owlmes.ru; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/ https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-    <script src="boot.js?v=92"></script>
+    <script src="boot.js?v=94"></script>
 
     <style>
       :root {
@@ -1717,6 +1717,159 @@
       #public-fp-btn:hover { color: var(--accent); }
       .rp-e2e { font-size: 12px; color: var(--text-muted); margin: -4px 0 12px; }
       @media (prefers-reduced-motion: reduce) { #e2e-bar.on { animation: none !important; } }
+
+      /* ===================== ГРУППОВЫЕ ЗВОНКИ (v1.121) =====================
+         Разметку ставит код (app.js, блок «ГРУППОВЫЕ ЗВОНКИ»): gcRender — экран, gcBarRender — плашка, gcNoteHtml — карточка, gcListMark — список.
+         Экран — тот же #call-screen, что у 1-на-1 (фон, кнопки .call-act, таблетка #call-pill «беседа · N»), с классом .group:
+         вместо «кто звонит» — название беседы и сетка плиток #gc-grid. Экран звонка всегда тёмный — цвета на нём не зависят от темы */
+      #gc-head, #gc-grid, #gc-pool { display: none; }
+      #call-screen.group .call-who, #call-screen.group #call-video, #call-screen.group #call-self { display: none !important; }
+      #call-screen.group #gc-head { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100%; padding: 4px 48px 0; box-sizing: border-box; text-align: center; position: relative; z-index: 2; }
+      #gc-title { font-size: 21px; font-weight: 700; letter-spacing: -.01em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      #gc-status { font-size: 14px; opacity: .82; font-variant-numeric: tabular-nums; min-height: 1.3em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      /* Сетка: 1 — одна плитка, 2 — друг под другом, 3–4 — 2×2, 5–6 — 2×3 (нечётная последняя — по центру); на широком экране — в ряд */
+      #call-screen.group #gc-grid { display: grid; gap: 10px; width: 100%; max-width: 520px; flex: 1 1 auto; min-height: 0; margin: 16px 0 14px;
+        grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); position: relative; z-index: 1; }
+      #call-screen.group #gc-grid[data-n="1"] { max-width: 400px; }
+      #call-screen.group #gc-grid:is([data-n="3"], [data-n="4"], [data-n="5"], [data-n="6"], [data-n="7"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #call-screen.group #gc-grid:is([data-n="3"], [data-n="5"], [data-n="7"]) > .gc-tile:last-child { grid-column: 1 / -1; justify-self: center; width: calc(50% - 5px); }
+      @media (min-width: 769px) and (min-aspect-ratio: 1/1) {
+        #call-screen.group #gc-grid { max-width: 1040px; }
+        #call-screen.group #gc-grid[data-n="1"] { max-width: 480px; }
+        #call-screen.group #gc-grid[data-n="2"] { max-width: 960px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        #call-screen.group #gc-grid:is([data-n="5"], [data-n="6"], [data-n="7"]) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        #call-screen.group #gc-grid:is([data-n="5"], [data-n="7"]) > .gc-tile:last-child { grid-column: auto; justify-self: stretch; width: auto; }
+      }
+      /* Плитка — стекло как у кнопок звонка (без размытия под ней: плиток до 6, а фон и так размыт) */
+      .gc-tile { position: relative; min-width: 0; min-height: 0; border-radius: 24px; overflow: hidden; display: grid; place-items: center; isolation: isolate; color: #fff;
+        background: linear-gradient(160deg, rgba(255,255,255,.15), rgba(255,255,255,.05));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.26), inset 0 0 0 1px rgba(255,255,255,.1), 0 12px 30px rgba(0,0,0,.28); transition: box-shadow .25s ease; }
+      .gc-tile .gc-av { display: block; width: min(42%, 108px); height: auto; aspect-ratio: 1 / 1; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.08);
+        box-shadow: 0 0 0 3px rgba(255,255,255,.14), 0 14px 34px rgba(0,0,0,.35); transition: box-shadow .25s ease, opacity .25s ease, filter .25s ease; }
+      /* аватар — по меньшей стороне плитки (2×3 на iPhone SE: плитки низкие и широкие) */
+      @supports (container-type: size) { .gc-tile { container-type: size; } .gc-tile .gc-av { width: min(40cqw, 50cqh, 108px); } }
+      .gc-tile.speaking { box-shadow: inset 0 0 0 3px #34c759, inset 0 1px 0 rgba(255,255,255,.26), 0 0 22px rgba(52,199,89,.35), 0 12px 30px rgba(0,0,0,.28); }
+      .gc-tile.speaking .gc-av { box-shadow: 0 0 0 3px #34c759, 0 0 26px rgba(52,199,89,.55); }
+      .gc-tile.conn .gc-av { opacity: .55; }
+      .gc-tile.dead .gc-av { opacity: .4; filter: grayscale(.8); }
+      .gc-tile.hidden-peer .gc-av { opacity: .4; filter: grayscale(1); }
+      .gc-tile:has(.gc-show) .gc-av { opacity: .5; }
+      .gc-tile video { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; background: #000; display: none; }
+      .gc-tile.vid video { display: block; }
+      .gc-tile.vid .gc-av { visibility: hidden; }
+      .gc-tile.vid::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 40%; z-index: 0; pointer-events: none; background: linear-gradient(transparent, rgba(0,0,0,.5)); }
+      .gc-tile video.mirror { transform: scaleX(-1); }
+      .gc-tile video.contain { object-fit: contain; }
+      /* имя — таблетка внизу слева; перед ним — «микрофон выкл.» */
+      .gc-tile .gc-name { position: absolute; left: 8px; bottom: 8px; z-index: 1; max-width: calc(100% - 16px); box-sizing: border-box; display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.3); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); font-size: 13px; font-weight: 600; line-height: 1.25; }
+      .gc-tile .gc-name span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .gc-tile .gc-mu { display: none; flex-shrink: 0; color: #ff453a; font-style: normal; }
+      .gc-tile .gc-mu svg { display: block; }
+      .gc-tile.muted .gc-mu { display: inline-flex; }
+      .gc-tile.me .gc-name { background: rgba(255,255,255,.16); }
+      /* «Соединяется…» / «Нет связи с {name}» / «Скрыт» — таблетка сверху по центру */
+      .gc-tile .gc-flag { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 1; width: fit-content; max-width: calc(100% - 16px); margin: 0 auto; box-sizing: border-box;
+        padding: 3px 10px; border-radius: 999px; background: rgba(0,0,0,.32); font-size: 12px; font-weight: 600; line-height: 1.3; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .gc-tile .gc-flag:empty { display: none; }
+      .gc-tile.dead .gc-flag { background: rgba(255,59,48,.55); }
+      /* «Показать видео» у незнакомца — по центру плитки, поверх приглушённого аватара */
+      .gc-show { position: absolute; top: 50%; left: 50%; z-index: 1; transform: translate(-50%, -50%); max-width: calc(100% - 16px); min-height: 36px; box-sizing: border-box; padding: 8px 14px;
+        border: 0; border-radius: 999px; background: rgba(255,255,255,.2); -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 8px 20px rgba(0,0,0,.3); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .2s var(--lg-spring, ease); }
+      .gc-show:active { transform: translate(-50%, -50%) scale(.94); }
+      /* кнопки — те же, что у 1-на-1; при 4+ подписи в две строки («Выйти / из звонка»), а не обрезаны */
+      #call-screen.group .call-acts { max-width: 400px; min-height: 96px; }
+      #call-screen.group .call-acts.many .call-act > span:last-child { white-space: normal; text-overflow: clip; line-height: 1.2; text-align: center; overflow-wrap: break-word;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      #call-screen.group .call-note-line { margin-top: 10px; }
+      /* низкий экран (телефон боком, маленькое окно) — сетке больше места */
+      @media (max-height: 560px) {
+        #call-screen.group { padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+        #call-screen.group #gc-head { flex-direction: row; justify-content: center; gap: 10px; }
+        #gc-title { font-size: 17px; }
+        #call-screen.group #gc-grid { margin: 8px 0; }
+        #call-screen.group .call-acts { min-height: 0; }
+        #call-screen.group .call-act { gap: 4px; }
+        #call-screen.group .call-act .b { width: 50px; height: 50px; }
+        #call-screen.group .call-note-line { margin-top: 4px; }
+      }
+      /* Подтверждение «Начать групповой звонок?» */
+      #gc-confirm .gc-confirm-ic { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: #34c759;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 26px -8px rgba(52,199,89,.7); }
+      #gc-confirm .gc-confirm-ic svg { display: block; }
+      #gc-confirm-go { background: #34c759; }
+      #gc-confirm .gc-cancel { background: var(--input-bg); color: var(--text-main); margin-top: 8px; }
+      /* Плашка в беседе (#gc-bar, между шапкой и поиском): «Идёт звонок · N · Присоединиться», «Вернуться», «Перенести сюда», «Связь … потеряна» */
+      #gc-bar { display: none; align-items: center; gap: 10px; margin: 8px 10px 0; padding: 7px 7px 7px 9px; position: relative; z-index: 4; flex-shrink: 0;
+        border: 1px solid var(--lg-edge, var(--border-color)); border-radius: 18px; background-color: var(--lg-fill-strong, var(--bg-panel)); background-image: var(--lg-gloss, none);
+        box-shadow: var(--lg-shine, none), 0 8px 22px -12px rgba(4,2,14,.5); -webkit-backdrop-filter: var(--lg-blur, none); backdrop-filter: var(--lg-blur, none);
+        color: var(--text-main); font-size: 14px; line-height: 1.3; }
+      #gc-bar.on { display: flex; animation: gcBarIn .24s cubic-bezier(.2,.8,.2,1); }
+      @keyframes gcBarIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+      #gc-bar .gc-bar-ic { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; color: #fff; background: #34c759; box-shadow: 0 4px 12px -4px rgba(52,199,89,.7); }
+      #gc-bar .gc-bar-ic svg { display: block; width: 16px; height: 16px; }
+      #gc-bar[data-kind="elsewhere"] .gc-bar-ic { background: var(--accent); box-shadow: none; }
+      #gc-bar[data-kind="lost"] .gc-bar-ic { background: #ff9f0a; box-shadow: none; }
+      #gc-bar .gc-bar-text { flex: 1 1 auto; min-width: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; overflow-wrap: anywhere;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+      #gc-bar:is([data-kind="mine"], [data-kind="lost"]) .gc-bar-text { cursor: pointer; }
+      #gc-bar[data-kind="lost"] .gc-bar-text { font-weight: 500; font-size: 13px; }
+      #gc-bar button { flex-shrink: 0; min-height: 34px; border: 0; border-radius: 13px; padding: 8px 14px; background: #34c759; color: #fff; font: inherit; font-size: 13px; font-weight: 700;
+        cursor: pointer; white-space: nowrap; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .2s var(--lg-spring, ease); }
+      #gc-bar[data-kind="elsewhere"] button { background: var(--accent); }
+      #gc-bar button:active { transform: scale(.94); }
+      /* баннер «Подписаться на …?» не должен лечь на плашку (сейчас они не встречаются: баннер — только в личке) */
+      #main-chat:has(#gc-bar.on) #quick-follow-banner { top: 130px !important; }
+      /* Трубка в шапке беседы: звонок идёт — зелёная */
+      #call-btn.gc-live { color: #34c759; opacity: 1 !important; }
+      /* Карточка в переписке (.gc-note — не .call-note: на той обработчик 1-на-1): «Групповой звонок» / «Идёт звонок · N» и «Присоединиться» */
+      .message-content:has(> .gc-note.live) { min-width: min(230px, 65%); box-sizing: border-box; }
+      .gc-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 2px 0; }
+      .gc-note .call-ic { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; background: rgba(255,255,255,.18); }
+      .other-msg .gc-note .call-ic { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+      .gc-note.live .call-ic, .other-msg .gc-note.live .call-ic { background: #34c759; color: #fff; box-shadow: 0 4px 12px -4px rgba(52,199,89,.7); }
+      .gc-note .gc-note-txt { flex: 1 1 auto; min-width: 0; }
+      .gc-note b { display: block; font-size: 14.5px; font-weight: 600; }
+      .gc-note small { display: block; font-size: 12px; opacity: .75; font-variant-numeric: tabular-nums; }
+      .gc-note .gc-join { flex: 1 0 100%; border: 0; border-radius: 12px; padding: 9px 12px; background: #34c759; color: #fff; font: inherit; font-size: 14px; font-weight: 700;
+        cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: transform .2s var(--lg-spring, ease); }
+      .gc-note .gc-join:active { transform: scale(.96); }
+      /* Список чатов: трубка на аватаре беседы (как .online-dot) и подпись «Идёт звонок · N» вместо последнего сообщения */
+      .gc-dot { position: absolute; right: 12px; bottom: -2px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; display: grid; place-items: center;
+        background: #34c759; color: #fff; border: 2px solid var(--bg-panel); font-style: normal; pointer-events: none; }
+      .gc-dot svg { display: block; }
+      .gc-sub { color: #34c759; font-weight: 600; }
+      [data-theme="light"] .gc-sub { color: #16843b; }
+      .chat-item.active .gc-sub { color: inherit; }
+      /* Всплывашка с кнопкой (showToast opts.action): «{name} начинает групповой звонок · Присоединиться» */
+      .toast.has-act { align-items: center; padding-right: 10px; }
+      .toast.has-act > span:nth-child(2) { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; word-break: break-word; text-align: left; }
+      .toast .toast-act { flex-shrink: 0; min-height: 34px; border: 0; border-radius: 14px; padding: 8px 14px; background: #34c759; color: #fff; font: inherit; font-size: 13px; font-weight: 700;
+        cursor: pointer; white-space: nowrap; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+      /* Узкие телефоны (390 и 375 точек) */
+      @media (max-width: 400px) {
+        #call-screen.group { padding-left: 14px; padding-right: 14px; }
+        #call-screen.group #gc-grid { gap: 8px; }
+        .gc-tile { border-radius: 20px; }
+        .gc-tile .gc-name { left: 6px; bottom: 6px; max-width: calc(100% - 12px); padding: 3px 8px; font-size: 12.5px; }
+        #gc-bar { margin: 6px 8px 0; gap: 8px; font-size: 13.5px; }
+        #gc-bar button { padding: 8px 11px; }
+        .toast .toast-act { padding: 8px 11px; }
+      }
+      /* Упрощённый режим: без размытия и свечения */
+      html.owl-simple .gc-tile { background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+      html.owl-simple .gc-tile.speaking { box-shadow: inset 0 0 0 3px #34c759; }
+      html.owl-simple .gc-tile .gc-av, html.owl-simple .gc-tile.speaking .gc-av { box-shadow: none; }
+      html.owl-simple .gc-tile.speaking .gc-av { outline: 3px solid #34c759; outline-offset: 0; }
+      html.owl-simple .gc-tile .gc-name, html.owl-simple .gc-show { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0,0,0,.55); }
+      html.owl-simple #gc-bar { background-color: var(--bg-panel); background-image: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+      html.owl-simple #gc-bar .gc-bar-ic, html.owl-simple .gc-note.live .call-ic, html.owl-simple #gc-confirm .gc-confirm-ic { box-shadow: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .gc-tile, .gc-tile .gc-av, .gc-show, #gc-bar button, .gc-note .gc-join { transition: none !important; }
+        #gc-bar.on { animation: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -1728,11 +1881,17 @@
       <video id="call-self" playsinline autoplay muted></video>
       <button class="icon-btn call-min" id="call-min"></button>
       <div class="call-who"><div class="call-av-wrap"><img id="call-av" alt=""></div><b id="call-name"></b><span id="call-status"></span></div>
+      <!-- групповой звонок (#call-screen.group): название беседы, состояние и плитки участников — ставит gcRender -->
+      <div id="gc-head"><b id="gc-title"></b><span id="gc-status"></span></div>
+      <div id="gc-grid"></div>
       <div class="call-acts" id="call-acts"></div>
       <p class="call-note-line" id="call-note"></p>
     </div>
     <button id="call-pill" type="button" data-no-i18n><span class="dot"></span><span id="call-pill-text"></span></button>
     <audio id="call-audio" autoplay playsinline></audio>
+    <!-- групповой звонок: «громко» на iPhone (все собеседники одним потоком) и пул <audio> для остальных браузеров (заполняет код) -->
+    <audio id="call-audio-sp" autoplay playsinline></audio>
+    <div id="gc-pool" aria-hidden="true"></div>
     <audio id="notification-sound" preload="none"></audio><!-- только хранит флаг «звук выкл.» (muted); сам сигнал — Web Audio -->
 
     <!-- ГЛОБАЛЬНЫЙ ЭКРАН ЗАГРУЗКИ (СПЛЭШ-СКРИН) -->
@@ -1812,6 +1971,17 @@
         <textarea id="report-comment" maxlength="500" placeholder="Подробности (необязательно)"></textarea>
         <button id="report-send-btn" class="modal-btn" style="background:#ff3b30;">Отправить жалобу</button>
         <p style="font-size:12px; color:var(--text-muted); margin:10px 0 0; text-align:center;">Жалобу увидит только администратор. Пользователь не узнает, кто её отправил.</p>
+      </div>
+    </div>
+
+    <!-- Групповой звонок: «Начать групповой звонок?» (тексты ставит gcConfirmStart; «Начать» — касание, в нём же старт) -->
+    <div id="gc-confirm" class="modal-screen" style="display: none;" data-no-i18n>
+      <div class="modal-box">
+        <div class="gc-confirm-ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6a1 1 0 0 0-1 .25l-2.2 2.2a15 15 0 0 1-6.6-6.6l2.2-2.2a1 1 0 0 0 .25-1A11.4 11.4 0 0 1 8.5 4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1 17 17 0 0 0 17 17 1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z" fill="currentColor"/></svg></div>
+        <h2 id="gc-confirm-title" style="margin-top: 0;"></h2>
+        <p id="gc-confirm-text" style="color: var(--text-muted); margin: 0 0 14px;"></p>
+        <button id="gc-confirm-go" class="modal-btn" type="button"></button>
+        <button id="gc-confirm-no" class="modal-btn gc-cancel" type="button" data-close="gc-confirm"></button>
       </div>
     </div>
 
@@ -1959,6 +2129,12 @@
             <p>Строгие правила загрузки (CSP) на этом устройстве на 2 часа. Пройдитесь по приложению — что браузер заблокирует, появится здесь.</p>
             <div class="bk-btns"><button id="csp-toggle" class="modal-btn bk-ghost">Включить пробу</button></div>
             <div id="csp-status" style="font-size:12px; color:var(--text-muted); word-break:break-all;"></div>
+          </div>
+          <div class="bk-turn" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border-color);">
+            <b>Сервер связи: предохранитель расхода</b>
+            <p>Месячный порог TURN: от 800 ГБ групповые звонки выключаются, от 950 ГБ — весь TURN. Проверка идёт раз в час (cron в :45).</p>
+            <div class="bk-btns"><button id="turn-check" class="modal-btn bk-ghost">Проверить</button></div>
+            <div id="turn-status" style="font-size:12px; color:var(--text-muted); margin-top:8px; white-space:pre-line; word-break:break-word;"></div>
           </div>
         </div></div>
         <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">Вы можете полностью очистить историю глобального чата.</p>
@@ -2671,7 +2847,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.119.1</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.121</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2711,6 +2887,9 @@
                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
            </button>
         </div>
+
+        <!-- Плашка группового звонка в беседе: «Идёт звонок · N · Присоединиться» и др. (ставит gcBarRender) -->
+        <div id="gc-bar" role="status" data-no-i18n></div>
 
         <div id="chat-search"><input type="text" id="chat-search-input" placeholder="Поиск по сообщениям..." enterkeyhint="search"><span class="cnt" id="chat-search-cnt"></span><button class="more" id="chat-search-more">Искать раньше</button><button class="icon-btn" id="chat-search-up" title="Предыдущее"></button><button class="icon-btn" id="chat-search-down" title="Следующее"></button><button class="icon-btn" id="chat-search-close" title="Закрыть"></button></div>
         <div id="chat-box"></div>
@@ -2759,7 +2938,7 @@
       </div>
     </div>
 
-    <script type="module" src="app.js?v=92"></script>
-    <script src="ui.js?v=92"></script>
+    <script type="module" src="app.js?v=94"></script>
+    <script src="ui.js?v=94"></script>
   </body>
 </html>

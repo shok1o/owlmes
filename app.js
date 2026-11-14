@@ -34,7 +34,7 @@
       // Загрузка не уложилась в 8 с, но потом всё-таки закончилась — e2eLateLib (ставит раздел шифрования) повторит запуск сам
       let e2eLateLib = null;
       const e2eImport = (bust) => {
-          const imp = import(bust ? `./e2e.js?v=92&r=${Date.now()}` : "./e2e.js?v=92");
+          const imp = import(bust ? `./e2e.js?v=94&r=${Date.now()}` : "./e2e.js?v=94");
           return Promise.race([imp, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 8000))])
               .then(() => globalThis.OwlE2E || null, () => {
                   if (!globalThis.OwlE2E) imp.then(() => { if (globalThis.OwlE2E && e2eLateLib) e2eLateLib(); }, () => {});
@@ -43,7 +43,7 @@
       };
       let e2eLoad = e2eImport(false); // «Повторить» (e2eRetry) подменяет промис новой попыткой; ждущие читают (await e2eLoad) || globalThis.OwlE2E
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=92`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=94`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -305,7 +305,7 @@
       // В базе превью хранятся с эмодзи-префиксом (📷/🎤/✏️) — при показе меняем его на иконку
       const PREVIEW_ICONS = [["📷 ", "camera"], ["🎤 ", "mic"], ["✏️ ", "pencil"], ["📊 ", "poll"], ["🦉 ", "sticker"], ["⚠️ ", "alert"], ["⚠ ", "alert"], ["✅ ", "check"], ["📞 ", "phone"], ["🔒 ", "lock"]];
       // Превью в базе хранятся по-русски («📷 Фотография») — переводим служебные слова при показе
-      const PREVIEW_WORDS = [["📷 ", "Фотография"], ["🎤 ", "Голосовое сообщение"], ["🦉 ", "Стикер"], ["📊 ", "Опрос:"], ["⚠️ ", "Сова на страже"], ["✅ ", "Всё в порядке"], ["📞 ", "Пропущенный звонок"], ["📞 ", "Отклонённый звонок"], ["📞 ", "Звонок не удался"], ["📞 ", "Звонок"], ["🔒 ", "Зашифрованное сообщение"], ["🔒 ", "Новое сообщение"]];
+      const PREVIEW_WORDS = [["📷 ", "Фотография"], ["🎤 ", "Голосовое сообщение"], ["🦉 ", "Стикер"], ["📊 ", "Опрос:"], ["⚠️ ", "Сова на страже"], ["✅ ", "Всё в порядке"], ["📞 ", "Пропущенный звонок"], ["📞 ", "Отклонённый звонок"], ["📞 ", "Звонок не удался"], ["📞 ", "Групповой звонок"], ["📞 ", "Звонок"], ["🔒 ", "Зашифрованное сообщение"], ["🔒 ", "Новое сообщение"]];
       function trPreview(text) {
           if (LANG === "ru") return text;
           for (const [emoji, w] of PREVIEW_WORDS) text = text.split(emoji + w).join(emoji + t(w));
@@ -356,6 +356,7 @@
 
       // Всплывающие уведомления: смахнуть в сторону или вверх — закрыть, нажать — закрыть (или открыть, если есть действие),
       // пока палец на уведомлении — оно не исчезает. Когда их несколько — кнопка «Скрыть все».
+      // opts.action {label, onClick} — кнопка справа (настоящий click: iPhone считает его касанием — можно микрофон и звук), opts.ms — сколько держать
       const TOAST_MAX = 4;
       function showToast(message, icon_ = "bell", opts = {}) {
         const container = document.getElementById("toast-container"); if(!container) return;
@@ -364,16 +365,21 @@
         const ic = document.createElement("span"); ic.className = "toast-icon"; ic.innerHTML = icon(ICONS[icon_] ? icon_ : "info", 18);
         const tx = document.createElement("span"); tx.innerHTML = iconizeEmoji(escapeHTML(msg));
         toast.append(ic, tx);
+        if (opts.action && opts.action.label) {
+          const b = document.createElement("button"); b.type = "button"; b.className = "toast-act"; b.textContent = opts.action.label;
+          b.addEventListener("click", () => { if (toast.classList.contains("gone")) return; dismissToast(toast, "up"); opts.action.onClick(); });
+          toast.classList.add("has-act"); toast.append(b);
+        }
         container.insertBefore(toast, document.getElementById("toast-clear"));
         const live = [...container.querySelectorAll(".toast:not(.gone)")];
         if (live.length > TOAST_MAX) live.slice(0, live.length - TOAST_MAX).forEach(t => dismissToast(t, "up"));
-        let left = msg.length > 60 ? 6000 : 4000, started = Date.now(), timer = null;
+        let left = opts.ms || (msg.length > 60 ? 6000 : 4000), started = Date.now(), timer = null;
         const arm = () => { started = Date.now(); timer = setTimeout(() => dismissToast(toast, "up"), left); };
         const hold = () => { clearTimeout(timer); left = Math.max(1200, left - (Date.now() - started)); };
         arm();
-        // Жест: тянем за пальцем, отпустили далеко или резко — улетает, иначе пружинит назад
+        // Жест: тянем за пальцем, отпустили далеко или резко — улетает, иначе пружинит назад (кнопку не тянем — у неё свой click)
         let x0 = 0, y0 = 0, dx = 0, dy = 0, t0 = 0, drag = false;
-        toast.addEventListener("pointerdown", (e) => { drag = true; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = Date.now(); hold(); toast.classList.add("drag"); try { toast.setPointerCapture(e.pointerId); } catch (_) {} });
+        toast.addEventListener("pointerdown", (e) => { if (e.target.closest && e.target.closest(".toast-act")) return; drag = true; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = Date.now(); hold(); toast.classList.add("drag"); try { toast.setPointerCapture(e.pointerId); } catch (_) {} });
         toast.addEventListener("pointermove", (e) => {
           if (!drag) return;
           dx = e.clientX - x0; dy = Math.min(0, e.clientY - y0);
@@ -478,12 +484,14 @@
               document.querySelectorAll(".vp audio").forEach(a => a.playbackRate = voiceSpeed);
           } else if (e.target.closest(".vp-wave")) {
               const r = el.querySelector(".vp-wave").getBoundingClientRect(), d = vpDuration(el, audio);
-              if (d) { audio.currentTime = Math.max(0, Math.min(.999, (e.clientX - r.left) / r.width)) * d; vpProgress(el, audio); if (audio.paused) { setAudioSession("playback"); audio.playbackRate = voiceSpeed; audio.play().catch(() => {}); } }
+              if (d) { audio.currentTime = Math.max(0, Math.min(.999, (e.clientX - r.left) / r.width)) * d; vpProgress(el, audio); if (audio.paused) { if (!inCall()) setAudioSession("playback"); audio.playbackRate = voiceSpeed; audio.play().catch(() => {}); } }
           } else {
               if (audio.paused) {
                   document.querySelectorAll(".vp audio").forEach(a => { if (a !== audio) a.pause(); });
-                  // iPhone: звуковой режим переключаем ДО старта, прямо в нажатии — иначе iOS играет «без звука» до перемотки
-                  setAudioSession("playback");
+                  // iPhone: звуковой режим переключаем ДО старта, прямо в нажатии — иначе iOS играет «без звука» до перемотки.
+                  // Кроме звонка (личного или группового): playback прервал бы захват микрофона, и вернуть «запись + воспроизведение»
+                  // до конца звонка было бы некому (restoreAmbient во время звонка ничего не делает) — голосовое играет в звонковом режиме
+                  if (!inCall()) setAudioSession("playback");
                   audio.dataset.nudge = "1";
                   audio.playbackRate = voiceSpeed;
                   audio.play().catch(err => showToast(t("Не удалось воспроизвести голосовое"), "error"));
@@ -711,6 +719,35 @@
           try { if (window.owlCspCanary) localStorage.removeItem("owl-csp-canary"); else localStorage.setItem("owl-csp-canary", String(Date.now())); } catch (_) {}
           location.reload();
       });
+      // Предохранитель расхода TURN (Worker /call/turn, только админ; 3 чтения KV): флаги turn:off / turn:gc-off (в них — ГБ за период),
+      // сбой его проверки (turn:guard-err: когда и что не прошло) и заданы ли секреты аналитики. Блок только для админа — по-русски, как проба CSP
+      const TURN_WHY = { secrets: "секреты", month: "месячный порог", hour: "нарушители за час", crash: "сбой cron", kv: "запись в KV не читается" };
+      let turnBusy = false;
+      async function checkTurnGuard() {
+          const out = document.getElementById("turn-status");
+          if (!isAdmin || !currentUser || turnBusy) return;
+          turnBusy = true; out.textContent = "Проверяю…";
+          try {
+              const r = await Promise.race([pushPost("/call/turn", {}), new Promise((_, no) => setTimeout(() => no(new Error("нет ответа за 10 с")), 10000))]);
+              if (r.status === 401) throw new Error("App Check не прошёл — обновите страницу");
+              if (r.status === 403) throw new Error("нужен вход админа со вторым фактором");
+              const j = await r.json().catch(() => null);
+              if (!r.ok || !j || !j.ok) throw new Error("ответ " + r.status);
+              const lines = [];
+              if (j.off) lines.push("TURN выключен всем: " + j.off + " ГБ за период");
+              if (j.gcOff) lines.push("Групповые звонки выключены: " + j.gcOff + " ГБ за период");
+              if (!j.off && !j.gcOff) lines.push("Флагов нет — TURN и групповые звонки работают");
+              if (j.guard === false) lines.push("Секреты аналитики не заданы (TURN_ACCOUNT_ID, TURN_ANALYTICS_TOKEN) — месячный порог не работает");
+              if (j.err && typeof j.err === "object") {
+                  const why = j.err.why && typeof j.err.why === "object" ? Object.entries(j.err.why).map(([k, v]) => (TURN_WHY[k] || k) + (v ? ": " + String(v).slice(0, 160) : "")) : [];
+                  const at = Number(j.err.at) ? new Date(Number(j.err.at)).toLocaleString("ru-RU") : "";
+                  lines.push("Проверка расхода НЕ РАБОТАЕТ" + (at ? " (последний запуск со сбоем: " + at + ")" : "") + (why.length ? " — " + why.join("; ") : ""));
+              } else if (j.guard !== false) lines.push("Сбоев проверки нет");
+              out.textContent = lines.join("\n");
+          } catch (e) { out.textContent = "Не удалось проверить: " + (e.message || e); }
+          finally { turnBusy = false; }
+      }
+      document.getElementById("turn-check").addEventListener("click", checkTurnGuard);
 
       // ===== ПОИСК ПО ЧАТУ =====
       let chatSearchQuery = "", chatSearchHits = [], chatSearchPos = -1;
@@ -1137,7 +1174,7 @@
           clearTimeout(usersChangedTimer); usersChangedTimer = null;
           renderChatList(document.getElementById("search-input").value);
           updatePinIcon(); refreshHeaderStatus(); applyBlockState(); renderDevPanel(); renderGroupInvites();
-          if (window.__pendingChat && Object.keys(chatsMetaCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
+          if (window.__pendingChat && Object.keys(chatsMetaCache).length) tryPendingChat();
           if (presenceTimer && !presenceInit && currentUser && usersCache[currentUser.uid]) { presenceInit = true; writePresence(document.visibilityState === "visible"); }
           if (currentUser && usersCache[currentUser.uid]) { maybeShowOnboarding(); if (window.__pendingAdd) openPendingInvite(); }
           e2eAfterUsersChanged(); // после онбординга: он решает, когда можно показать окно Совиного ключа
@@ -1180,12 +1217,12 @@
       setAudioSession("ambient");
       // Вернуться в «фоновый» режим, когда ничего не играет и не пишется (в ambient iOS запрещает запись с микрофона!)
       function restoreAmbient() {
-          if (isRecording || call) return; // идёт звонок — микрофон нужен
+          if (isRecording || inCall()) return; // идёт звонок (личный или групповой) — микрофон нужен
           if (![...document.querySelectorAll("audio")].some(a => !a.paused)) setAudioSession("ambient");
       }
       // Голосовые сообщения — полноценное воспроизведение, на это время переключаемся в playback
       // (кроме звонка: там звук собеседника идёт через <audio>, а режим должен остаться «запись + воспроизведение»)
-      document.addEventListener("play", (e) => { if (audioSession && e.target.tagName === "AUDIO" && !call) try { audioSession.type = "playback"; } catch (_) {} }, true);
+      document.addEventListener("play", (e) => { if (audioSession && e.target.tagName === "AUDIO" && !inCall()) try { audioSession.type = "playback"; } catch (_) {} }, true);
       ["pause", "ended"].forEach(ev => document.addEventListener(ev, (e) => {
           if (!audioSession || e.target.tagName !== "AUDIO") return;
           restoreAmbient();
@@ -1254,7 +1291,9 @@
           const other = chatId.split("_").find(id => id !== currentUser.uid);
           return usersCache[other]?.name || t("Пользователь");
       }
-      async function showSystemNotification(chatId, meta) {
+      // tag — свой (карточка группового звонка: owl-gcall-<gid>, как у push «… начинает групповой звонок»): одно уведомление на событие,
+      // и повторно не звеним — пришло вторым, молча заменяет первое
+      async function showSystemNotification(chatId, meta, tag) {
           if (!pushEnabled()) return;
           const count = meta.unreadCount || 1;
           // личка/Гнездо: превью расшифровываем (ждём ≤800 мс), не вышло — заглушка «🔒 Зашифрованное сообщение» (§4.5)
@@ -1265,7 +1304,7 @@
           const opts = {
               body: (count > 1 ? t("{n} новых", { n: count }) + " · " : "") + text + (total > count ? "\n" + t("Всего непрочитанных: {n}", { n: total }) : ""),
               icon: "/icon-192.png", badge: "/icon-192.png",
-              tag: "chat-" + chatId, renotify: true, data: { chatId: chatId }
+              tag: tag || "chat-" + chatId, renotify: !tag, data: { chatId: chatId }
           };
           try {
               const reg = await navigator.serviceWorker?.getRegistration();
@@ -1277,16 +1316,25 @@
           try { const reg = await navigator.serviceWorker?.getRegistration(); if (!reg) return; (await reg.getNotifications({ tag: "chat-" + chatId })).forEach(n => n.close()); } catch (_) {}
       }
       // Открыть чат по id (из уведомления)
+      // true — чат открыт; false — его ещё не знаем (беседы приходят позже профилей)
       window.openChatById = (chatId) => {
-          if (!chatId || !currentUser) return;
-          if (isNest(chatId)) return window.loadChat(chatId, t("Гнездо"), null, false);
-          if (chatId === NEWS_ID) return window.loadChat(NEWS_ID, t("Новости Owl"), null, false);
-          if (groupsCache[chatId]) return window.loadChat(chatId, groupsCache[chatId].name, null, true); // экранирует сам loadChat
+          if (!chatId || !currentUser) return false;
+          if (isNest(chatId)) { window.loadChat(chatId, t("Гнездо"), null, false); return true; }
+          if (chatId === NEWS_ID) { window.loadChat(NEWS_ID, t("Новости Owl"), null, false); return true; }
+          if (groupsCache[chatId]) { window.loadChat(chatId, groupsCache[chatId].name, null, true); return true; } // экранирует сам loadChat
           const other = chatId.split("_").find(id => id !== currentUser.uid);
-          if (other && usersCache[other]) window.loadChat(chatId, usersCache[other].name, other, false);
+          if (other && usersCache[other]) { window.loadChat(chatId, usersCache[other].name, other, false); return true; }
+          return false;
       };
+      // Чат из уведомления при холодном старте: открываем, как только он известен. Не открылся (беседы ещё нет в groupsCache) — не теряем:
+      // повторят слушатели профилей, превью и бесед (раньше push из беседы мог молча не открыть чат). Не дольше минуты
+      function tryPendingChat() {
+          const id = window.__pendingChat; if (!id || !currentUser) return;
+          if (Date.now() - (window.__pendingChatAt || 0) > 60000) { window.__pendingChat = null; return; }
+          if (window.openChatById(id)) window.__pendingChat = null;
+      }
       if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && e.data.type === "open-chat") window.openChatById(e.data.chatId); });
-      try { const pending = new URLSearchParams(location.search).get("chat"); if (pending) window.__pendingChat = pending; } catch (_) {}
+      try { const pending = new URLSearchParams(location.search).get("chat"); if (pending) { window.__pendingChat = pending; window.__pendingChatAt = Date.now(); } } catch (_) {}
 
       // Реакция на новое сообщение в любом из моих чатов (по метаданным чатов)
       function onChatMetaChanged(chatId, meta, prev) {
@@ -1295,8 +1343,11 @@
           if (!((meta.unreadCount || 0) > ((prev && prev.unreadCount) || 0))) return; // правка/сброс — не новое сообщение
           const visible = document.visibilityState === "visible";
           if (chatId === currentChatId && chatIsOnScreen()) return; // открытый чат сам проиграет звук
-          if (visible) playNotifySound();
-          else if (!iAmAsleep()) showSystemNotification(chatId, meta); // у меня ночь — «Сова не будит»
+          // карточка группового звонка: на виду о нём уже сказала всплывашка с коротким сигналом (gcToastCheck); в фоне — одно
+          // уведомление вместе с push «… начинает групповой звонок» (общий tag), без второго сигнала
+          const gcard = meta.lastMessageText === GC_CARD_TXT && !!groupsCache[chatId];
+          if (visible) { if (!(gcard && gcEnabled())) playNotifySound(); }
+          else if (!iAmAsleep()) showSystemNotification(chatId, meta, gcard ? "owl-gcall-" + chatId : undefined); // у меня ночь — «Сова не будит»
       }
 
       // ===== PUSH-УВЕДОМЛЕНИЯ ЧЕРЕЗ СЕРВЕР (приходят, даже когда Owl закрыт) =====
@@ -1341,6 +1392,9 @@
       // как сохранённый). Выход из окна бана — без стирания (план §3.8, В3)
       async function logoutEverywhere(sendOffline = true, wipe = true) {
           if (wipe && !(await e2eConfirmLogout())) return; // закрыли окно ключа — остаёмся в аккаунте
+          // групповой звонок — выйти из него, пока ещё можно писать в базу (после выхода из аккаунта запись не пройдёт,
+          // и в звонке остался бы «призрак» до «пинка»); ждём не дольше 1,5 с
+          if (gc) await Promise.race([gcEnd("left"), new Promise(r => setTimeout(r, 1500))]);
           e2eLoggingOut = true;
           if (wipe) e2eMarkWipe();                       // флаг незавершённого стирания — до всего остального
           await e2eSessionOff();                         // метка сессии: service worker больше не расшифровывает push
@@ -1354,7 +1408,7 @@
       function clearPersonalData() {
           try {
               // owl-lp-* — кэш карточек ссылок любой версии (раньше стирался только устаревший owl-lp-v3, а адреса из v4 оставались)
-              Object.keys(localStorage).filter(k => /^owl-(draft-|guard|seen-followers-|otp-sent-|active-|lp-)/.test(k) || ["owl-reads", "owl-invite", "owl_custom_bg_data"].includes(k)).forEach(k => localStorage.removeItem(k));
+              Object.keys(localStorage).filter(k => /^owl-(draft-|guard|seen-followers-|otp-sent-|active-|lp-)/.test(k) || ["owl-reads", "owl-invite", "owl_custom_bg_data", "owl-gc"].includes(k)).forEach(k => localStorage.removeItem(k)); // owl-gc — беседа и сессия группового звонка
               sessionStorage.clear();
           } catch (_) {}
       }
@@ -1634,6 +1688,8 @@
       const CALL_RING_MS = 45000, CALL_STALE_MS = 3 * 60000, CALL_GATHER_MS = 3500, CALL_CONNECT_MS = 15000, CALL_DROP_MS = 25000;
       const STUN_ONLY = { iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }], relay: false, at: 0 };
       let call = null;          // текущий звонок (один на устройство)
+      let gc = null;            // групповой звонок (сессия, см. блок «ГРУППОВЫЕ ЗВОНКИ»); вместе с call — не бывает
+      const inCall = () => !!call || !!gc; // идёт звонок — личный или групповой: держим режим звука «запись + воспроизведение»
       let callsListener = null; // входящие: calls где to == я и status == ringing
       let callIce = null;       // серверы связи: пароли TURN живут 4 часа, берём заново раз в час
       let callIceReq = null;    // запрос серверов, который уже идёт (общий для «заранее» и «Принять»)
@@ -1696,6 +1752,8 @@
               chk();
           });
       }
+      // SDP перед записью: через сервер связи — только его адреса (raddr обнулён, c= — адрес сервера; см. gcSdpClean), напрямую — как есть
+      const callSdpOut = (c, sdp) => c.relay ? gcSdpClean(sdp, true) : sdp;
       function callPc(c) {
           const pc = new RTCPeerConnection({ iceServers: c.ice.iceServers, iceTransportPolicy: c.relay ? "relay" : "all" });
           c.stream.getTracks().forEach(tr => pc.addTrack(tr, c.stream));
@@ -1722,13 +1780,14 @@
       // в тот же <audio>) — у него выбор выхода работает. Громко — напрямую, как раньше. Звонок начинаем у уха,
       // кнопка «Динамик» — громкая связь. На iOS 17/18, Android и компьютере кнопки нет: звук выбирает система
       let relayCtx = null;   // движок ретранслятора: один на страницу, между звонками «спит»
-      let sinkDirty = false; // после звонка «у уха» выход надо вернуть системный (получится по касанию)
+      let sinkDirty = false; // после звонка с выбранным выходом (у уха или громко) выход #call-audio надо вернуть системный (получится по касанию)
+      let spDirty = false;   // то же для #call-audio-sp (групповой «громко»): иначе в следующем звонке с наушниками звук шёл бы в динамик
       const canPickOutput = () => callOs() === "ios" && !!AudioCtx && "setSinkId" in HTMLMediaElement.prototype;
       // Движок запускаем, только когда выбор выхода реально есть; пока идёт запись с микрофона, iOS разрешает это и без касания
       function callRelayCtx() {
           if (!canPickOutput()) return null;
           try {
-              if (!relayCtx || relayCtx.state === "closed") { relayCtx = new AudioCtx(); relayCtx.onstatechange = () => callWakeRelay(); }
+              if (!relayCtx || relayCtx.state === "closed") { relayCtx = new AudioCtx(); relayCtx.onstatechange = () => { callWakeRelay(); gcWakeRelay(); }; }
               if (relayCtx.state !== "running") relayCtx.resume().catch(() => {});
           } catch (_) { relayCtx = null; }
           return relayCtx;
@@ -1797,7 +1856,7 @@
           try {
               await a.setSinkId(ear ? outs.rx : outs.sp);
               if (call !== c) return false;
-              c.speaker = !ear; sinkDirty = ear;
+              c.speaker = !ear; sinkDirty = true;
               callPlayRemote(c);
               callUi();
               return ear || on;
@@ -1820,12 +1879,16 @@
               if (relayCtx.state === "running") return callPlayRemote(c);
               if (document.visibilityState !== "visible") return; // в фоне ждём возвращения — там решим
               c.speaker = true; callPlayRemote(c); callUi();
-              if (c.outs) $c("call-audio").setSinkId(c.outs.sp).catch(() => {});
+              if (c.outs) $c("call-audio").setSinkId(c.outs.sp).then(() => { sinkDirty = true; }).catch(() => {});
           }, 1500);
       }
-      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") callWakeRelay(); });
-      // После звонка «у уха» возвращаем выход системный — на ближайшем касании (без касания iOS не даёт)
-      TAP_EVENTS.forEach(ev => document.addEventListener(ev, () => { if (sinkDirty && !call) $c("call-audio").setSinkId("").then(() => { sinkDirty = false; }).catch(() => {}); }, true));
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { callWakeRelay(); gcWakeRelay(); } });
+      // После звонка с выбранным выходом возвращаем выход системный — на ближайшем касании (без касания iOS не даёт)
+      TAP_EVENTS.forEach(ev => document.addEventListener(ev, () => {
+          if (inCall()) return;
+          if (sinkDirty) $c("call-audio").setSinkId("").then(() => { sinkDirty = false; }).catch(() => {});
+          if (spDirty) $c("call-audio-sp").setSinkId("").then(() => { spDirty = false; }).catch(() => {});
+      }, true));
 
       // ----- видео (премиум): камера и показ экрана в звонке -----
       // Только если премиум хотя бы у одного из двоих: тогда в звонок сразу закладывается видеоканал, а камера/экран подставляются
@@ -1996,14 +2059,15 @@
           o.connect(g).connect(out); o.start(at); o.stop(at + .25);
       }
       let toneCtx = null, toneTimer = null, toneOut = null;
-      function playTone(kind) {
+      // opts.once — короткий сигнал ≈1 с без повтора и вибрации (групповой звонок: «позвали»)
+      function playTone(kind, opts = {}) {
           stopTone();
           try {
               // Тот же звуковой движок, что у сигналов сообщений: iOS «разблокирует» его на первом касании экрана,
               // поэтому входящий зазвонит, даже если человек давно не трогал телефон (отдельный движок молчал бы)
               const ctx = toneCtx = getNotifyCtx(); if (!ctx) return;
               ctx.resume().catch(() => {});
-              const ring = kind === "ring";
+              const ring = kind === "ring", once = !!opts.once;
               // общий выход: сухой звук + эхо (задержка 0,17 с с затухающими повторами)
               const out = toneOut = ctx.createGain(); out.gain.value = ring ? .45 : .16;
               const delay = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain();
@@ -2014,12 +2078,14 @@
                   if (toneOut !== out) return;
                   const t0 = ctx.currentTime + .05;
                   if (ring) {
-                      RING_SCORE.forEach(([st, n]) => blipNote(ctx, out, t0 + st * RING_STEP, NOTE_HZ[n], .45));
-                      thumpNote(ctx, out, t0, .35); thumpNote(ctx, out, t0 + 8 * RING_STEP, .25);
-                      if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+                      RING_SCORE.filter(([st]) => !once || st <= 6).forEach(([st, n]) => blipNote(ctx, out, t0 + st * RING_STEP, NOTE_HZ[n], .45));
+                      thumpNote(ctx, out, t0, .35); if (!once) thumpNote(ctx, out, t0 + 8 * RING_STEP, .25);
+                      if (!once && navigator.vibrate) navigator.vibrate([300, 150, 300]);
                   } else BACK_SCORE.forEach(([st, n]) => blipNote(ctx, out, t0 + st * RING_STEP, NOTE_HZ[n], .45));
               };
-              play(); toneTimer = setInterval(play, (ring ? RING_CYCLE : 3) * 1000);
+              play();
+              if (once) setTimeout(() => { if (toneOut === out) stopTone(); }, 1600); // ноты и эхо отзвучали — отпускаем узлы
+              else toneTimer = setInterval(play, (ring ? RING_CYCLE : 3) * 1000);
           } catch (_) {}
       }
       function stopTone() {
@@ -2051,7 +2117,8 @@
           const u = usersCache[c.peer], name = (u && u.name) || t("Собеседник"), av = getAvatar(c.peer, name);
           if (!u) watchUser(c.peer);
           if ($c("call-name").textContent !== name) $c("call-name").textContent = name;
-          if ($c("call-av").getAttribute("src") !== av) { $c("call-av").src = av; $c("call-bg-img").src = av; }
+          if ($c("call-av").getAttribute("src") !== av) $c("call-av").src = av;
+          if ($c("call-bg-img").getAttribute("src") !== av) $c("call-bg-img").src = av; // фон мог остаться от группового звонка (аватар беседы)
           const st = $c("call-status").textContent; if (st) $c("call-pill-text").textContent = name + " · " + st;
       }
       // Видео незнакомца (на кого не подписан) — не сразу на весь экран, а по кнопке «Показать видео»
@@ -2059,6 +2126,7 @@
       function callUi() {
           const c = call, scr = $c("call-screen");
           if (!c) return;
+          scr.classList.remove("group"); // экран мог остаться в групповом виде (групповой звонок только что закрылся)
           callPeerHeader();
           scr.classList.toggle("ringing", c.role === "callee" && !c.accepting);
           const acts = c.role === "callee" && !c.accepting
@@ -2090,7 +2158,7 @@
           const scr = $c("call-screen"); $c("call-pill").classList.remove("on");
           if (!scr.classList.contains("on")) return;
           if (reduceMotion()) { scr.classList.remove("on"); return; }
-          scr.classList.add("out"); setTimeout(() => { if (!call) scr.classList.remove("on", "out", "ringing"); }, 300);
+          scr.classList.add("out"); setTimeout(() => { if (!inCall()) scr.classList.remove("on", "out", "ringing"); }, 300); // за эти 300 мс мог начаться групповой
       }
       function closeCallNotifs(id) {
           if (!id || !navigator.serviceWorker) return;
@@ -2103,6 +2171,7 @@
       // ----- исходящий -----
       async function startCall(peer) {
           if (call && call.pending) endCall(null, true); // «призрак» из кэша не мешает позвонить
+          if (gc) return showToast(t("Сначала завершите звонок"), "info"); // идёт групповой
           if (call) return showCallScreen();
           if (!currentUser || !peer || peer === currentUser.uid) return;
           if (!callsSupported()) return showToast(t("Этот браузер не поддерживает звонки"), "error");
@@ -2135,7 +2204,7 @@
               const ref = doc(collection(db, "calls")); c.id = ref.id;
               // Без сети запись «повисает» навсегда — ждём не больше 12 с. Если она дойдёт позже, удаление уйдёт следом и её погасит
               const offline = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("offline"), { code: "offline" })), 12000));
-              await Promise.race([setDoc(ref, { from: me, to: peer, chatId: c.chatId, status: "ringing", offer: pc.localDescription.sdp, name: String(currentUser.displayName || "").slice(0, 64), created: serverTimestamp() }), offline]);
+              await Promise.race([setDoc(ref, { from: me, to: peer, chatId: c.chatId, status: "ringing", offer: callSdpOut(c, pc.localDescription.sdp), name: String(currentUser.displayName || "").slice(0, 64), created: serverTimestamp() }), offline]);
               if (call !== c) { deleteDoc(ref).catch(() => {}); return; }
               c.step = "ring";
               c.unsub = onSnapshot(ref, (snap) => onCallDoc(c, snap), callListenErr(c));
@@ -2204,7 +2273,7 @@
               if (call !== c) return;
               c.step = "db";
               const ref = doc(db, "calls", c.id);
-              await updateDoc(ref, { status: "accepted", answer: pc.localDescription.sdp, by: currentUser.uid });
+              await updateDoc(ref, { status: "accepted", answer: callSdpOut(c, pc.localDescription.sdp), by: currentUser.uid });
               // Положили трубку, пока «принятие» летело на сервер: оно уже записано — закрываем звонок как положено
               if (call !== c) { updateDoc(ref, { status: "ended", by: currentUser.uid }).catch(() => {}); return; }
               c.answered = true; armConnectTimer(c);
@@ -2271,7 +2340,7 @@
                   await callGather(c.pc, c.relay);
                   if (call !== c) return;
                   if (c.wantOffer2 !== sdp) continue;
-                  await updateDoc(doc(db, "calls", c.id), { answer2: c.pc.localDescription.sdp, by: currentUser.uid });
+                  await updateDoc(doc(db, "calls", c.id), { answer2: callSdpOut(c, c.pc.localDescription.sdp), by: currentUser.uid });
                   if (!c.connectedAt) armConnectTimer(c);
               }
           } catch (e) { if (call !== c) return; console.log("Звонок (повторное соединение):", e.name, e.message); callReport(c, "sdp2", e); endCall("fail"); }
@@ -2300,7 +2369,7 @@
               await c.pc.setLocalDescription(await c.pc.createOffer({ iceRestart: true }));
               await callGather(c.pc, c.relay);
               if (call !== c) return;
-              await updateDoc(doc(db, "calls", c.id), { offer2: c.pc.localDescription.sdp, by: currentUser.uid });
+              await updateDoc(doc(db, "calls", c.id), { offer2: callSdpOut(c, c.pc.localDescription.sdp), by: currentUser.uid });
               if (!c.connectedAt) armConnectTimer(c);
           } catch (e) { if (call !== c) return; console.log("Звонок (переподключение):", e.message); callReport(c, "restart", e); endCall("fail"); }
           finally { c.restarting = false; }
@@ -2346,7 +2415,7 @@
           $c("call-acts").innerHTML = ""; $c("call-acts")._html = ""; $c("call-screen").classList.remove("ringing");
           const shown = $c("call-screen").classList.contains("on");
           if (!shown && c.connectedAt) showToast(dur ? ended + " · " + callDur(dur) : ended, "info");
-          setTimeout(() => { if (!call) hideCallScreen(); }, shown ? (peerFail ? 2600 : 1300) : 0);
+          setTimeout(() => { if (!inCall()) hideCallScreen(); }, shown ? (peerFail ? 2600 : 1300) : 0);
           if (!c.id || !currentUser) return;
           const me = currentUser.uid, ref = doc(db, "calls", c.id);
           if (!remote) {
@@ -2363,16 +2432,20 @@
 
       function startCallsListener() {
           if (callsListener) { callsListener(); callsListener = null; }
+          gcRingPend.clear(); // новый слушатель пришлёт ещё звонящие заново («added»); прежние — могли быть и другого входа
           if (!currentUser || !callsSupported()) return;
           const me = currentUser.uid;
           callsListener = onSnapshot(query(collection(db, "calls"), where("to", "==", me), where("status", "==", "ringing")), (snap) => {
               snap.docChanges().forEach((ch) => {
+                  if (ch.type === "removed") { gcRingPend.delete(ch.doc.id); return; } // уже не звонит (ответили, отменили, пропущен)
                   if (ch.type !== "added") return;
                   const d = ch.doc.data(), id = ch.doc.id, age = d.created ? Date.now() - getTime(d.created) : Infinity;
                   // Старый «звонок» (звонящий пропал, не отменив): не звоним; совсем старый — убираем, чтобы не читать при каждом входе.
                   // Запас в минутах — на случай, если часы телефона спешат
                   if (age > CALL_STALE_MS) { if (age > 10 * 60000) deleteDoc(ch.doc.ref).catch(() => {}); return; }
                   if (iBlocked(d.from) || bansCache[d.from]) { updateDoc(ch.doc.ref, { status: "declined", by: me }).catch(() => {}); return; }
+                  // идёт групповой звонок: это устройство не звонит и не пишет «занято» — только тихая надпись; другие устройства звонят как обычно
+                  if (gc) { gcRingNote(id, d); return; }
                   if (call && call.pending && call.id !== id) endCall(null, true); // новый звонок важнее непроверенного «призрака»
                   if (call) { if (call.id !== id) updateDoc(ch.doc.ref, { status: "busy", by: me }).catch(() => {}); return; }
                   incomingCall(id, d, ch.doc.metadata.fromCache);
@@ -2382,9 +2455,15 @@
       function updateCallBtn() {
           const btn = $c("call-btn"); if (!btn) return;
           const peer = currentUser && dmPeer(currentChatId);
-          btn.style.display = peer && peer !== currentUser.uid && callsSupported() && !iBlocked(peer) && !blockedMe(peer) ? "flex" : "none";
+          const dm = peer && peer !== currentUser.uid && callsSupported() && !iBlocked(peer) && !blockedMe(peer);
+          const grp = !dm && !!currentUser && gcCanHere(currentChatId); // в беседе — групповой звонок
+          btn.style.display = dm || grp ? "flex" : "none";
+          // в беседе идёт звонок — трубка зелёная (нажатие = вход)
+          const live = grp && gcState(currentChatId).kind !== "none", title = grp ? (live ? t("Идёт звонок") : t("Групповой звонок")) : t("Позвонить");
+          btn.classList.toggle("gc-live", live);
+          if (btn.title !== title) { btn.title = title; btn.setAttribute("aria-label", title); }
       }
-      $c("call-btn").addEventListener("click", () => startCall(dmPeer(currentChatId)));
+      $c("call-btn").addEventListener("click", () => groupsCache[currentChatId] ? gcHeaderTap(currentChatId) : startCall(dmPeer(currentChatId)));
       $c("call-min").addEventListener("click", minimizeCall);
       $c("call-pill").addEventListener("click", showCallScreen);
       $c("call-acts").addEventListener("click", async (e) => {
@@ -2403,7 +2482,7 @@
       });
       document.addEventListener("keydown", (e) => { if (e.key === "Escape" && call && $c("call-screen").classList.contains("on") && !(call.role === "callee" && !call.accepting)) minimizeCall(); });
       // Закрыли вкладку посреди звонка — сообщаем собеседнику (как получится)
-      window.addEventListener("pagehide", () => { if (call && call.id && !call.pending) updateDoc(doc(db, "calls", call.id), { status: call.answered ? "ended" : call.role === "caller" ? "missed" : "declined", by: currentUser.uid }).catch(() => {}); });
+      window.addEventListener("pagehide", () => { if (call && call.id && !call.pending) updateDoc(doc(db, "calls", call.id), { status: call.answered ? "ended" : call.role === "caller" ? "missed" : "declined", by: currentUser.uid }).catch(() => {}); gcPageHide(); });
 
       // Отметка о звонке в переписке: нажать — позвонить снова
       const CALL_LABELS = { ok: ["Исходящий звонок", "Входящий звонок"], missed: ["Звонок без ответа", "Пропущенный звонок"], busy: ["Звонок без ответа", "Пропущенный звонок"], declined: ["Звонок отклонён", "Отклонённый звонок"], fail: ["Звонок не удался", "Звонок не удался"] };
@@ -2415,6 +2494,2107 @@
           return `<button type="button" class="call-note${bad ? " bad" : ""}" title="${escapeHTML(t("Позвонить"))}"><span class="call-ic">${ic}</span><span><b>${escapeHTML(t(l[mine ? 0 : 1]))}</b><small>${escapeHTML(sub)}</small></span></button>`;
       }
       document.getElementById("chat-box").addEventListener("click", (e) => { if (e.target.closest(".call-note")) startCall(dmPeer(currentChatId)); });
+
+      // ===== ГРУППОВЫЕ ЗВОНКИ В БЕСЕДАХ (каждый с каждым через сервер связи, до 6 человек) =====
+      // План: «Calls/План групповых звонков.md» — §2.2 (данные), §2.3 (протокол), §2.6 (клиент). Правила — firebase/firestore.rules.calls,
+      // Worker — push-server/worker.calls.js (/call/ice {gcall} — пароль TURN на 12 ч, /call/ice {gcall, probe} — проба перед стартом,
+      // /call/ring {gcall} — push участникам беседы). Старый путь /call/ice {} (callIceServers) — только для звонков 1-на-1.
+      // Сигнализация — через Firestore, без trickle ICE (адреса собираем целиком, callGather):
+      //   gcalls/{gid} — одна запись на беседу: gid, s (сессия, 20 знаков), by, started, upd («жив»), m {uid: {t, j, v}} (кто сейчас в звонке:
+      //     t — время входа по серверу, j — номер входа, 10 знаков, v — версия протокола), gm (кому видна запись), c (входов за сессию),
+      //     wj (j устройства, писавшего «о себе»), k/kj/kb/kt (последний «пинок»), kk (когда «пинал» каждый);
+      //   gpairs/{s}_{from}_{jf}_{to}_{jt} — рукопожатие пары: предлагает вошедший позже по (t, uid), второй отвечает; offer2/r ↔ answer2/ar — ICE restart.
+      // Медиа — только через TURN (iceTransportPolicy "relay" — константа), SDP перед записью чистит gcSdpClean: IP участники друг у друга не видят.
+      // Сессия — глобальная gc (объявлена рядом с call; один звонок на устройство: inCall() = call || gc); gc.links: Map uid → связь (Link).
+      // Пилот: только админ и тестеры (E2E_PILOT), пока GC_OPEN = false; у остальных карточка в переписке — просто отметка без кнопки.
+      //
+      // КРЮЧКИ ИНТЕРФЕЙСА (сейчас минимальные — оформит следующий этап; внутренности менять можно, контракт — нет):
+      //   gcRender()          — экран группового звонка: #call-screen.group (#gc-head: #gc-title/#gc-status; плитки #gc-grid [data-gc-tile=uid];
+      //                         кнопки в #call-acts с data-gc-act = mute|speaker|cam|flip|screen|leave; таблетка #call-pill «беседа · N»;
+      //                         #call-note — gc.note). Зовётся на любое изменение и раз в секунду, идемпотентна; кнопки перерисовывать, только
+      //                         если изменились (на iPhone касание подменённой кнопки теряется). В плитке «Показать видео» — кнопка [data-gc-show=uid].
+      //   gcPaintLevels()     — только подсветка «говорит» (каждые 200 мс, пока экран на виду): класс .speaking у [data-gc-tile].
+      //                         Данные: gc.meSpeaking, link.speaking (link = gc.links.get(uid)).
+      //   gcBarRender(gid)    — плашка #gc-bar в открытой беседе (gid = currentChatId). Что показывать — gcState(gid).kind: none | live
+      //                         (Присоединиться) | crashed (Вернуться) | elsewhere (Перенести сюда) | mine (звонок идёт на этом устройстве) |
+      //                         lost (запись удалена при живых соединениях). Кнопки: [data-gc-bar = join | open].
+      //   gcNoteHtml(msg)     — HTML карточки msg.gcall {s} в переписке: .gc-note[data-gc-gid][data-gc-s][data-ts]; кнопка [data-gc-join] — только
+      //                         у идущего звонка с тем же s. Перерисовка без чтений — gcRepaintNotes(gid).
+      //   gcListMark(gid)     — {mark, sub} для строки беседы в списке чатов (значок на аватаре и подпись «Идёт звонок · N») или null.
+      //   gcToast(gid, d)     — всплывашка «{name} начинает групповой звонок»; нажатие → gcJoinTap(gid, d.s) (только из касания).
+      //   gcConfirmStart(gid) — окно «Начать групповой звонок?»; его кнопка «Начать» ОБЯЗАНА синхронно в своём click вызвать gcStartTap(gid):
+      //                         касание нужно iPhone для микрофона, звука и выбора выхода.
+      //   gcRingNote(id, d) — тихая надпись «{name} звонит вам»: личный звонок во время группового (это устройство не звонит и не пишет busy);
+      //   не закончился к выходу из группового — gcRingResume звонит после него.
+      // Входы из касаний: gcHeaderTap(gid) (трубка в шапке беседы), gcStartTap(gid), gcJoinTap(gid, s), gcAct(gc, act), gcShow(), gcMinimize().
+      // Состояние для интерфейса: gcState(gid) → {kind, n, s, d}; в сессии gc: gid, phase (prep → wait → in), muted, speaker (iPhone: true —
+      // громко, false — у уха, undefined — решает система), outs, vsrc/vpending, hint (вместо статуса), note (строка под кнопками), lost,
+      // links (Link: uid, role from|to, pc, peerMu, peerCam, peerScr, speaking, dead, connectedAt, bgAt …).
+      const GC_OPEN = false;                  // пилот: групповые звонки — только админу и тестерам (E2E_PILOT); открыть всем — true
+      const GC_MAX = 6, GC_VIDEO_MAX = 4, GC_PROTO = 1;
+      const GC_STALE_MS = 30 * 60000, GC_AGE_MS = 12 * 3600000, GC_SHOW_MS = 35 * 60000;   // «живая» запись; показываем — с запасом на часы телефона
+      const GC_ANSWER_MS = 45000, GC_OFFER_MS = 60000, GC_GRACE_MS = 30000, GC_BACKUP_MS = 30000; // «призраки»: пороги и отсрочки
+      const GC_CONNECT_MS = 15000, GC_DROP_MS = 4000, GC_RESTART_MS = 20000, GC_R_MAX = 30;      // ICE restart через пару
+      // X в фоне — offer2 реже (но меньше 45 с: иначе X, если жив, заподозрил бы меня); ни разу не соединились за 3 restart — «Нет связи»,
+      // offer2 больше не шлём; правило — offer2 не чаще раза в 5 с (по серверу, у нас запас 1 с)
+      const GC_RESTART_BG_MS = 30000, GC_R_NEW_MAX = 3, GC_RESTART_MIN_MS = 6000;
+      const GC_DENY_MAX_MS = 5 * 60000;                      // повтор неудавшегося предложения: 10/30 с, дальше вдвое, не реже раза в 5 мин
+      const GC_RELINK_MS = 150000, GC_RELINK_MAX_MS = 600000; // пересоздание пары без ответа: третье — через 2,5 мин, дальше 5, 10 мин
+      const GC_HOLD_MS = 30000, GC_POLL_MS = 3000, GC_BG_MS = 5 * 60000, GC_UP_MS = 60000, GC_KICKED_UP_MS = 10000;
+      const GC_KICK_EVERY_MS = 2 * 60000, GC_KICK_AGE_MS = 60000;
+      // «пинок» свежий (по часам сервера) — можно вернуться с тем же j; связь в роли не по новому порядку входа (или без пары) не
+      // поднята дольше 10 с — пересоздать; после возвращения сети 15 с никого не подозреваем (их offer2/ответы ещё в пути)
+      const GC_KICK_FRESH_MS = 20000, GC_ORDER_MS = 10000, GC_NET_SETTLE_MS = 15000;
+      const GC_CTL_MAX = 30;           // канал ctl: больше 30 сообщений за секунду — лишние не разбираем; так 10 с подряд — закрыть связь
+      const GC_CARD_TXT = "📞 Групповой звонок"; // карточка звонка в переписке (текст в базе — по-русски, переводится при показе)
+      const GC_BEAT_LEAD_MS = 12 * 60000, GC_BEAT_MS = 14 * 60000, GC_BEAT_SHOW_MS = 9 * 60000 + 15000; // «жив»; правило — не чаще 9 мин
+      const GC_ALONE_MS = 10 * 60000, GC_REJOIN_MAX = 3, GC_REJOIN_WIN_MS = 10 * 60000;
+      const GC_ICE_JOIN_MS = 3600000;  // вход: пароль TURN из памяти — не старше часа
+      const GC_PROBE_MS = 2 * 60000;   // проба (меня нет в gm) показывает идущий звонок — перечитываем не чаще раза в 2 мин
+      const GC_ICE_MS = 11 * 3600000, GC_START_EVERY_MS = 5 * 60000, GC_TOAST_EVERY_MS = 10 * 60000, GC_TOAST_FRESH_MS = 2 * 60000;
+      const GC_RX_MAX_BPS = 1.5e6, GC_RX_MAX_MS = 10000;   // сторож входящей скорости (видео, которое я смотрю)
+      const GC_RX_AUDIO_BPS = 200e3;                        // без видео (не смотрю его или камеры у X нет): звук и служебное — с запасом
+      const GC_CAM_KBPS = { 2: 500, 3: 300, 4: 250 }, GC_SCR_KBPS = { 2: 1000, 3: 600, 4: 500 };
+      const GC_WRITE_MS = 12000, GC_T_MS = 15000, GC_LEVEL_MS = 200;
+      const GC_ID = /^[A-Za-z0-9]{1,40}$/, GC_S = /^[A-Za-z0-9]{20}$/, GC_J = /^[A-Za-z0-9]{10}$/, GC_UID = /^[A-Za-z0-9]{1,128}$/;
+      const GC_PHONE = '<path d="M20 15.5c-1.2 0-2.4-.2-3.6-.6a1 1 0 0 0-1 .25l-2.2 2.2a15 15 0 0 1-6.6-6.6l2.2-2.2a1 1 0 0 0 .25-1A11.4 11.4 0 0 1 8.5 4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1 17 17 0 0 0 17 17 1 1 0 0 0 1-1v-3.5a1 1 0 0 0-1-1z" fill="currentColor"/>';
+      const GC_ICON = (n) => `<svg viewBox="0 0 24 24" width="${n}" height="${n}" aria-hidden="true">${GC_PHONE}</svg>`;
+      const GC_MIC_OFF = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.9-.7"/><path d="M17 16.9A7 7 0 0 1 5 12v-2m14 0v2c0 .8-.1 1.5-.4 2.2M12 19v3M2 2l20 20"/></svg>';
+
+      const gcCalls = new Map();    // gid → запись gcalls из слушателя (я в gm) + _cache / _pending
+      const gcProbe = new Map();    // gid → запись, прочитанная ради карточки (я не в gm; + _at — когда), или null. Её никто не обновляет:
+                                    // идущий звонок перечитываем (не чаще раза в 2 мин, пока открыта беседа) и перед входом и стартом
+      const gcSeenS = new Map();    // gid → последний виденный s (всплывашка — только на новый s)
+      const gcToastAt = new Map();  // gid → когда была всплывашка (не чаще раза в 10 мин)
+      const gcMine = new Map();     // gid → {state: "elsewhere" | "crashed", j}: я в m, но звонок не на этой вкладке
+      const gcCrashed = new Map();  // gid → s: тихо вышли за упавшую вкладку — в беседе «Вернуться»
+      const gcSig = new Map();      // gid → «вид» для списка чатов: перерисовываем список, только если он поменялся
+      const gcPruneAt = new Map();  // gid → {seen, tried}: в звонке есть исключённые из беседы
+      const gcRingSeen = new Set(); // личные звонки, о которых уже тихо сказали
+      const gcRingPend = new Map(); // id → запись: личные звонки во время группового, ещё звонят (позвоним, когда групповой закончится)
+      let gcLeft = null;           // {gid, j, oj} — откуда я только что вышел (j, а при неудачном возврате и прежний oj): пока выход в пути, это не «другое устройство»
+      const gcLeftJ = (gid, j) => !!gcLeft && gcLeft.gid === gid && (gcLeft.j === j || gcLeft.oj === j);
+      let gcListener = null, gcIce = null, gcIceReq = null, gcLastStart = 0, gcRejoins = [], gcPoolEls = [], gcProbeTimer = null;
+      let gcListenReady = false, gcProbeWait = false; // первый снимок слушателя с сервера пришёл; карточку проверить, когда придёт
+
+      // ----- общее -----
+      const gcEnabled = () => !!currentUser && callsSupported() && (GC_OPEN || isAdmin || E2E_PILOT.has(currentUser.uid));
+      function gcRand(n) {
+          const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", out = [];
+          while (out.length < n) for (const x of crypto.getRandomValues(new Uint8Array(n * 2))) if (x < 248 && out.length < n) out.push(abc[x % 62]);
+          return out.join("");
+      }
+      const gcMs = (ts) => getTime(ts);
+      const gcMembersOf = (d) => (d && d.m && typeof d.m === "object" && !Array.isArray(d.m) ? d.m : {});
+      const gcN = (d) => Object.keys(gcMembersOf(d)).length;
+      // «Живая» запись — как gcLive в правилах, по часам телефона: есть участники, «жив» не старше 30 мин, звонку меньше 12 ч.
+      // Время сервера, которое ещё не пришло (своя запись в пути), считаем «сейчас»
+      function gcLive(d, slack = 0) {
+          if (!d || !gcN(d)) return false;
+          const now = Date.now(), upd = gcMs(d.upd), st = gcMs(d.started);
+          return (!upd || now - upd < GC_STALE_MS + slack) && (!st || now - st < GC_AGE_MS);
+      }
+      // Показываем звонок (плашка, карточка, значок): запас 5 мин на спешащие часы телефона
+      const gcShown = (d) => gcLive(d, GC_SHOW_MS - GC_STALE_MS);
+      const gcRec = (gid) => gcCalls.get(gid) || gcProbe.get(gid) || null;
+      // Проба показывает идущий звонок, а прочитана давно — пора перечитать
+      const gcProbeOld = (gid) => { const p = !gcCalls.has(gid) && gcProbe.get(gid); return !!p && gcShown(p) && Date.now() - (p._at || 0) > GC_PROBE_MS; };
+      // Запись перечитали (вход, старт, отказ), а меня нет в gm — кладём её в пробу (null — записи нет) и перерисовываем карточки,
+      // плашку, список и трубку: иначе до 35 мин висело бы «Идёт звонок», а начать новый было бы нельзя
+      function gcProbeKeep(gid, d) {
+          if (gcCalls.has(gid)) return;
+          gcProbe.set(gid, d ? { ...d, _at: Date.now() } : null);
+          gcRefresh(new Set([gid]));
+      }
+      // Один getDoc записи звонка (ошибка — null, как «записи нет»)
+      async function gcReadRec(gid) {
+          let d = null;
+          try { const s = await getDoc(doc(db, "gcalls", gid)); d = s.exists() ? { ...s.data(), _cache: s.metadata.fromCache } : null; }
+          catch (_) { return null; }
+          gcProbeKeep(gid, d);
+          return d;
+      }
+      // Порядок входа (t, uid): t — время сервера с точностью до микросекунд (как сравнивают правила), при равенстве — uid.
+      // Без времени сервера (вход ещё в пути) — «позже всех»
+      function gcCmp(d, a, b) {
+          const m = gcMembersOf(d), ta = m[a] && m[a].t, tb = m[b] && m[b].t;
+          if (!ta || !tb) return !ta && !tb ? (a < b ? -1 : a > b ? 1 : 0) : !ta ? 1 : -1;
+          return (ta.seconds - tb.seconds) || (ta.nanoseconds - tb.nanoseconds) || (a < b ? -1 : a > b ? 1 : 0);
+      }
+      // «Ведущий» — вошедший раньше всех: пишет «жив», первым убирает исключённых и «пинает» призраков (остальные — через +30 с)
+      const gcLeaderOf = (d) => Object.keys(gcMembersOf(d)).sort((a, b) => gcCmp(d, a, b))[0] || null;
+      const gcName = (uid) => (usersCache[uid] && usersCache[uid].name) || t("Собеседник");
+      const gcGroup = (gid) => (gid && groupsCache[gid]) || null;
+      // Пилот: войти в групповой звонок могут тестеры (E2E_PILOT) и админ (у него в профиле открыта почта — как для значка
+      // официального аккаунта)
+      const gcPilotUid = (u) => E2E_PILOT.has(u) || usersCache[u]?.email === ADMIN_EMAIL;
+      // push «начинает групповой звонок». Пилот (GC_OPEN = false): только тем, кто может войти, — Worker список only лишь
+      // сужает (чужого через него не позвать). Профили для поиска админа — только недостающие, не больше 60 чтений
+      async function gcRingSend(g) {
+          const body = { gcall: g.gid };
+          if (!GC_OPEN) {
+              const grp = gcGroup(g.gid), mm = grp && Array.isArray(grp.members) ? [...new Set(grp.members)].filter(u => u !== g.me) : [];
+              // недостающие профили (не тестеров) — не больше 60 чтений; начал админ — искать его незачем
+              const miss = isAdmin ? [] : mm.filter(u => !E2E_PILOT.has(u) && !usersCache[u]).slice(0, 60);
+              if (miss.length) await ensureUsers(miss);
+              body.only = mm.filter(gcPilotUid);
+              if (!body.only.length) return; // звать некого — Worker не трогаем
+          }
+          pushPost("/call/ring", body).catch(() => {});
+      }
+      // С X можно быть в звонке: не забанен и участник беседы (пока беседа не загрузилась — не мешаем: вход проверяют правила)
+      function gcPeerOk(g, uid) { const grp = gcGroup(g.gid); return !bansCache[uid] && (!grp || !Array.isArray(grp.members) || grp.members.includes(uid)); }
+      const gcTrusts = (uid) => (usersCache[currentUser.uid]?.following || []).includes(uid);
+      const gcCanHere = (gid) => { const grp = gcGroup(gid), mm = grp && Array.isArray(grp.members) ? grp.members : []; return gcEnabled() && mm.length >= 2 && mm.includes(currentUser.uid); };
+      const gcPid = (s, from, jf, to, jt) => s + "_" + from + "_" + jf + "_" + to + "_" + jt;
+      const gcUp = (L) => !!L && !!L.pc && !L.closed && ["connected", "completed"].includes(L.pc.connectionState || L.pc.iceConnectionState);
+      const gcAllLinks = (g, withPrep) => [...g.links.values(), ...g.old.values(), ...(withPrep ? g.prep.values() : [])];
+      const gcOffline = () => new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("offline"), { code: "offline" })), GC_WRITE_MS));
+      function closeGcNotifs(gid) {
+          if (!gid || !navigator.serviceWorker) return;
+          navigator.serviceWorker.ready.then(r => r.getNotifications({ tag: "owl-gcall-" + gid })).then(ns => ns.forEach(n => n.close())).catch(() => {});
+      }
+      // Тихий отчёт о сбое (role "g-…") — не больше одного на (шаг, ошибка) за звонок: лимит журнала Worker 20 в час, а связей до 5
+      function gcReport(g, step, e, role) {
+          if (!g || !currentUser) return;
+          const k = step + "|" + errName(e);
+          if (g.reports.has(k)) return;
+          g.reports.add(k);
+          pushPost("/call/log", { step, err: errName(e), role: role || "g", ver: "v" + OWL_SHELL + (isStandalone() ? " pwa" : ""), os: callOs(), relay: true, g: gcN(g.doc) }).catch(() => {});
+      }
+
+      // ----- сервер связи (TURN) -----
+      // Для группы — только turn …:3478 по UDP и turns …:443 (меньше выделений TURN при сборе без trickle; STUN не нужен — только relay)
+      function gcIceFilter(list) {
+          return (Array.isArray(list) ? list : []).map(s => ({ ...s, urls: [].concat(s.urls || []).filter(u => /^turn:[^?]+:3478\?transport=udp$/i.test(u) || /^turns:[^?]+:443(\?transport=tcp)?$/i.test(u)) }))
+              .filter(s => s.urls.length && typeof s.username === "string" && typeof s.credential === "string");
+      }
+      // Пароль TURN группового звонка: /call/ice {gcall} (12 ч; Worker выдаёт его только участнику беседы при живом звонке).
+      // null — сервер связи недоступен (в т. ч. сработал предохранитель расхода): ответ без relay в соединения не попадает.
+      // maxAge — насколько старый пароль из памяти годится: вход — не старше часа (иначе вход мимо Worker обходил бы предохранитель
+      // turn:gc-off); пароль внутри идущего звонка — до 11 ч
+      function gcFetchIce(gid, force, maxAge = GC_ICE_MS) {
+          if (!force && gcIce && gcIce.gid === gid && Date.now() - gcIce.at < maxAge) return Promise.resolve(gcIce);
+          if (gcIceReq && gcIceReq.gid === gid) return gcIceReq.p;
+          const p = (async () => {
+              const j = await Promise.race([pushPost("/call/ice", { gcall: gid }).then(r => r.json()), new Promise(r => setTimeout(() => r(null), 8000))]).catch(() => null);
+              const servers = j && j.relay ? gcIceFilter(j.iceServers) : [];
+              if (!servers.length) return null;
+              return (gcIce = { gid, servers, at: Date.now() });
+          })();
+          gcIceReq = { gid, p };
+          p.then(() => { if (gcIceReq && gcIceReq.p === p) gcIceReq = null; }, () => { if (gcIceReq && gcIceReq.p === p) gcIceReq = null; });
+          return p;
+      }
+      // Проба перед стартом: /call/ice {gcall, probe:true} — дадут ли пароль, если начать сейчас (Worker смотрит предохранители
+      // turn:off / turn:gc-off / turnoff:<метка>, лимиты, участие в беседе и бан; без пароля и без запроса к Cloudflare, до 3 чтений базы).
+      // Без кэша: иначе не увидеть только что сработавший предохранитель. Не отвечает за 8 с или ошибка — «нет»: без сервера связи
+      // групповой звонок всё равно не соединится. Не бросает: {ok, why}
+      function gcRelayCheck(gid) {
+          const late = new Promise(r => setTimeout(() => r({ ok: false, why: "timeout" }), 8000));
+          const req = pushPost("/call/ice", { gcall: gid, probe: true }).then(r => r.json())
+              .then(j => j && j.ok === true && j.avail === true ? { ok: true } : { ok: false, why: String((j && (j.why || j.error)) || "bad") })
+              .catch(() => ({ ok: false, why: "net" }));
+          return Promise.race([req, late]);
+      }
+      const gcPcConfig = (g) => ({ iceServers: g.ice.servers, iceTransportPolicy: "relay", bundlePolicy: "max-bundle" });
+      // Перед новым соединением и ICE restart: пароль старше 11 ч — берём новый; в соединение — только ответ с relay
+      async function gcIceFresh(g, pc) {
+          if (g.ice && Date.now() - g.ice.at < GC_ICE_MS) return true;
+          const ice = await gcFetchIce(g.gid, !!g.ice);
+          if (gc !== g || !ice) return !!g.ice; // не дали — живём со старым (Cloudflare держит его 12 ч)
+          g.ice = ice;
+          if (pc) try { pc.setConfiguration(gcPcConfig(g)); } catch (_) {}
+          return true;
+      }
+      // Переподключение не нашло ни одного адреса сервера связи: пароль могли отозвать (Worker в :45 отзывает выданные пароли —
+      // предохранитель расхода turn:off / turn:gc-off или нарушитель turnoff:<метка>). Берём новый — не чаще раза в 2 мин и не больше
+      // 3 раз за звонок (лимиты выдачи Worker). Дали — новый пароль всем соединениям. Worker прямо отказал (ok, без relay) — пароль
+      // из памяти больше не годится, и пока ни с кем не говорим — «Сервер связи недоступен» (gcNoRelay). Не ответил (нет сети) — ждём
+      async function gcIceRenew(g) {
+          const now = Date.now();
+          if (gc !== g || (g.renewN || 0) >= 3 || (g.renewAt && now - g.renewAt < 120000)) return;
+          g.renewAt = now; g.renewN = (g.renewN || 0) + 1;
+          const j = await Promise.race([pushPost("/call/ice", { gcall: g.gid }).then(r => r.json()), new Promise(r => setTimeout(() => r(null), 8000))]).catch(() => null);
+          if (gc !== g || !j || j.ok !== true) return;
+          const servers = j.relay ? gcIceFilter(j.iceServers) : [];
+          if (servers.length) {
+              g.ice = gcIce = { gid: g.gid, servers, at: Date.now() };
+              for (const L of gcAllLinks(g, true)) if (L.pc && !L.closed) try { L.pc.setConfiguration(gcPcConfig(g)); } catch (_) {}
+              return;
+          }
+          if (gcIce && gcIce.gid === g.gid) gcIce = null;
+          gcNoRelay(g);
+      }
+      // SDP перед записью в базу: только адреса сервера связи (typ relay), raddr/rport обнулены, c= и a=rtcp: — адрес сервера связи.
+      // Нет ни одного relay-адреса — null (группа: «Сервер связи недоступен»). keep (1-на-1) — тогда SDP без чужих адресов как есть:
+      // там дальше своя логика (повтор «напрямую» только с подписками)
+      function gcSdpClean(sdp, keep) {
+          if (typeof sdp !== "string") return null;
+          const nl = sdp.includes("\r\n") ? "\r\n" : "\n", lines = [];
+          let ip = null;
+          for (const ln of sdp.split(/\r?\n/)) {
+              if (/^a=candidate:/i.test(ln)) {
+                  if (!/ typ relay(\s|$)/.test(ln)) continue;
+                  const f = ln.split(" ");
+                  if (!ip && f[4]) ip = f[4];
+                  lines.push(ln.replace(/ raddr \S+ rport \d+/, " raddr 0.0.0.0 rport 0"));
+              } else lines.push(ln);
+          }
+          if (!ip) return keep ? lines.join(nl) : null;
+          const v = ip.includes(":") ? "IP6" : "IP4";
+          return lines.map(ln => /^c=IN IP[46] /.test(ln) ? "c=IN " + v + " " + ip
+              : /^a=rtcp:\d+ IN IP[46] /.test(ln) ? ln.replace(/ IN IP[46] \S+/, " IN " + v + " " + ip) : ln).join(nl);
+      }
+
+      // ----- звук -----
+      // Пул <audio> (не iPhone с выбором выхода): создаём и запускаем play() в касании «Начать»/«Присоединиться», потом раздаём участникам —
+      // так новый участник слышен без нового касания
+      function gcPoolEnsure() {
+          const box = $c("gc-pool");
+          while (box && gcPoolEls.length < GC_MAX - 1) { const a = document.createElement("audio"); a.autoplay = true; a.setAttribute("playsinline", ""); box.appendChild(a); gcPoolEls.push(a); }
+          return gcPoolEls;
+      }
+      const gcAudioEls = () => [...gcPoolEnsure(), $c("call-audio"), $c("call-audio-sp")].filter(Boolean);
+      function gcPrimeAudio() { gcAudioEls().forEach(a => { try { const p = a.play(); if (p) p.catch(() => {}); } catch (_) {} }); }
+      // Браузер не дал включить звук (окно разрешения микрофона «съедает» касание) — повторяем play() у всех на следующем касании
+      function gcNeedTap(g, e) {
+          if (gc !== g || !e || e.name !== "NotAllowedError" || g.needTap) return;
+          g.needTap = true; g.hint = t("Коснитесь экрана, чтобы включить звук"); gcRender();
+          onNextTap(() => {
+              if (gc !== g) return;
+              g.needTap = false; g.hint = null; callRelayCtx();
+              gcAudioEls().forEach(a => { if (a.srcObject) a.play().catch(() => {}); });
+              gcAudioRoute(g); setTimeout(() => gcRender(), 0);
+          });
+      }
+      // Куда идёт звук собеседников. iPhone с выбором выхода: «громко» — один #call-audio-sp с общим потоком всех дорожек (setSinkId(sp));
+      // «у уха» — смеситель relayCtx → #call-audio (setSinkId(rx)): новые участники подключаются к нему без касания. Переключение — сначала
+      // новый выход, потом пауза старого (иначе в промежутке ничего не играет и restoreAmbient выключил бы микрофон).
+      // Остальные браузеры — свой <audio> из пула на каждого (без Web Audio: так работает эхоподавление). Заблокированного не слышно
+      function gcAudioRoute(g = gc) {
+          if (!g || gc !== g) return;
+          const links = gcAllLinks(g).filter(L => L.remote);
+          const heard = links.filter(L => !iBlocked(L.uid) && !bansCache[L.uid]);
+          if (canPickOutput()) {
+              const sp = $c("call-audio-sp"), rx = $c("call-audio");
+              if (g.speaker === false && relayCtx && relayCtx.state === "running") {
+                  if (!g.mix || g.mixCtx !== relayCtx) { try { g.mix = relayCtx.createMediaStreamDestination(); g.mixCtx = relayCtx; links.forEach(L => { L.mixSrc = null; }); } catch (_) { g.mix = null; } }
+                  if (g.mix) {
+                      for (const L of links) {
+                          const want = heard.includes(L);
+                          if (want && (!L.mixSrc || L.mixFor !== L.remote)) {
+                              try { if (L.mixSrc) L.mixSrc.disconnect(); L.mixSrc = relayCtx.createMediaStreamSource(L.remote); L.mixSrc.connect(g.mix); L.mixFor = L.remote; }
+                              catch (e) { console.log("Групповой звонок, смеситель:", e.name, e.message); L.mixSrc = null; }
+                          } else if (!want && L.mixSrc) { try { L.mixSrc.disconnect(); } catch (_) {} L.mixSrc = null; }
+                      }
+                      if (rx.srcObject !== g.mix.stream) rx.srcObject = g.mix.stream;
+                      rx.play().then(() => { if (gc === g && g.speaker === false) sp.pause(); }, e => gcNeedTap(g, e));
+                      return;
+                  }
+              }
+              // громко (или смеситель не готов): один элемент со всеми дорожками; поток меняем, только если поменялся состав
+              const tracks = heard.map(L => L.remote.getAudioTracks()[0]).filter(Boolean), key = tracks.map(x => x.id).join(",");
+              if (g.spKey !== key) { g.spKey = key; sp.srcObject = tracks.length ? new MediaStream(tracks) : null; }
+              // новый выход заиграл — смеситель «у уха» больше не нужен: отключаем источники (иначе Web Audio до конца звонка смешивал бы
+              // всех в поток, который никто не слушает); вернёмся к уху — ветка выше соберёт его заново
+              if (sp.srcObject) sp.play().then(() => {
+                  if (gc !== g || g.speaker === false) return;
+                  rx.pause();
+                  for (const L of gcAllLinks(g, true)) if (L.mixSrc) { try { L.mixSrc.disconnect(); } catch (_) {} L.mixSrc = null; L.mixFor = null; }
+                  if (g.mix && rx.srcObject === g.mix.stream) rx.srcObject = null;
+              }, e => gcNeedTap(g, e));
+              return;
+          }
+          const pool = gcPoolEnsure();
+          for (const L of links) {
+              if (!L.audioEl) { L.audioEl = pool.find(a => !a._gc) || null; if (L.audioEl) L.audioEl._gc = L; }
+              const a = L.audioEl; if (!a) continue;
+              if (a.srcObject !== L.remote) a.srcObject = L.remote;
+              a.muted = !heard.includes(L);
+              if (a.paused) a.play().catch(e => gcNeedTap(g, e));
+          }
+      }
+      // on: true — громко, false — у уха; auto — при начале звонка (с наушниками не трогаем). Как callSetSpeaker, но на два элемента
+      async function gcSetSpeaker(g, on, auto) {
+          const outs = await callOutputs(g);
+          if (!outs || gc !== g) return false;
+          if (auto && outs.headset) { gcSinkReset(g); gcRender(); return false; }
+          if (!on) {
+              callRelayCtx();
+              if (relayCtx && relayCtx.state !== "running") await Promise.race([relayCtx.resume().catch(() => {}), new Promise(r => setTimeout(r, 1000))]);
+              if (gc !== g) return false;
+          }
+          const ear = !on && !!relayCtx && relayCtx.state === "running"; // без смесителя «у уха» не получится
+          try {
+              await (ear ? $c("call-audio") : $c("call-audio-sp")).setSinkId(ear ? outs.rx : outs.sp);
+              if (gc !== g) return false;
+              g.speaker = !ear; if (ear) sinkDirty = true; else spDirty = true;
+              gcAudioRoute(g); gcVideoApply(g); gcRender(); // у уха видео не смотрим — {v:0} сразу
+              return ear || on;
+          } catch (e) {
+              console.log("Групповой звонок, динамик:", e.name, e.message);
+              if (gc !== g) return false;
+              // касание «съело» окно разрешения микрофона — выход выбираем на следующем касании. «Громко» до тех пор включённым
+              // не считаем: звук держался бы только на ошибке WebKit 320087, а первое нажатие «Динамик» увело бы его к уху
+              if (e.name === "NotAllowedError") {
+                  if (!g.sinkTap) {
+                      g.sinkTap = true;
+                      onNextTap(() => {
+                          g.sinkTap = false;
+                          if (gc !== g || g.speaker !== undefined) return; // уже выбрали кнопкой
+                          (ear ? $c("call-audio") : $c("call-audio-sp")).setSinkId(ear ? outs.rx : outs.sp).then(() => {
+                              if (gc !== g || g.speaker !== undefined) return;
+                              g.speaker = !ear; if (ear) sinkDirty = true; else spDirty = true;
+                              gcAudioRoute(g); gcVideoApply(g); gcRender();
+                          }, err => console.log("Групповой звонок, динамик (касание):", err.name, err.message));
+                      });
+                  }
+                  return true;
+              }
+              if (g.speaker === undefined) { g.speaker = true; gcAudioRoute(g); gcVideoApply(g); gcRender(); }
+              return false;
+          }
+      }
+      // Наушники: выход решает система — у #call-audio-sp не должно остаться «громкого» от прошлого звонка (сброс после него мог
+      // не пройти без касания). Не дали сейчас — на ближайшем касании, если выход так и не выбрали кнопкой
+      function gcSinkReset(g) {
+          const sp = $c("call-audio-sp");
+          if (!sp || !(spDirty || sp.sinkId)) return;
+          sp.setSinkId("").then(() => { spDirty = false; }, e => {
+              if (e.name === "NotAllowedError") onNextTap(() => { if (gc === g && g.speaker === undefined) sp.setSinkId("").then(() => { spDirty = false; }).catch(() => {}); });
+          });
+      }
+      // Смеситель «уснул» (iOS в фоне, Siri, будильник) или проснулся: проснулся — заново подключаем участников; не проснулся на виду
+      // за 1,5 с — честно громко, но звук не пропадает (как callWakeRelay у 1-на-1)
+      function gcWakeRelay() {
+          const g = gc;
+          if (!g || g.speaker !== false || !relayCtx) return;
+          if (relayCtx.state === "running") return gcAudioRoute(g);
+          relayCtx.resume().catch(() => {});
+          setTimeout(() => {
+              if (gc !== g || g.speaker !== false || !relayCtx) return;
+              if (relayCtx.state === "running") return gcAudioRoute(g);
+              if (document.visibilityState !== "visible") return; // в фоне ждём возвращения
+              g.speaker = true; gcAudioRoute(g); gcVideoApply(g); gcRender();
+              if (g.outs) $c("call-audio-sp").setSinkId(g.outs.sp).then(() => { spDirty = true; }).catch(() => {});
+          }, 1500);
+      }
+      // После микрофона: iPhone — громко (групповой звонок обычно держат перед собой; с наушниками решает система)
+      function gcAfterMic(g) {
+          if (canPickOutput()) callOutputs(g).then(outs => { if (gc === g && outs) gcSetSpeaker(g, true, true); });
+          gcAudioRoute(g); gcRender();
+      }
+      // «Микрофон выкл.» — replaceTrack(null) на всех отправителях: с enabled=false WebRTC слал бы «тишину» в каждое соединение
+      function gcMuteApply(g) {
+          const tr = g.stream && g.stream.getAudioTracks()[0];
+          gcAllLinks(g, true).forEach(L => { if (L.asnd) L.asnd.replaceTrack(g.muted ? null : tr).catch(() => {}); });
+          gcCtlAll(g, { mu: g.muted ? 1 : 0 });
+      }
+
+      // ----- соединения (Link) -----
+      // o2r — номер r предложения, которое сейчас стоит в pc и уже записано (answer2 принимаем только к нему; 0 — нет такого);
+      // o2RecvAt — когда X в последний раз прислал offer2 (lastOffer2At ещё и сдвигает опрос «призраков»);
+      // stuck/holdUntil — пару пересоздавали без ответа, следующая попытка не раньше holdUntil (плитка «Нет связи»)
+      function gcNewLink(g, uid, jPeer, role) {
+          return { uid, jPeer, role, pid: role === "from" ? gcPid(g.s, g.me, g.j, uid, jPeer) : null, pc: null, asnd: null, vtx: null, dc: null, ready: null,
+              offer: null, offerSdp: null, remote: null, rvTrack: null, audioEl: null, mixSrc: null, mixFor: null, created: Date.now(), sentAt: 0,
+              gotAnswer: false, answeredAt: 0, connectedAt: 0, lastUp: 0, lastPing: 0, downSince: 0, r: 0, pr: 0, ar: 0, o2At: 0, o2Since: 0, o2r: 0,
+              lastAnswer2: null, wantO2: null, lastOffer2At: 0, o2RecvAt: 0, tryAt: 0, bgAt: 0, v: false, sentV: null, vsent: null, peerMu: false, peerCam: false,
+              peerScr: false, speaking: false, lvl: 0, rtp: undefined, rx: null, rxAt: 0, rxHigh: 0, ctlAt: 0, ctlN: 0, ctlFlood: 0, noPair: false, dead: false, stuck: false, holdUntil: 0, goneAt: 0, closed: false };
+      }
+      // Свои каналы связи: звук — тот, что создал addTrack (L.asnd), видео — первый видеоканал. Остальные m-строки (их мог вложить
+      // изменённый клиент: второй видео- или звуковой канал) — inactive: иначе WebRTC принимал бы по ним медиа мимо правил видео
+      const gcIsVid = (x) => !!(x && x.receiver && x.receiver.track && x.receiver.track.kind === "video");
+      function gcVidTx(L) { return L.vtx || (L.pc ? L.pc.getTransceivers().find(x => x.sender !== L.asnd && gcIsVid(x)) : null) || null; }
+      function gcTxClamp(L) {
+          if (!L.pc) return null;
+          const vt = gcVidTx(L);
+          for (const x of L.pc.getTransceivers()) {
+              if (x === vt || x.sender === L.asnd || x.stopped || x.direction === "inactive" || x.direction === "stopped") continue;
+              try { x.direction = "inactive"; } catch (_) {}
+          }
+          return vt;
+      }
+      // Видео: направление при создании соединения — по премиуму обоих и блокировке (число людей сюда не закладываем: связь, созданная
+      // при пятерых, осталась бы без видео и после ухода пятого; такие изменения — {v:0}, отказ выводить видео и сторож скорости)
+      function gcVideoDir(uid) {
+          const ok = !iBlocked(uid) && !bansCache[uid], snd = ok && isPremium(currentUser.uid), rcv = ok && isPremium(uid);
+          return snd && rcv ? "sendrecv" : snd ? "sendonly" : rcv ? "recvonly" : "inactive";
+      }
+      function gcPc(g, L) {
+          const pc = L.pc = new RTCPeerConnection(gcPcConfig(g));
+          const tr = g.stream.getAudioTracks()[0];
+          L.asnd = pc.addTrack(tr, g.stream);
+          if (g.muted) L.asnd.replaceTrack(null).catch(() => {});
+          // предлагающий закладывает видеоканал сразу (отвечающий берёт его из предложения): камера потом — только replaceTrack
+          if (L.role === "from") L.vtx = pc.addTransceiver("video", { direction: gcVideoDir(L.uid), streams: [g.stream] });
+          try { L.dc = pc.createDataChannel("ctl", { negotiated: true, id: 0 }); gcCtlBind(g, L); } catch (_) {}
+          pc.ontrack = (e) => {
+              if (gc !== g || L.closed) return;
+              // дорожки только своих каналов (лишние m-строки — см. gcTxClamp; ontrack у отвечающего приходит ещё до неё)
+              const tx = e.transceiver;
+              if (tx && (e.track.kind === "video" ? tx !== gcVidTx(L) : tx.sender !== L.asnd)) return;
+              if (e.track.kind === "video") { L.rvTrack = e.track; e.track.onmute = e.track.onunmute = e.track.onended = () => { if (gc === g) gcRender(); }; gcRender(); return; }
+              L.remote = new MediaStream([e.track]); // звук — своим потоком (Safari иначе может ждать первый видеокадр и молчать)
+              gcAudioRoute(g);
+          };
+          const st = () => gcConnState(g, L);
+          if ("connectionState" in pc) pc.addEventListener("connectionstatechange", st); else pc.addEventListener("iceconnectionstatechange", st);
+          return pc;
+      }
+      function gcConnState(g, L) {
+          if (gc !== g || L.closed || !L.pc) return;
+          if (gcUp(L)) {
+              const first = !L.connectedAt, now = Date.now();
+              L.connectedAt = L.connectedAt || now; L.lastUp = now; L.downSince = 0; L.dead = false; L.stuck = false; L.holdUntil = 0;
+              g.denyN.delete(L.uid + ":" + L.jPeer); g.relinks.delete(L.uid + ":" + L.jPeer); // соединились — счёт неудач заново
+              g.lastConn = now; if (!g.connectedAt) g.connectedAt = now;
+              // вернулся с новым j — старое соединение с ним закрываем, когда поднялось новое
+              const old = g.old.get(L.uid); if (old && old !== L) gcCloseLink(g, old, "replaced");
+              if (first) { gcVideoApply(g); gcBitrate(g); }
+          } else {
+              const st = L.pc.connectionState || L.pc.iceConnectionState;
+              if ((st === "disconnected" || st === "failed") && !L.downSince) L.downSince = Date.now(); // ICE restart — из gcTick
+          }
+          gcRender();
+      }
+      function gcCloseLink(g, L, why) {
+          if (!L || L.closed) return;
+          L.closed = true; L.why = why;
+          try { if (L.dc) L.dc.close(); } catch (_) {}
+          try { if (L.pc) L.pc.close(); } catch (_) {}
+          if (L.mixSrc) { try { L.mixSrc.disconnect(); } catch (_) {} L.mixSrc = null; }
+          if (L.audioEl) { L.audioEl.srcObject = null; L.audioEl._gc = null; L.audioEl = null; }
+          if (g.links.get(L.uid) === L) g.links.delete(L.uid);
+          if (g.old.get(L.uid) === L) g.old.delete(L.uid);
+          if (g.prep.get(L.uid) === L) g.prep.delete(L.uid);
+          if (gc === g) { gcAudioRoute(g); gcRender(); }
+      }
+      // Связь заменяется новой (X вернулся с новым j, пару пересоздали): живую держим «старой», пока не поднимется новая (или 30 с)
+      function gcRetire(g, L) {
+          if (g.links.get(L.uid) === L) g.links.delete(L.uid);
+          if (!gcUp(L)) return gcCloseLink(g, L, "replaced");
+          const o = g.old.get(L.uid); if (o && o !== L) gcCloseLink(g, o, "replaced");
+          g.old.set(L.uid, L); L.goneAt = L.goneAt || Date.now();
+      }
+      function gcDropPeer(g, X) {
+          [g.links.get(X), g.old.get(X), g.prep.get(X)].forEach(L => { if (L) gcCloseLink(g, L, "peer"); });
+          g.wait.delete(X);
+          for (const [pid, h] of g.held) if (h.p.from === X) g.held.delete(pid);
+      }
+
+      // ----- канал ctl (данные внутри соединения, мимо базы): ≤200 знаков, JSON только с известными ключами -----
+      // {mu} микрофон, {cam}/{scr} камера/экран, {bg} ушёл в фон, {v} смотрю ли твоё видео, {q:X} опрос о «призраке» X → {a:X, up, bg},
+      // {p} пинг раз в 10 с (живость связи для «призраков» — бесплатно, без базы)
+      const GC_CTL_KEYS = new Set(["mu", "cam", "scr", "bg", "v", "q", "a", "up", "p"]);
+      const gcBit = (x) => x === 1 || x === true;
+      function gcCtlBind(g, L) {
+          L.dc.onopen = () => {
+              if (gc !== g || L.closed) return;
+              const want = gcWantV(g, L); L.sentV = want;
+              gcCtl(L, { mu: g.muted ? 1 : 0, cam: g.vsrc === "cam" ? 1 : 0, scr: g.vsrc === "screen" ? 1 : 0, bg: document.visibilityState === "hidden" ? 1 : 0, v: want ? 1 : 0 });
+          };
+          // Поток сообщений (изменённый клиент): больше GC_CTL_MAX за секунду — лишние не разбираем; так 10 с подряд — закрыть связь
+          // (как сторож скорости). Считаем и длинные/двоичные: их байты уже пришли
+          L.dc.onmessage = (e) => {
+              if (gc !== g || L.closed) return;
+              const now = Date.now();
+              if (now - L.ctlAt >= 1000) {
+                  const over = L.ctlN > GC_CTL_MAX && now - L.ctlAt < 2000; // прошлая секунда переполнена и шла сразу перед этой
+                  if (!over) L.ctlFlood = 0; else if (!L.ctlFlood) L.ctlFlood = L.ctlAt; else if (now - L.ctlFlood > GC_RX_MAX_MS) return gcCut(g, L, "ctl");
+                  L.ctlAt = now; L.ctlN = 0;
+              }
+              if (++L.ctlN > GC_CTL_MAX || typeof e.data !== "string" || e.data.length > 200) return;
+              let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+              if (!m || typeof m !== "object" || Array.isArray(m)) return;
+              const keys = Object.keys(m);
+              if (!keys.length || keys.some(k => !GC_CTL_KEYS.has(k))) return;
+              gcOnCtl(g, L, m);
+          };
+      }
+      function gcCtl(L, m) { if (L.dc && L.dc.readyState === "open") try { L.dc.send(JSON.stringify(m)); } catch (_) {} }
+      function gcCtlAll(g, m) { gcAllLinks(g).forEach(L => gcCtl(L, m)); }
+      function gcOnCtl(g, L, m) {
+          const now = Date.now();
+          L.lastPing = now;
+          // ответ на опрос: «моя связь с X жива последние 60 с / X в фоне»
+          if ("a" in m) { const p = typeof m.a === "string" ? g.polls.get(m.a) : null; if (p && (gcBit(m.up) || gcBit(m.bg))) p.alive = true; return; }
+          if ("q" in m) {
+              if (typeof m.q !== "string" || !GC_UID.test(m.q)) return;
+              const X = g.links.get(m.q) || g.old.get(m.q);
+              gcCtl(L, { a: m.q, up: X && (gcUp(X) || now - Math.max(X.lastUp, X.lastPing) < GC_UP_MS) ? 1 : 0, bg: X && X.bgAt && now - X.bgAt < GC_BG_MS ? 1 : 0 });
+              return;
+          }
+          // перерисовка и смена видео — только когда значение правда поменялось (повторы ничего не стоят)
+          let ui = false;
+          if ("mu" in m && L.peerMu !== gcBit(m.mu)) { L.peerMu = gcBit(m.mu); ui = true; }
+          if ("cam" in m && L.peerCam !== gcBit(m.cam)) { L.peerCam = gcBit(m.cam); ui = true; }
+          if ("scr" in m && L.peerScr !== gcBit(m.scr)) { L.peerScr = gcBit(m.scr); ui = true; }
+          if ("bg" in m) L.bgAt = gcBit(m.bg) ? now : 0;
+          if ("v" in m && L.v !== gcBit(m.v)) { L.v = gcBit(m.v); gcVideoApply(g); }
+          if (ui) gcRender();
+      }
+
+      // ----- рукопожатие пары -----
+      // Предложение (я — вошедший позже): соединение, видеоканал, ctl, сбор адресов. "norelay" — сервер связи не дал ни одного адреса
+      async function gcMakeOffer(g, L) {
+          try {
+              if (!g.ice) { const ice = await (g.iceP || gcFetchIce(g.gid)); if (gc !== g || L.closed) return false; if (!ice) return "norelay"; g.ice = g.ice || ice; }
+              else await gcIceFresh(g);
+              if (gc !== g || L.closed || !g.stream) return false;
+              const pc = gcPc(g, L);
+              await pc.setLocalDescription(await pc.createOffer());
+              await callGather(pc, true);
+              if (gc !== g || L.closed) return false;
+              L.offer = gcSdpClean(pc.localDescription.sdp);
+              return L.offer ? true : "norelay";
+          } catch (e) {
+              if (gc === g && !L.closed) { console.log("Групповой звонок (предложение):", e.name, e.message); gcReport(g, "offer", e, "g-off"); }
+              return false;
+          }
+      }
+      // Предложение X не удалось (нет relay, ошибка сбора, отказ записи): запрет на ms, с каждой неудачей подряд — вдвое дольше
+      // (не дольше 5 мин); когда он истечёт, gcTick сам позовёт gcSync (gcRetryDenied) — не ждём нового снимка записи
+      function gcDeny(g, L, ms) {
+          const key = L.uid + ":" + L.jPeer, n = (g.denyN.get(key) || 0) + 1;
+          g.denyN.set(key, n);
+          g.deny.set(key, Date.now() + Math.min(GC_DENY_MAX_MS, ms * 2 ** (n - 1)));
+      }
+      function gcRetryDenied(g, now) {
+          if (!g.deny.size) return;
+          const m = gcMembersOf(g.doc);
+          let due = false;
+          for (const [key, until] of g.deny) {
+              if (until > now) continue;
+              g.deny.delete(key);
+              const [X, j] = key.split(":");
+              if (m[X] && m[X].j === j && !g.links.has(X)) due = true;
+          }
+          if (due) gcSync(g);
+      }
+      // Нет адресов сервера связи: пока ни с кем не говорим — «Сервер связи недоступен» и выход (пары не пишем, никого не «пинаем»);
+      // уже говорим с другими — эту связь попробуем позже (gcDeny → gcRetryDenied)
+      function gcNoRelay(g) {
+          if (gc !== g) return;
+          gcReport(g, "relay", { name: "no-relay" });
+          if (gcAllLinks(g).some(gcUp)) return;
+          gcFail(g, t("Сервер связи недоступен"));
+      }
+      async function gcSendOffer(g, L) {
+          if (!L.ready) L.ready = gcMakeOffer(g, L);
+          const ok = await L.ready;
+          if (gc !== g || L.closed) return;
+          if (ok !== true) { gcDeny(g, L, 10000); gcCloseLink(g, L, "offer"); if (ok === "norelay") gcNoRelay(g); return; }
+          L.sentAt = Date.now();
+          try {
+              await setDoc(doc(db, "gpairs", L.pid), { g: g.gid, s: g.s, u: [g.me, L.uid], from: g.me, to: L.uid, jf: g.j, jt: L.jPeer, v: GC_PROTO, offer: L.offer, created: serverTimestamp() });
+              L.offer = null;
+          } catch (e) {
+              if (gc !== g || L.closed) return;
+              // X успел выйти или сменить j — пара не нужна; новая создастся по следующему снимку или по истечении запрета (от 30 с)
+              console.log("Групповой звонок (пара):", e.code || e.name, e.message);
+              if (e.code !== "permission-denied") gcReport(g, "pair", e, "g-off");
+              gcDeny(g, L, 30000);
+              gcCloseLink(g, L, "denied");
+          }
+      }
+      // Мои пары (я from): ответ и ответы на ICE restart
+      async function gcOnAnswer(g, L, p, pending) {
+          if (!pending) L.r = Math.max(L.r, p.r || 0); // свой снимок в пути не в счёт: отклонённый offer2 сдвинул бы r навсегда
+          try {
+              if (typeof p.answer === "string" && !L.gotAnswer && L.pc && L.pc.signalingState === "have-local-offer") {
+                  L.gotAnswer = true; L.answeredAt = Date.now();
+                  g.relinks.delete(L.uid + ":" + L.jPeer); L.stuck = false; L.holdUntil = 0; // X отвечает — счёт пересозданий заново
+                  await L.pc.setRemoteDescription({ type: "answer", sdp: p.answer });
+                  if (gc === g) { gcVideoApply(g); gcBitrate(g); }
+              }
+              // answer2 — только к тому offer2, что сейчас стоит в pc и записан (o2r): запоздавший ответ на прошлый r, пришедший,
+              // пока собирается новый, к новому предложению с другими ICE-учётками не применяем
+              if (typeof p.answer2 === "string" && L.o2r && p.ar === L.o2r && p.answer2 !== L.lastAnswer2 && L.pc && L.pc.signalingState === "have-local-offer") {
+                  L.lastAnswer2 = p.answer2; L.o2Since = 0;
+                  await L.pc.setRemoteDescription({ type: "answer", sdp: p.answer2 });
+              }
+          } catch (e) { if (gc === g && !L.closed) { console.log("Групповой звонок (ответ):", e.name, e.message); gcReport(g, "sdp", e, "g-off"); } }
+      }
+      // ICE restart (только предлагавший, после первого ответа): r+1 ≤ 30, не чаще раза в 20 с (правило — 5 с); прошлые answer2/ar стираются.
+      // Висит прошлое предложение без ответа — сначала откат (rollback). Запись offer2 не прошла — откат и r не трогаем
+      async function gcRestart(g, L) {
+          if (gc !== g || L.closed || L.role !== "from" || !L.gotAnswer || L.restarting || !L.pc || gcUp(L) || L.r >= GC_R_MAX) return;
+          if (L.o2At && Date.now() - L.o2At < GC_RESTART_MIN_MS) return; // правило отклонило бы запись, а в pc осталось бы незаписанное предложение
+          L.restarting = true;
+          const pc = L.pc;
+          try {
+              await gcIceFresh(g, pc);
+              if (gc !== g || L.closed) return;
+              L.o2r = 0; // дальше в pc — ещё не записанное предложение
+              if (pc.signalingState === "have-local-offer") await pc.setLocalDescription({ type: "rollback" });
+              await pc.setLocalDescription(await pc.createOffer({ iceRestart: true }));
+              await callGather(pc, true);
+              if (gc !== g || L.closed) return;
+              const sdp = gcSdpClean(pc.localDescription.sdp);
+              if (!sdp) { gcReport(g, "restart", { name: "no-relay" }, "g-off"); gcIceRenew(g); return; }
+              const r = L.r + 1;
+              L.o2r = r; // answer2 может прийти раньше, чем подтверждение записи
+              try { await updateDoc(doc(db, "gpairs", L.pid), { offer2: sdp, r, t2: serverTimestamp(), answer2: deleteField(), ar: deleteField() }); }
+              catch (e) {
+                  L.o2r = 0;
+                  if (gc === g && !L.closed && pc.signalingState === "have-local-offer") await pc.setLocalDescription({ type: "rollback" }).catch(() => {});
+                  throw e;
+              }
+              L.r = r; L.o2At = Date.now(); if (!L.o2Since) L.o2Since = L.o2At;
+          } catch (e) { if (gc === g && !L.closed) { console.log("Групповой звонок (переподключение):", e.code || e.name, e.message); if (e.code !== "permission-denied") gcReport(g, "restart", e, "g-off"); } }
+          finally { L.restarting = false; }
+      }
+      // Предложение мне (я to). Проверяю: та же сессия, мой j, j автора = его j в m, автор в беседе и не забанен. Автор ещё не виден в m —
+      // держу предложение до 30 с (gc.held, перепроверка на каждом снимке)
+      async function gcOnOffer(g, pid, p) {
+          if (p.to !== g.me || p.jt !== g.j || !GC_UID.test(p.from || "") || p.from === g.me || !GC_J.test(p.jf || "") || typeof p.offer !== "string") return;
+          if (g.cut.has(p.from + ":" + p.jf) || !gcPeerOk(g, p.from)) return;
+          const cur = [g.links.get(p.from), g.old.get(p.from)].find(L => L && L.pid === pid && L.role === "to");
+          if (cur) {
+              if (p.offer === cur.offerSdp || p.answer) return gcQueueOffer2(g, cur, p); // та же пара — новые offer2 (ICE restart)
+              gcCloseLink(g, cur, "reoffer"); // пару пересоздали (удалили и создали заново) — новая связь
+          }
+          const m = gcMembersOf(g.doc);
+          if (g.phase !== "in" || g.lost || !g.ice || !g.stream || !m[p.from] || m[p.from].j !== p.jf) {
+              const h = g.held.get(pid); if (h) h.p = p; else g.held.set(pid, { p, at: Date.now() });
+              return;
+          }
+          g.held.delete(pid);
+          if (p.answer) return; // на неё уже ответили (не эта связь) — ждём новую
+          const was = g.links.get(p.from); if (was) gcRetire(g, was);
+          const P = g.prep.get(p.from); if (P) gcCloseLink(g, P, "stale");
+          const L = gcNewLink(g, p.from, p.jf, "to"); L.pid = pid; L.offerSdp = p.offer;
+          g.links.set(p.from, L); g.wait.delete(p.from);
+          try {
+              await gcIceFresh(g);
+              if (gc !== g || L.closed) return;
+              const pc = gcPc(g, L);
+              await pc.setRemoteDescription({ type: "offer", sdp: p.offer });
+              const vt = gcTxClamp(L); // первый видеоканал — по премиуму и блокировке, лишние каналы — inactive
+              if (vt) { try { vt.direction = gcVideoDir(L.uid); } catch (_) {} L.vtx = vt; }
+              await pc.setLocalDescription(await pc.createAnswer());
+              await callGather(pc, true);
+              if (gc !== g || L.closed) return;
+              const sdp = gcSdpClean(pc.localDescription.sdp);
+              if (!sdp) { gcCloseLink(g, L, "norelay"); return gcNoRelay(g); }
+              await updateDoc(doc(db, "gpairs", pid), { answer: sdp });
+              L.answeredAt = Date.now(); if (!gcUp(L) && !L.downSince) L.downSince = L.answeredAt; // не соединились — ждём offer2 (см. «призраки»)
+              gcVideoApply(g);
+          } catch (e) {
+              if (gc !== g || L.closed) return;
+              console.log("Групповой звонок (ответ на предложение):", e.code || e.name, e.message);
+              if (e.code !== "permission-denied") gcReport(g, "answer", e, "g-ans");
+              gcCloseLink(g, L, "error");
+          }
+      }
+      function gcQueueOffer2(g, L, p) {
+          L.pr = Math.max(L.pr, p.r || 0);
+          if (typeof p.offer2 === "string" && (p.r || 0) > L.ar && (!L.wantO2 || p.r > L.wantO2.r)) { L.wantO2 = { sdp: p.offer2, r: p.r }; L.lastOffer2At = L.o2RecvAt = Date.now(); gcAnswer2(g, L); }
+      }
+      // Отвечаем на каждый новый offer2 (ar = r) строго по одному; пришло новее, пока отвечали, — старый ответ не пишем
+      async function gcAnswer2(g, L) {
+          if (L.answering2 || !L.answeredAt) return;
+          L.answering2 = true;
+          try {
+              while (gc === g && !L.closed && L.wantO2 && L.wantO2.r > L.ar) {
+                  const { sdp, r } = L.wantO2;
+                  try {
+                      await gcIceFresh(g, L.pc);
+                      if (gc !== g || L.closed) return;
+                      if (L.pc.signalingState !== "stable") await L.pc.setLocalDescription({ type: "rollback" }).catch(() => {});
+                      await L.pc.setRemoteDescription({ type: "offer", sdp });
+                      gcTxClamp(L); // offer2 тоже мог принести новые m-строки
+                      await L.pc.setLocalDescription(await L.pc.createAnswer());
+                      await callGather(L.pc, true);
+                      if (gc !== g || L.closed) return;
+                      if (L.wantO2.r !== r) continue;
+                      const out = gcSdpClean(L.pc.localDescription.sdp);
+                      if (!out) { gcReport(g, "answer2", { name: "no-relay" }, "g-ans"); gcIceRenew(g); L.ar = r; continue; }
+                      await updateDoc(doc(db, "gpairs", L.pid), { answer2: out, ar: r });
+                      L.ar = r;
+                  } catch (e) {
+                      if (gc !== g || L.closed) return;
+                      if (L.wantO2.r !== r) continue; // отказ из-за более нового offer2 — отвечаем на него
+                      console.log("Групповой звонок (ответ на переподключение):", e.code || e.name, e.message);
+                      if (e.code !== "permission-denied") gcReport(g, "answer2", e, "g-ans");
+                      L.ar = r;
+                  }
+              }
+          } finally { L.answering2 = false; }
+      }
+      function gcOnPairDoc(g, pid, p, pending) {
+          if (gc !== g || !p || p.s !== g.s) return;
+          if (p.from === g.me && p.jf === g.j) {
+              const L = [g.links.get(p.to), g.old.get(p.to)].find(x => x && x.pid === pid && x.role === "from");
+              if (L) gcOnAnswer(g, L, p, pending);
+              return;
+          }
+          if (p.to === g.me && p.jt === g.j) gcOnOffer(g, pid, p);
+      }
+      // Пару удалили: её неподнятую связь закрываем (и ту, что когда-то соединялась, и в любой роли: пару удаляют, чтобы пересоздать,
+      // а порядок входа мог смениться после «пинка» с возвратом — тогда предлагать теперь мне) и сразу пересчитываем, кто кому предлагает
+      // Поднятую не трогаем, но помечаем: без пары её не переподключить (offer2 писать некуда) — упадёт, gcStaleLink её пересоздаст
+      function gcPairGone(g, pid) {
+          g.pairs.delete(pid); g.held.delete(pid);
+          let closed = false;
+          for (const L of gcAllLinks(g, true)) if (L.pid === pid) { if (gcUp(L)) L.noPair = true; else { gcCloseLink(g, L, "pair-gone"); closed = true; } }
+          if (closed) gcSync(g);
+      }
+      // Слушатель моих пар этой сессии: u array-contains я, s == s. Нет составного индекса (u, s) — слушаем только по u, s отбираем сами
+      function gcPairsListen(g) {
+          if (g.unsubPairs) return;
+          const sub = (withS) => onSnapshot(withS ? query(collection(db, "gpairs"), where("u", "array-contains", g.me), where("s", "==", g.s))
+              : query(collection(db, "gpairs"), where("u", "array-contains", g.me)), (snap) => {
+              if (gc !== g) return;
+              snap.docChanges().forEach(ch => {
+                  const id = ch.doc.id;
+                  if (ch.type === "removed") return gcPairGone(g, id);
+                  const p = ch.doc.data();
+                  if (!p || p.s !== g.s) return;
+                  const prev = g.pairs.get(id);
+                  g.pairs.set(id, { from: p.from, to: p.to, jf: p.jf, jt: p.jt, created: gcMs(p.created), del: !!(prev && prev.del) });
+                  gcOnPairDoc(g, id, p, ch.doc.metadata.hasPendingWrites);
+              });
+          }, (e) => {
+              console.log("gpairs:", e.code);
+              if (gc !== g) return;
+              gcReport(g, withS ? "pairs" : "pairs-u", e);
+              if (withS && e.code === "failed-precondition") g.unsubPairs = sub(false);
+          });
+          g.unsubPairs = sub(true);
+      }
+      // Свои пары со старым j (перенос, возврат с новым j) — удаляем, когда им больше 30 с (раньше правила не дают)
+      function gcCleanPairs(g) {
+          for (const [pid, p] of g.pairs) if ((p.from === g.me && p.jf !== g.j) || (p.to === g.me && p.jt !== g.j)) gcPairDel(g, pid);
+      }
+      // Удалить пару (я в u; правила — когда ей больше 30 с по часам сервера). Не вышло — попробуем при следующем случае
+      function gcPairDel(g, pid, then) {
+          const p = pid && g.pairs.get(pid);
+          if (!p || p.del || !p.created || gcSrvNow(g) - p.created < GC_HOLD_MS + 5000) return;
+          p.del = true;
+          deleteDoc(doc(db, "gpairs", pid)).then(then, () => { p.del = false; });
+      }
+      // Связь, которую уже не поднять, хотя X в звонке с тем же j, а у нас она лежит дольше 10 с:
+      // — пару удалили (у той стороны связь закрыта; без пары нет и offer2);
+      // — роль не по нынешнему порядку входа: X или я вернулись после «пинка» с тем же j и новым t, и та сторона ждёт предложения
+      //   по новому порядку (а мы — по старому). gcSync закроет её и сделает новую
+      function gcStaleLink(g, d, L, now) {
+          if (L.closed || gcUp(L) || now - (L.downSince || L.created) < GC_ORDER_MS) return false;
+          return L.noPair || (L.role === "from") !== (gcCmp(d, g.me, L.uid) > 0);
+      }
+
+      // ----- кто с кем соединяется (на каждый снимок записи) -----
+      function gcSync(g) {
+          if (gc !== g || g.phase !== "in" || g.lost || !g.doc) return;
+          const d = g.doc, m = gcMembersOf(d), now = Date.now();
+          // своего t с сервера в снимке нет (возврат после «пинка» в пути) или меня нет в m — порядок входа ещё неизвестен:
+          // gcCmp счёл бы меня «позже всех», и я предложил бы тем, кто сам предлагает мне (встречные пары). Ждём снимка с t
+          const mine = m[g.me];
+          if (!mine || mine.j !== g.j || !mine.t) return;
+          for (const X of Object.keys(m)) {
+              const jX = m[X] && m[X].j;
+              if (X === g.me || !GC_UID.test(X) || !GC_J.test(jX || "")) continue;
+              if (!gcPeerOk(g, X)) { gcDropPeer(g, X); continue; }   // исключён из беседы или забанен — сразу без связи
+              // новый участник (или вернулся с новым j): «10 мин без связи» считаем и от него — иначе вошедший за секунды до отметки
+              // застал бы мой выход, пока связь с ним ещё поднимается
+              if (!g.peers.has(X + ":" + jX)) { g.peers.add(X + ":" + jX); g.peerAt = now; }
+              const L = g.links.get(X);
+              if (L && L.jPeer === jX) {
+                  L.goneAt = 0;   // вернулся с тем же j — звук не прерывался
+                  if (!gcStaleLink(g, d, L, now)) continue;
+                  gcCloseLink(g, L, "order"); gcPairDel(g, L.pid); // не поднять (см. gcStaleLink) — заново, по нынешнему порядку
+              } else if (L) gcRetire(g, L);
+              const key = X + ":" + jX;
+              if (g.cut.has(key)) continue;
+              if (gcCmp(d, g.me, X) > 0) {   // я вошёл позже — предлагаю я
+                  if ((g.deny.get(key) || 0) > now) continue;
+                  // пара с этим номером осталась от прежней связи (оба вернулись с тем же j): setDoc стал бы правкой, и правила отказали бы.
+                  // Сначала удаляем её (правила — не раньше 30 с от создания), потом — заново
+                  const pid = gcPid(g.s, g.me, g.j, X, jX);
+                  if (g.pairs.has(pid)) {
+                      g.deny.set(key, now + 10000); // gcRetryDenied позовёт gcSync, если удаление не пройдёт
+                      gcPairDel(g, pid, () => { if (gc === g) { g.deny.delete(key); gcSync(g); } });
+                      continue;
+                  }
+                  const P = g.prep.get(X);
+                  let NL;
+                  if (P && P.jPeer === jX && P.pid === gcPid(g.s, g.me, g.j, X, jX)) { g.prep.delete(X); NL = P; }
+                  else { if (P) gcCloseLink(g, P, "stale"); NL = gcNewLink(g, X, jX, "from"); }
+                  g.links.set(X, NL); g.wait.delete(X);
+                  gcSendOffer(g, NL);
+              } else if (!g.wait.has(X) || g.wait.get(X).j !== jX) g.wait.set(X, { j: jX, since: now }); // предложит X
+          }
+          // ушёл из m: держим связь ещё 30 с (вернётся с тем же j — ничего не меняется)
+          for (const L of g.links.values()) if (!m[L.uid] && !L.goneAt) L.goneAt = now;
+          for (const [X, w] of g.wait) if (!m[X] || m[X].j !== w.j || g.links.has(X)) g.wait.delete(X);
+          for (const [X, P] of g.prep) if (!m[X] || m[X].j !== P.jPeer || gcCmp(d, g.me, X) < 0) gcCloseLink(g, P, "stale");
+          for (const [pid, h] of [...g.held]) gcOnOffer(g, pid, h.p);
+      }
+
+      // ----- «призраки»: приложение у X умерло, а запись осталась -----
+      // Подозрение — по молчанию в сигнализации (не по ICE): я предложил, а ответа (answer2) нет 45 с; я отвечаю, связь упала, а offer2 нет 45 с;
+      // X вошёл позже меня больше 60 с назад, а предложения нет. Кроме тех, кто сказал «ушёл в фон» меньше 5 мин назад.
+      // Сигнализация жива, а ICE не поднимается, — никого не «пинаем»: плитка «Нет связи» и offer2 по расписанию.
+      // Сам без сети (запись звонка из кэша, браузер «офлайн») — молчание других ничего не значит: никого не подозреваем, и ещё 15 с после
+      // возвращения сети (их offer2 и ответы ещё в пути)
+      const gcNetDown = (g) => navigator.onLine === false || !!(g.doc && g.doc._cache);
+      function gcGhostCheck(g, now) {
+          if (gcNetDown(g)) g.offAt = now;
+          if (now - (g.offAt || 0) < GC_NET_SETTLE_MS) { g.sus.clear(); return; }
+          const m = gcMembersOf(g.doc), sus = new Set();
+          for (const L of g.links.values()) {
+              if (L.closed || !m[L.uid] || m[L.uid].j !== L.jPeer || gcUp(L) || (L.bgAt && now - L.bgAt < GC_BG_MS) || now < L.holdUntil) continue;
+              if (L.role === "from" ? (L.sentAt && !L.gotAnswer && now - L.sentAt > GC_ANSWER_MS) || (L.o2Since && now - L.o2Since > GC_ANSWER_MS)
+                  : (L.downSince && now - Math.max(L.downSince, L.lastOffer2At) > GC_ANSWER_MS)) sus.add(L.uid);
+          }
+          for (const [X, w] of g.wait) if (now - w.since > GC_OFFER_MS && !g.links.has(X)) sus.add(X);
+          for (const [key] of g.sus) { const [X, j] = key.split(":"); if (!sus.has(X) || !m[X] || m[X].j !== j) g.sus.delete(key); }
+          for (const X of sus) gcSuspect(g, X, now);
+      }
+      // Опрос перед «пинком»: всем по ctl {q:X}, 3 с ждём {a:X, up, bg}. Хоть у кого-то связь с X жива (60 с) или X в фоне — не трогаем,
+      // только пересоздаём свою связь. Ведущий «пинает» сразу, остальные — через +30 с (если ведущий не справился)
+      async function gcSuspect(g, X, now) {
+          const d = g.doc, e = gcMembersOf(d)[X];
+          if (!e || g.polling.has(X) || iAmBanned || bansCache[g.me]) return; // сам забанен — связи со мной закрыли не призраки
+          const key = X + ":" + e.j, since = g.sus.get(key) || now;
+          g.sus.set(key, since);
+          if (gcLeaderOf(d) !== g.me && now - since < GC_BACKUP_MS) return;
+          const kk = d.kk && d.kk[g.me], srv = gcSrvNow(g); // отметки в записи — время сервера
+          if ((g.kickAt && now - g.kickAt < GC_KICK_EVERY_MS) || (kk && srv - gcMs(kk) < GC_KICK_EVERY_MS)) return; // правило — раз в 2 мин
+          if (!e.t || srv - gcMs(e.t) < GC_KICK_AGE_MS) return; // правило — X вошёл больше 60 с назад
+          if (gcKHeld(d, srv)) return; // у прошлого пнутого свежий пропуск — правило не даст «пинать», пока он не истечёт (до 20 с)
+          g.polling.add(X);
+          try {
+              const voters = gcAllLinks(g).filter(o => o.uid !== X && o.dc && o.dc.readyState === "open");
+              if (voters.length) {
+                  const poll = { alive: false };
+                  g.polls.set(X, poll);
+                  voters.forEach(o => gcCtl(o, { q: X }));
+                  await new Promise(r => setTimeout(r, GC_POLL_MS));
+                  g.polls.delete(X);
+                  if (gc !== g) return;
+                  if (poll.alive) {
+                      g.sus.delete(key);
+                      const L = g.links.get(X), w = g.wait.get(X);
+                      if (L) gcRelink(g, L);
+                      else if (w) w.since = Date.now(); // ждём его предложения ещё 60 с
+                      return;
+                  }
+              }
+              await gcKick(g, X);
+          } finally { g.polling.delete(X); }
+      }
+      // «Пинок» — транзакцией, а не updateDoc: без сети она не встаёт в очередь (запись, ушедшая, когда сеть вернётся, убрала бы
+      // здорового — молчал-то я сам), и проверяет по записи с сервера, что X всё ещё там с тем же j, а я — в звонке.
+      // Цена — 1 чтение (не чаще раза в 2 мин, правило kk)
+      async function gcKick(g, X) {
+          const e = gcMembersOf(g.doc)[X];
+          if (gc !== g || !e || !gcMembersOf(g.doc)[g.me] || gcNetDown(g) || gcKHeld(g.doc, gcSrvNow(g))) return;
+          g.kickAt = Date.now();
+          const ref = doc(db, "gcalls", g.gid);
+          let wait = 0;
+          try {
+              await runTransaction(db, async (tx) => {
+                  wait = 0;
+                  const snap = await tx.get(ref); countReads("gcalls/{id}", 1);
+                  const d = snap.exists() ? snap.data() : null, m = gcMembersOf(d);
+                  if (gc !== g || !d || d.s !== g.s || !m[X] || m[X].j !== e.j || !m[g.me] || m[g.me].j !== g.j) return;
+                  // снимок отстал, а у прошлого пнутого свежий пропуск — правило откажет: не пишем, попробуем, когда пропуск истечёт
+                  const srv = gcSrvNow(g);
+                  if (gcKHeld(d, srv)) { wait = Math.max(1000, GC_KICK_FRESH_MS - (srv - gcMs(d.kt))); return; }
+                  tx.update(ref, { ["m." + X]: deleteField(), k: X, kj: e.j, kb: g.me, kt: serverTimestamp(), ["kk." + g.me]: serverTimestamp(), upd: serverTimestamp(), wj: g.j });
+              });
+          } catch (err) { console.log("Групповой звонок (убрать призрака):", err.code || err.message); if (err.code !== "permission-denied" && err.code !== "unavailable") gcReport(g, "kick", err); }
+          if (wait && gc === g) g.kickAt = Date.now() - GC_KICK_EVERY_MS + wait; // «раз в 2 мин» не потрачено — следующий через wait
+      }
+      // Свежий непогашенный пропуск пнутого — как gcKHeld в правилах: k есть, его нет в m, «пинку» меньше 20 с по часам сервера
+      // (kt нет — тоже свежий). Пока он есть, k не перетирают (второй «пинок» правила не пустят), а место пнутого в звонке занято
+      function gcKHeld(d, srvNow) {
+          if (!d || typeof d.k !== "string" || gcMembersOf(d)[d.k]) return false;
+          const kt = gcMs(d.kt);
+          return !kt || srvNow - kt < GC_KICK_FRESH_MS;
+      }
+      // X жив по словам других — пересоздаём свою связь: я предлагал — удаляю пару (правила: не раньше 30 с) и предлагаю заново;
+      // я отвечаю — жду нового предложения (таймер подозрения — заново)
+      // Пересоздания без ответа (X стойко не отвечает именно мне: сторож скорости у X, сбой у X) — не по кругу: первые два сразу,
+      // дальше пауза 2,5 → 5 → 10 мин, пока она идёт — плитка «Нет связи с {name}». Ответ X или его новый j — счёт заново
+      async function gcRelink(g, L) {
+          const now = Date.now();
+          if (L.role !== "from") { L.downSince = now; L.lastOffer2At = now; return; }
+          if (L.relinking || !L.sentAt || now - L.sentAt < GC_HOLD_MS + 5000) return;
+          const key = L.uid + ":" + L.jPeer, rl = g.relinks.get(key) || { n: 0, at: 0 };
+          if (rl.n >= 2) {
+              const pause = Math.min(GC_RELINK_MAX_MS, GC_RELINK_MS * 2 ** (rl.n - 2));
+              if (now - rl.at < pause) { L.stuck = true; L.holdUntil = rl.at + pause; gcRender(); return; }
+          }
+          rl.n++; rl.at = now; g.relinks.set(key, rl);
+          L.relinking = true;
+          try { await deleteDoc(doc(db, "gpairs", L.pid)); } catch (_) { L.relinking = false; L.sentAt = now; return; }
+          if (gc !== g) return;
+          gcCloseLink(g, L, "relink");
+          gcSync(g);
+      }
+      // Меня нет в m (снимок с сервера, та же сессия, сам не выходил): исключили из беседы — выходим; был свежий «пинок» (меньше 20 с
+      // по часам сервера), а связь жила последние 10 с — сразу возвращаюсь с тем же j (бесплатно по c, без разрыва звука); иначе —
+      // заново с новым j. «Пинок» старый (телефон спал, снимок шёл долго) — остальные уже закрыли связи со мной (через 30 с), и возврат
+      // с тем же j оставил бы у меня связи, которых у них нет
+      async function gcSelfGone(g, d) {
+          const grp = gcGroup(g.gid);
+          if (grp && Array.isArray(grp.members) && !grp.members.includes(g.me)) return gcEnd("removed", { noWrite: true, toast: true });
+          if (g.returning) return;
+          g.returning = true;
+          try {
+              if (d.k === g.me && d.kb) { g.note = t("Вас убрал из звонка: {name}", { name: gcName(d.kb) }); gcRender(); }
+              const upRecent = gcAllLinks(g).some(L => gcUp(L) || Date.now() - L.lastUp < GC_KICKED_UP_MS);
+              const fresh = !!d.kt && gcSrvNow(g) - gcMs(d.kt) < GC_KICK_FRESH_MS;
+              if (d.k === g.me && d.kj === g.j && fresh && upRecent) {
+                  try {
+                      await updateDoc(doc(db, "gcalls", g.gid), { ["m." + g.me]: { t: serverTimestamp(), j: g.j, v: GC_PROTO }, upd: serverTimestamp(), k: deleteField() });
+                      return;
+                  } catch (e) { console.log("Групповой звонок (возврат):", e.code || e.message); }
+              }
+              if (gc === g) await gcRejoin(g);
+          } finally { g.returning = false; }
+      }
+      // Вернуться с новым j: считается в c и в лимит «3 раза за 10 мин» (дальше — «Связь потеряна»). Старые связи живут, пока не поднимутся новые
+      async function gcRejoin(g) {
+          const now = Date.now();
+          gcRejoins = gcRejoins.filter(x => now - x < GC_REJOIN_WIN_MS);
+          if (gcRejoins.length >= GC_REJOIN_MAX) return gcEnd("lost", { toast: true });
+          gcRejoins.push(now);
+          const d = g.doc;
+          if (!d || d.s !== g.s || !gcLive(d)) return gcEnd("ended", { noWrite: true });
+          for (const L of [...g.links.values()]) gcRetire(g, L);
+          g.wait.clear(); g.held.clear();
+          const oldJ = g.j;
+          gcUnlock(g); g.j = gcRand(10); gcLock(g);
+          g.myT = null;
+          let ok = false;
+          try { ok = await gcEnter(g, d); }
+          catch (e) { gcFlowError(g, e); }
+          // вход отклонили (c ≥ 20, бан, исключили из беседы…) или выход случился посреди отклонённого входа: новый j в m не попал,
+          // а старый там остался — выходим за него сами (иначе «призрак» до «пинка», а здесь — «Вы в звонке на другом устройстве»).
+          // Смотрим на запись ДО входа: снимок после отказа мог уже не дойти до закрытой сессии
+          if (!ok && (!g.entryTry || gc !== g)) gcLeaveOld(g, oldJ, d);
+          if (gc === g) { gcSync(g); gcRender(); }
+      }
+      function gcLeaveOld(g, oldJ, d) {
+          const m = gcMembersOf(d);
+          if (!currentUser || !d || d.s !== g.s || !m[g.me] || m[g.me].j !== oldJ) return;
+          gcLeft = gcLeft && gcLeft.gid === g.gid ? { ...gcLeft, oj: oldJ } : { gid: g.gid, j: oldJ };
+          const ref = doc(db, "gcalls", g.gid), alone = Object.keys(m).every(u => u === g.me);
+          // старый j уже не в m (вход всё-таки прошёл и выход ушёл с новым) — правила откажут по wj, это не страшно
+          updateDoc(ref, { ["m." + g.me]: deleteField(), upd: serverTimestamp(), wj: oldJ })
+              .then(() => { if (alone) return deleteDoc(ref); })
+              .catch(e => console.log("Групповой звонок (выход со старым j):", e.code || e.message));
+      }
+
+      // ----- обслуживание: «жив», уборка, бан -----
+      // «Жив» — чтобы cron не удалил запись посреди разговора: раз в минуту, если upd старше 12 мин (ведущий) / 14 мин (остальные);
+      // при возвращении на экран — если старше 9 мин
+      function gcBeat(g, now, onShow) {
+          const d = g.doc, upd = d && gcMs(d.upd);
+          if (!d || !upd || !gcMembersOf(d)[g.me] || (g.beatAt && now - g.beatAt < 60000)) return;
+          const lim = onShow ? GC_BEAT_SHOW_MS : gcLeaderOf(d) === g.me ? GC_BEAT_LEAD_MS : GC_BEAT_MS;
+          if (now - upd < lim) return;
+          g.beatAt = now;
+          updateDoc(doc(db, "gcalls", g.gid), { upd: serverTimestamp(), wj: g.j }).catch(e => console.log("Групповой звонок («жив»):", e.code || e.message));
+      }
+      // Убрать из m и gm тех, кого уже нет в беседе: админ беседы — сразу (даже не в звонке), ведущий — сразу, остальные в звонке — через +30 с
+      function gcPruneCheck(gid, d, now) {
+          const grp = gcGroup(gid), me = currentUser && currentUser.uid;
+          if (!me || !grp || !Array.isArray(grp.members) || !grp.members.includes(me) || !d || !gcLive(d)) return;
+          const m = gcMembersOf(d), gm = Array.isArray(d.gm) ? d.gm : [];
+          const out = gm.filter(u => typeof u === "string" && !grp.members.includes(u));
+          if (!out.length) { gcPruneAt.delete(gid); return; }
+          const k = gcPruneAt.get(gid) || { seen: now, tried: 0 }; gcPruneAt.set(gid, k);
+          const here = gc && gc.gid === gid && gc.phase === "in";
+          const fast = grp.adminUid === me || (here && gcLeaderOf(d) === me);
+          if (!fast && !(here && now - k.seen > GC_BACKUP_MS)) return;
+          if (now - k.tried < 20000) return;
+          k.tried = now;
+          const upd = { gm: arrayRemove(...out), upd: serverTimestamp() };
+          out.forEach(u => { if (m[u] && GC_UID.test(u)) upd["m." + u] = deleteField(); });
+          updateDoc(doc(db, "gcalls", gid), upd).catch(e => console.log("Групповой звонок (уборка):", e.code || e.message));
+      }
+      // Забаненный в звонке: связь с ним все закрывают (gcPeerOk) и «пинают» — первый по порядку входа среди остальных сразу, другие —
+      // через +30 с (если он не справился). Забанить могли и самого ведущего: честный клиент выйдет сам (myBanListener), изменённый — нет.
+      // Сам забанен — никого не трогаю
+      function gcBanKick(g, now) {
+          if (iAmBanned || bansCache[g.me]) return;
+          const d = g.doc, m = gcMembersOf(d), srv = gcSrvNow(g);
+          const X = Object.keys(m).find(u => u !== g.me && bansCache[u] && m[u].t && srv - gcMs(m[u].t) > GC_KICK_AGE_MS);
+          if (!X) { g.banSeen = null; return; }
+          const key = X + ":" + m[X].j;
+          if (!g.banSeen || g.banSeen.key !== key) g.banSeen = { key, at: now };
+          const lead = Object.keys(m).filter(u => u === g.me || gcPeerOk(g, u)).sort((a, b) => gcCmp(d, a, b))[0];
+          if (lead !== g.me && now - g.banSeen.at < GC_BACKUP_MS) return;
+          const kk = d.kk && d.kk[g.me]; // правило — раз в 2 мин (по часам сервера)
+          if ((g.kickAt && now - g.kickAt < GC_KICK_EVERY_MS) || (kk && srv - gcMs(kk) < GC_KICK_EVERY_MS)) return;
+          gcKick(g, X);
+      }
+      // Сторож входящей скорости: раз в 2 с bytesReceived по связи; дольше 10 с больше предела — закрыть связь с X. Предел — 1,5 Мбит/с,
+      // только пока я смотрю видео X и он сказал «камера/экран вкл.»; иначе (я послал {v:0}, у X нет камеры) — 200 кбит/с: звук.
+      // Смена режима (свернул экран — {v:0}) доходит до X за доли секунды, 10 с хватает с запасом.
+      // Считаем ВСЁ, что пришло по связи, а не только звук и видео: канал ctl и любые другие каналы данных (их мог открыть изменённый
+      // клиент). Три счётчика — звук/видео + каналы данных, транспорт, пары адресов (что-то есть не во всех браузерах); скорость —
+      // по тому, что вырос сильнее
+      function gcStats(g, now) {
+          for (const L of gcAllLinks(g)) {
+              if (!gcUp(L) || L.statsBusy) continue;
+              L.statsBusy = true;
+              L.pc.getStats().then(rep => {
+                  const cur = [0, 0, 0];
+                  rep.forEach(r => {
+                      const b = r.bytesReceived || 0;
+                      if (r.type === "inbound-rtp" || r.type === "data-channel") cur[0] += b;
+                      else if (r.type === "transport") cur[1] += b;
+                      else if (r.type === "candidate-pair") cur[2] += b;
+                  });
+                  if (L.rx !== null && L.rxAt) {
+                      const dt = Math.max(0.5, (now - L.rxAt) / 1000), bps = Math.max(...cur.map((b, i) => (b - (L.rx[i] || 0)) * 8 / dt));
+                      const lim = gcWantV(g, L) && (L.peerCam || L.peerScr) ? GC_RX_MAX_BPS : GC_RX_AUDIO_BPS;
+                      if (bps > lim) { if (!L.rxHigh) L.rxHigh = now; else if (now - L.rxHigh > GC_RX_MAX_MS) gcCut(g, L); }
+                      else L.rxHigh = 0;
+                  }
+                  L.rx = cur; L.rxAt = now;
+              }).catch(() => {}).finally(() => { L.statsBusy = false; });
+          }
+      }
+      function gcCut(g, L, why = "rx") {
+          if (gc !== g || L.closed) return;
+          g.cut.add(L.uid + ":" + L.jPeer); // на этот вход X больше не отвечаем и сами не предлагаем
+          gcReport(g, "rx-flood", { name: why });
+          g.note = t("Соединение с {name} закрыто: слишком большой поток", { name: gcName(L.uid) });
+          gcCloseLink(g, L, "flood");
+      }
+      // Индикатор «говорит» (только пока экран на виду): getSynchronizationSources — изменился rtpTimestamp и audioLevel > 0,05,
+      // со сглаживанием (timestamp с часами не сравниваем: в Safari он на другой шкале); свой голос — AnalyserNode на микрофоне
+      function gcLevels(g) {
+          if (gc !== g) return;
+          const an = g.an && g.an.own && g.an.ctx; // только свой контекст анализатора (не смеситель relayCtx)
+          if (document.visibilityState !== "visible" || !$c("call-screen").classList.contains("on")) {
+              // экран не на виду — анализатор своего голоса (свой AudioContext: лишний звуковой поток на Android) спит
+              if (an && an.state === "running") an.suspend().catch(() => {});
+              return;
+          }
+          if (an && an.state === "suspended") an.resume().catch(() => {}); // касание в звонке уже было — из таймера можно
+          for (const L of g.links.values()) {
+              let lvl = 0;
+              try {
+                  const rcv = L.pc && L.pc.getReceivers().find(r => r.track && r.track.kind === "audio");
+                  const src = rcv && rcv.getSynchronizationSources ? rcv.getSynchronizationSources()[0] : null;
+                  const mark = src ? (src.rtpTimestamp !== undefined ? src.rtpTimestamp : src.timestamp) : undefined;
+                  if (src && mark !== L.rtp) { L.rtp = mark; lvl = src.audioLevel || 0; }
+              } catch (_) {}
+              L.lvl = Math.max(lvl, L.lvl * 0.6);
+              L.speaking = L.lvl > 0.05 && !L.peerMu;
+          }
+          if (!g.an && g.stream && AudioCtx && callOs() !== "ios") gcAnalyser(g);
+          if (g.muted) { g.meLvl = g.meStat = 0; g.meSpeaking = false; }
+          else if (g.an && g.an.node) {
+              g.an.node.getByteTimeDomainData(g.an.buf);
+              let peak = 0; for (const v of g.an.buf) peak = Math.max(peak, Math.abs(v - 128));
+              g.meLvl = Math.max(peak / 128, (g.meLvl || 0) * 0.6); g.meSpeaking = g.meLvl > 0.08;
+          } else {
+              gcMyLevel(g);
+              g.meLvl = Math.max(g.meStat || 0, (g.meLvl || 0) * 0.6); g.meSpeaking = g.meLvl > 0.05;
+          }
+          gcPaintLevels();
+      }
+      // Анализатор своего микрофона (не iPhone: там второй звуковой движок во время звонка не заводим — уровень берём из getStats)
+      function gcAnalyser(g) {
+          let ctx = null;
+          try {
+              ctx = new AudioCtx();
+              const src = ctx.createMediaStreamSource(g.stream), node = ctx.createAnalyser();
+              node.fftSize = 512; src.connect(node);
+              g.an = { ctx, src, node, buf: new Uint8Array(node.fftSize), own: true };
+          } catch (_) { g.an = { fail: true }; if (ctx) ctx.close().catch(() => {}); }
+      }
+      // Свой уровень без Web Audio (iPhone; запасной путь, если анализатор не завёлся): audioLevel источника звука (media-source)
+      // у отправителя любой поднятой связи, раз в 400 мс. Ни с кем не соединены — индикатора нет
+      function gcMyLevel(g) {
+          const now = Date.now();
+          if (g.lvlBusy || now - (g.lvlAt || 0) < 400) return;
+          const L = gcAllLinks(g).find(x => x.asnd && gcUp(x));
+          if (!L) { g.meStat = 0; return; }
+          g.lvlBusy = true; g.lvlAt = now;
+          L.asnd.getStats().then(rep => {
+              let lvl = 0;
+              rep.forEach(r => { if (r.type === "media-source" && r.kind === "audio" && typeof r.audioLevel === "number") lvl = Math.max(lvl, r.audioLevel); });
+              g.meStat = lvl;
+          }).catch(() => {}).finally(() => { g.lvlBusy = false; });
+      }
+
+      // ----- видео (премиум, пока в звонке не больше 4 человек) -----
+      const gcCanVideo = (g) => !!g && !g.lost && isPremium(currentUser.uid) && gcMyN(g) <= GC_VIDEO_MAX;
+      // Смотрю ли я видео X (это и уходит ему как {v}): экран звонка на виду и не «у уха» (iPhone, g.speaker === false — телефон у щеки),
+      // X — премиум, людей ≤4, не заблокирован и не забанен, видеоканал принимает, и я на X подписан или нажал «Показать видео».
+      // Отправитель шлёт видео только тем, кто смотрит
+      function gcWantV(g, L) {
+          return !!L && !!L.vtx && /recv/.test(L.vtx.currentDirection || "") && $c("call-screen").classList.contains("on") && document.visibilityState === "visible"
+              && g.speaker !== false
+              && isPremium(L.uid) && gcN(g.doc) <= GC_VIDEO_MAX && !iBlocked(L.uid) && !bansCache[L.uid] && (gcTrusts(L.uid) || g.showVid.has(L.uid));
+      }
+      // Показывать ли видео X в плитке: дорожка идёт, X сказал «камера/экран вкл.», и я смотрю
+      function gcShowVid(g, L) { const tr = L && L.rvTrack; return !!tr && tr.readyState === "live" && !tr.muted && (L.peerCam || L.peerScr) && gcWantV(g, L); }
+      function gcVideoApply(g) {
+          if (!g || gc !== g) return;
+          const can = gcCanVideo(g);
+          for (const L of gcAllLinks(g)) {
+              const want = gcWantV(g, L);
+              if (L.dc && L.dc.readyState === "open" && L.sentV !== want) { L.sentV = want; gcCtl(L, { v: want ? 1 : 0 }); }
+              if (!L.vtx) continue;
+              const send = can && g.vtrack && L.v && !iBlocked(L.uid) && !bansCache[L.uid] && /send/.test(L.vtx.currentDirection || "") ? g.vtrack : null;
+              if (L.vsent !== send) { L.vsent = send; L.vtx.sender.replaceTrack(send).then(() => { if (send && gc === g) gcBitrate(g); }).catch(() => {}); }
+          }
+      }
+      // Скорость своего видео — по числу людей: камера 500/300/250, экран 1000/600/500 кбит/с; от трёх — мельче и плавнее
+      function gcBitrate(g) {
+          if (!g || !g.vtrack) return;
+          const n = Math.min(GC_VIDEO_MAX, Math.max(2, gcN(g.doc))), scr = g.vsrc === "screen", kbps = (scr ? GC_SCR_KBPS : GC_CAM_KBPS)[n];
+          for (const L of gcAllLinks(g)) {
+              if (!L.vtx || L.vsent !== g.vtrack) continue;
+              try {
+                  const p = L.vtx.sender.getParameters();
+                  if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+                  p.encodings[0].maxBitrate = kbps * 1000;
+                  // экран — всегда в полном разрешении и чёткость важнее плавности (текст); камера — от трёх мельче и плавнее.
+                  // Задаём явно оба случая: replaceTrack параметры не сбрасывает, и экран после камеры унаследовал бы её 1,5×
+                  p.encodings[0].scaleResolutionDownBy = !scr && n >= 3 ? 1.5 : 1;
+                  if ("degradationPreference" in p) p.degradationPreference = scr ? "maintain-resolution" : n >= 3 ? "maintain-framerate" : "balanced";
+                  L.vtx.sender.setParameters(p).catch(() => {});
+              } catch (_) {}
+          }
+      }
+      function gcStopLocalVideo(g) {
+          if (g.vtrack) { g.vtrack.onended = null; try { g.vtrack.stop(); } catch (_) {} }
+          g.vtrack = null; g.vsrc = null;
+      }
+      function gcVideoOff(g) {
+          g.vreq = (g.vreq || 0) + 1; g.vpending = null;
+          gcStopLocalVideo(g); gcVideoApply(g); gcCtlAll(g, { cam: 0, scr: 0 }); gcRender();
+      }
+      // Камера (как callCamera у 1-на-1): каждое нажатие — свой номер; flip — повернуть (сначала отпускаем текущую камеру)
+      async function gcCamera(g, on, flip) {
+          if (gc !== g) return;
+          const my = g.vreq = (g.vreq || 0) + 1;
+          g.camLost = false;
+          if (!on) return gcVideoOff(g);
+          if (!gcCanVideo(g)) return;
+          const prevFacing = g.facing || "user";
+          if (flip) { g.facing = prevFacing === "environment" ? "user" : "environment"; gcStopLocalVideo(g); }
+          g.vpending = "cam"; gcRender();
+          try {
+              const st = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: g.facing || "user", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } } });
+              const tr = st.getVideoTracks()[0];
+              if (gc !== g || my !== g.vreq || !tr || !gcCanVideo(g)) return st.getTracks().forEach(x => x.stop());
+              g.vpending = null;
+              gcStopLocalVideo(g); g.vtrack = tr; g.vsrc = "cam";
+              // камера погасла сама: в фоне на iPhone — включим по возвращении; иначе — просто выкл.
+              tr.onended = () => { if (gc === g && g.vtrack === tr) { const bg = document.visibilityState === "hidden"; gcVideoOff(g); g.camLost = bg; } };
+              gcCtlAll(g, { cam: 1, scr: 0 }); gcVideoApply(g); gcBitrate(g); gcRender();
+          } catch (e) {
+              if (my !== g.vreq) return;
+              g.vpending = null;
+              console.log("Групповой звонок, камера:", e.name, e.message);
+              if (gc !== g) return;
+              if (flip) { g.facing = prevFacing; gcCamera(g, true); return; }
+              gcRender();
+              showToast(e.name === "NotAllowedError" ? t("Нет доступа к камере — разрешите её в настройках браузера") : t("Не удалось включить камеру") + " (" + errName(e) + ")", "error");
+          }
+      }
+      // Показ экрана — только на компьютере
+      async function gcScreen(g, on) {
+          if (gc !== g) return;
+          const my = g.vreq = (g.vreq || 0) + 1;
+          g.camLost = false;
+          if (!on) { g.vpending = null; if (g.vsrc === "screen") return gcVideoOff(g); return gcRender(); }
+          if (!gcCanVideo(g) || !canShareScreen()) return;
+          g.vpending = "screen"; gcRender();
+          try {
+              const st = await navigator.mediaDevices.getDisplayMedia({ audio: false, video: { frameRate: { ideal: 12, max: 15 } } });
+              const tr = st.getVideoTracks()[0];
+              if (gc !== g || my !== g.vreq || !tr || !gcCanVideo(g)) return st.getTracks().forEach(x => x.stop());
+              g.vpending = null;
+              try { tr.contentHint = "detail"; } catch (_) {}
+              gcStopLocalVideo(g); g.vtrack = tr; g.vsrc = "screen";
+              tr.onended = () => { if (gc === g && g.vtrack === tr) gcVideoOff(g); };
+              gcCtlAll(g, { cam: 0, scr: 1 }); gcVideoApply(g); gcBitrate(g); gcRender();
+          } catch (e) {
+              if (my !== g.vreq) return;
+              g.vpending = null;
+              console.log("Групповой звонок, экран:", e.name, e.message);
+              if (gc !== g) return;
+              gcRender();
+              if (e.name !== "NotAllowedError" && e.name !== "AbortError") showToast(t("Не удалось показать экран") + " (" + errName(e) + ")", "error");
+          }
+      }
+
+      // ----- сессия: начать, войти, выйти -----
+      // Вкладка в звонке держит замок owl-gc-<j> (отпускается, только когда вкладку уничтожили) и раз в 10 с — отметку в localStorage
+      // (запасной путь без Web Locks): при запуске по ним видно, что звонок «мой», но вкладка упала
+      function gcLock(g) {
+          const j = g.j;
+          try { if (navigator.locks && navigator.locks.request) navigator.locks.request("owl-gc-" + j, () => new Promise(res => { if (gc === g && g.j === j) g.unlock = res; else res(); })).catch(() => {}); } catch (_) {}
+          gcMark(g);
+      }
+      function gcMark(g) { if (g.s) try { localStorage.setItem("owl-gc", JSON.stringify({ gid: g.gid, s: g.s, j: g.j, at: Date.now() })); } catch (_) {} }
+      // Отметка для service worker «это устройство в групповом звонке до T» (Cache Storage: owl-state, /__owl/gc-busy; читает sw.js):
+      // push личного звонка тогда без звука и вибрации — и когда приложение в фоне (вопрос 7, вариант «а»). Обновляем раз в 30 с;
+      // вкладка уснула или упала — через 90 с отметка протухнет, и звонки снова громкие
+      function gcSwMark(on) {
+          try {
+              if (typeof caches === "undefined") return;
+              caches.open("owl-state").then(c => on ? c.put("/__owl/gc-busy", new Response(String(Date.now() + 90000))) : c.delete("/__owl/gc-busy")).catch(() => {});
+          } catch (_) {}
+      }
+      function gcUnlock(g) {
+          if (g.unlock) { try { g.unlock(); } catch (_) {} g.unlock = null; }
+          try { const x = JSON.parse(localStorage.getItem("owl-gc") || "null"); if (x && x.j === g.j) localStorage.removeItem("owl-gc"); } catch (_) {}
+      }
+      function gcNewSession(gid, kind) {
+          const g = gc = { gid, kind, me: currentUser.uid, j: gcRand(10), s: null, role: "g", relay: true, phase: "prep", muted: false, speaker: undefined, outs: null,
+              stream: null, ice: null, iceP: null, doc: null, myT: null, links: new Map(), old: new Map(), prep: new Map(), wait: new Map(), held: new Map(),
+              pairs: new Map(), sus: new Map(), deny: new Map(), denyN: new Map(), relinks: new Map(), polls: new Map(), polling: new Set(), cut: new Set(), showVid: new Set(), reports: new Set(), peers: new Set(),
+              hint: null, note: null, entryTry: false, sawOwn: false, lost: false, ending: false, ticks: 0, createdAt: Date.now() };
+          g.tick = setInterval(() => gcTick(g), 1000);
+          g.lvl = setInterval(() => gcLevels(g), GC_LEVEL_MS);
+          gcLock(g); gcSwMark(true);
+          closeGcNotifs(gid);
+          return g;
+      }
+      // Ждём своего t с сервера (снимок, где m[я].j == мой j и нет записей в пути): обещание — до записи (снимок может прийти раньше
+      // ответа на неё), отсчёт 15 с — после того, как запись дошла
+      function gcArmT(g) {
+          g.tWait = new Promise((res, rej) => { g.tReady = res; g.tFail = rej; });
+          g.tWait.catch(() => {});
+          clearTimeout(g.tTimer);
+      }
+      function gcArmTimer(g) {
+          clearTimeout(g.tTimer);
+          g.tTimer = setTimeout(() => { if (g.tFail) g.tFail(Object.assign(new Error("timeout"), { code: "timeout" })); }, GC_T_MS);
+      }
+      // Запись звонка этой сессии (до старта видна прежняя — с другим s; её не считаем)
+      const gcDocOf = (g) => (g && g.doc && g.doc.s === g.s ? g.doc : null);
+      const gcMyN = (g) => g.lost ? gcAllLinks(g).length + 1 : Math.max(1, gcN(gcDocOf(g)));
+      // Звонок или вход уже идут / идёт личный — «Сначала завершите звонок» (свой — просто показать экран)
+      function gcBlocked(gid) {
+          if (!currentUser || !gcCanHere(gid)) return true;
+          if (call && call.pending) endCall(null, true); // «призрак» из кэша (экрана нет, сервер не подтвердил) не мешает — как в startCall
+          if (call) { showToast(t("Сначала завершите звонок"), "info"); return true; }
+          if (gc) { if (gc.gid === gid) gcShow(); else showToast(t("Сначала завершите звонок"), "info"); return true; }
+          if (!callsSupported()) { showToast(t("Этот браузер не поддерживает звонки"), "error"); return true; }
+          return false;
+      }
+      // Трубка в шапке беседы: звонок идёт — вход, иначе окно «Начать групповой звонок?». «Идёт» — по gcLive, как проверяет вход
+      // (gcShown с запасом 5 мин на часы — только для показа: иначе с 30-й по 35-ю минуту без «жив» вход отвечал бы «уже закончился»,
+      // а начать новый было бы нельзя)
+      function gcHeaderTap(gid) {
+          if (!gcCanHere(gid)) return;
+          if (gc && gc.gid === gid) return gcShow();
+          const st = gcState(gid);
+          if (st.kind !== "none" && st.s && gcLive(st.d)) return gcJoinTap(gid, st.s);
+          gcConfirmStart(gid);
+      }
+      // НАЧАТЬ (только из касания «Начать» в окне подтверждения): в касании — микрофон и пул <audio> (оба — до любого await),
+      // следом, параллельно с окном микрофона, — проба сервера связи; дальше — gcStartFlow
+      function gcStartTap(gid) {
+          if (gcBlocked(gid)) return;
+          // звонок уже идёт — это вход (запись из пробы могла устареть — её перечитает gcStartFlow)
+          const rec = gcCalls.get(gid);
+          if (rec && gcLive(rec) && GC_S.test(rec.s || "")) return gcJoinTap(gid, rec.s);
+          // свой старт был меньше 5 мин назад — правила не пустят: сразу текст, без микрофона, записи и чтений
+          if (Date.now() - gcLastStart < GC_START_EVERY_MS) return showToast(t("Начинать звонок можно раз в 5 минут"), "info");
+          const g = gcNewSession(gid, "start");
+          const mic = getMic(); mic.catch(() => {});
+          gcPrimeAudio();
+          g.relayP = gcRelayCheck(gid);
+          gcShow();
+          gcStartFlow(g, mic);
+      }
+      // ВОЙТИ (плашка, карточка, всплывашка, «Вернуться», «Перенести сюда», трубка в шапке): в касании — микрофон, пул <audio>, пароль TURN.
+      // s — ожидаемая сессия (из записи или карточки): вход никогда не начинает новый звонок
+      function gcJoinTap(gid, s) {
+          if (gcBlocked(gid)) return;
+          if (!GC_S.test(s || "")) return showToast(t("Звонок уже закончился"), "info");
+          const g = gcNewSession(gid, "join");
+          g.s = s; gcMark(g);
+          const mic = getMic(); mic.catch(() => {});
+          gcPrimeAudio();
+          // пароль — сразу, если запись из слушателя; из пробы — после проверки записи (gcJoinFlow): звонок мог закончиться
+          if (gcCalls.has(gid)) g.iceP = gcFetchIce(gid, false, GC_ICE_JOIN_MS);
+          gcShow();
+          gcJoinFlow(g, mic, null);
+      }
+      async function gcStartFlow(g, mic) {
+          try {
+              g.step = "mic";
+              const st = await mic;
+              if (gc !== g) return st.getTracks().forEach(x => x.stop());
+              g.stream = st; gcAfterMic(g);
+              // проба сервера связи (начата в касании): «нет» или Worker молчит — ничего не пишем, лимит «раз в 5 минут» не тратим
+              g.step = "probe";
+              const pr = await g.relayP;
+              if (gc !== g) return;
+              if (!pr.ok) { gcReport(g, "probe", { name: pr.why }); return gcFail(g, t("Сервер связи недоступен"), null, true); }
+              // пока спрашивали микрофон, звонок могли начать другие — тогда это вход. Запись из пробы (меня нет в gm) никто
+              // не обновляет — «идёт» по ней перепроверяем одним getDoc
+              let rec = gcCalls.get(g.gid) || null;
+              const pr0 = !rec && gcProbe.get(g.gid);
+              if (pr0 && gcLive(pr0)) { g.step = "get"; rec = await gcReadRec(g.gid); if (gc !== g) return; }
+              if (rec && gcLive(rec) && GC_S.test(rec.s || "")) { g.s = rec.s; g.kind = "join"; g.iceP = gcFetchIce(g.gid, false, GC_ICE_JOIN_MS); return gcJoinFlow(g, null, gcCalls.has(g.gid) ? null : rec); }
+              g.step = "db";
+              const r = await gcStartWrite(g);
+              if (gc !== g) return;
+              if (r !== true) {
+                  if (r && r.join) { g.s = r.join.s; g.kind = "join"; g.iceP = gcFetchIce(g.gid, false, GC_ICE_JOIN_MS); showToast(t("Звонок уже идёт"), "info"); return gcJoinFlow(g, null, r.join); }
+                  return gcFail(g, r, null, true);
+              }
+              g.step = "t";
+              await g.tWait;
+              if (gc !== g) return;
+              gcLastStart = Date.now();
+              gcPairsListen(g);
+              // пароль на 12 ч — всегда заново (единственная проверка предохранителя turn:gc-off после записи; кэш её обошёл бы);
+              // не relay (например, сработал предохранитель расхода) — выходим, карточку и push не делаем
+              g.step = "ice2";
+              const ice = await gcFetchIce(g.gid, true);
+              if (gc !== g) return;
+              if (!ice) return gcFail(g, t("Сервер связи недоступен"), "relay");
+              g.ice = ice;
+              // карточка и push — только у победителя старта (Worker тоже проверяет by == я)
+              const txt = GC_CARD_TXT;
+              postMessage(g.gid, { chatId: g.gid, sender: currentUser.displayName, uid: g.me, timestamp: new Date(), read: false, text: txt, gcall: { s: g.s } }, txt, { noPush: true })
+                  .catch(e => console.log("Групповой звонок (карточка):", e.code || e.message));
+              gcRingSend(g);
+              gcSync(g); gcRender();
+          } catch (e) { gcFlowError(g, e); }
+      }
+      // writeBatch: запись звонка (gm — участники беседы из groupsCache) + ratelimits/{я}: gc = время сервера (раз в 5 мин держат правила)
+      // и gcg = номер беседы (правила сверяют его с gid: одна отметка gc не начнёт звонки сразу в нескольких беседах).
+      // Отказ: звонок уже идёт (одновременный старт) → {join}; старт был меньше 5 мин назад (в т. ч. с другого устройства) → текст;
+      // устарел состав беседы → перечитать беседу и ещё раз; иначе — текст ошибки
+      async function gcStartWrite(g) {
+          // свой старт меньше 5 мин назад — правила всё равно откажут: без записи и чтений
+          if (Date.now() - gcLastStart < GC_START_EVERY_MS) return t("Начинать звонок можно раз в 5 минут");
+          const ref = doc(db, "gcalls", g.gid);
+          let last = gcLastStart, rlRead = false;
+          const readLast = async () => { rlRead = true; try { const s = await getDoc(doc(db, "ratelimits", g.me)); if (s.exists()) last = Math.max(last, getTime(s.data().gc)); } catch (_) {} };
+          const tooSoon = () => Date.now() - last < GC_START_EVERY_MS + 30000;
+          for (let attempt = 0; attempt < 2; attempt++) {
+              const grp = gcGroup(g.gid), members = grp && Array.isArray(grp.members) ? [...new Set(grp.members)] : null;
+              if (!members || !members.includes(g.me)) return t("Не удалось позвонить");
+              g.s = gcRand(20); gcMark(g);
+              const b = writeBatch(db);
+              b.set(ref, { gid: g.gid, s: g.s, by: g.me, started: serverTimestamp(), upd: serverTimestamp(), m: { [g.me]: { t: serverTimestamp(), j: g.j, v: GC_PROTO } }, gm: members, c: { [g.me]: 1 } });
+              b.set(doc(db, "ratelimits", g.me), { gc: serverTimestamp(), gcg: g.gid }, { merge: true });
+              g.phase = "wait"; g.entryTry = true; gcArmT(g);
+              try { await Promise.race([b.commit(), gcOffline()]); gcArmTimer(g); return true; }
+              catch (e) {
+                  if (e.code === "offline") throw e; // запись может дойти позже — выход (entryTry) уйдёт за ней следом
+                  g.phase = "prep"; g.entryTry = false;
+                  if (gc !== g) return false;
+                  if (e.code !== "permission-denied") throw e;
+                  try { const s = await getDoc(ref); const x = s.exists() ? s.data() : null; if (x && gcLive(x) && GC_S.test(x.s || "")) return { join: x }; } catch (_) {}
+                  if (attempt || gc !== g) break;
+                  // лимит «раз в 5 мин» мог взять старт с другого устройства: сначала маленькая ratelimits, беседу (с аватаром) — только если не он
+                  await readLast();
+                  if (gc !== g || tooSoon()) break;
+                  try { const s = await getDoc(doc(db, "groups", g.gid)); if (s.exists() && groupsCache[g.gid] && Array.isArray(s.data().members)) groupsCache[g.gid] = { ...groupsCache[g.gid], members: s.data().members }; else break; }
+                  catch (_) { break; }
+              }
+          }
+          // свой последний старт помним; с другого устройства — видно в ratelimits (1 чтение, если ещё не читали)
+          if (!rlRead) await readLast();
+          return tooSoon() ? t("Начинать звонок можно раз в 5 минут") : t("Не удалось позвонить");
+      }
+      async function gcJoinFlow(g, mic, rec) {
+          try {
+              if (mic) {
+                  g.step = "mic";
+                  const st = await mic;
+                  if (gc !== g) return st.getTracks().forEach(x => x.stop());
+                  g.stream = st; gcAfterMic(g);
+              }
+              // записи нет в слушателе (проба: я вступил в беседу после начала звонка, и её никто не обновляет) — сначала один getDoc:
+              // звонок мог закончиться. Пароль TURN (лимиты Worker) — только после этого
+              if (!rec && !gcCalls.has(g.gid)) {
+                  g.step = "get";
+                  rec = await gcReadRec(g.gid);
+                  if (gc !== g) return;
+                  if (!rec || rec.s !== g.s || !gcLive(rec)) return gcFail(g, t("Звонок уже закончился"), null, true);
+              }
+              if (!g.iceP) g.iceP = gcFetchIce(g.gid, false, GC_ICE_JOIN_MS);
+              g.step = "ice";
+              const ice = await g.iceP;
+              if (gc !== g) return;
+              if (!ice) {
+                  // Worker не дал пароль: звонок мог закончиться (живой записи у Worker нет) — тогда так и пишем, без отчёта «relay».
+                  // Запись из слушателя — без чтений, иначе — ещё один getDoc
+                  const cur = gcCalls.has(g.gid) ? gcCalls.get(g.gid) : await gcReadRec(g.gid);
+                  if (gc !== g) return;
+                  if (!cur || cur.s !== g.s || !gcLive(cur)) return gcFail(g, t("Звонок уже закончился"), null, true);
+                  return gcFail(g, t("Сервер связи недоступен"), "relay", true);
+              }
+              g.ice = ice;
+              // запись — из слушателя (или переданная); из кэша, чужая сессия или её нет — один getDoc
+              let d = rec || gcRec(g.gid);
+              if (!d || d._cache || d.s !== g.s || !gcLive(d)) {
+                  g.step = "get";
+                  d = await gcReadRec(g.gid);
+                  if (gc !== g) return;
+              }
+              if (!d || d.s !== g.s || !gcLive(d)) return gcFail(g, t("Звонок уже закончился"), null, true);
+              if (Object.keys(gcMembersOf(d)).filter(u => u !== g.me).length >= GC_MAX) return gcFail(g, t("Звонок заполнен ({n})", { n: GC_MAX }), null, true);
+              g.doc = d; gcMark(g);
+              gcPairsListen(g);
+              g.step = "join";
+              if (!(await gcEnter(g, d)) || gc !== g) return;
+              gcSync(g); gcRender();
+          } catch (e) { gcFlowError(g, e); }
+      }
+      // Вход (и возврат с новым j, и перенос на это устройство): параллельно с записью — предложения всем, кто уже в m (они вошли раньше);
+      // запись — только своя часть m (+ upd, c+1, gm ∪ я); потом ждём своего t с сервера
+      async function gcEnter(g, d) {
+          const m = gcMembersOf(d);
+          for (const X of Object.keys(m)) {
+              const jX = m[X] && m[X].j;
+              if (X === g.me || !GC_UID.test(X) || !GC_J.test(jX || "") || !gcPeerOk(g, X) || g.cut.has(X + ":" + jX)) continue;
+              const P = g.prep.get(X); if (P) gcCloseLink(g, P, "stale");
+              const L = gcNewLink(g, X, jX, "from"); g.prep.set(X, L); L.ready = gcMakeOffer(g, L);
+          }
+          g.phase = "wait"; g.entryTry = true; gcArmT(g);
+          try {
+              await Promise.race([updateDoc(doc(db, "gcalls", g.gid), { ["m." + g.me]: { t: serverTimestamp(), j: g.j, v: GC_PROTO }, upd: serverTimestamp(), ["c." + g.me]: increment(1), gm: arrayUnion(g.me) }), gcOffline()]);
+              gcArmTimer(g);
+          } catch (e) {
+              if (gc !== g) return false;
+              if (e.code === "offline") throw e;
+              g.phase = "prep"; g.entryTry = false;
+              gcFail(g, await gcJoinWhy(g, e), e.code === "permission-denied" ? null : "join", true);
+              return false;
+          }
+          await g.tWait;
+          return gc === g;
+      }
+      // Почему не пустили: один getDoc — «Звонок заполнен (6)», «Звонок уже закончился» или «Слишком много переподключений»
+      async function gcJoinWhy(g, e) {
+          if (e.code !== "permission-denied") return t("Не удалось позвонить") + " (" + errName(e) + ")";
+          try {
+              const s = await getDoc(doc(db, "gcalls", g.gid)), x = s.exists() ? s.data() : null;
+              gcProbeKeep(g.gid, x); // меня нет в gm — проба теперь свежая
+              if (!x || x.s !== g.s || !gcLive(x)) return t("Звонок уже закончился");
+              // место пнутого со свежим пропуском занято (правила держат его до 20 с); часы сервера ещё неизвестны — с запасом 30 с
+              const held = x.k !== g.me && gcKHeld(x, Date.now() - 30000) ? 1 : 0;
+              if (Object.keys(gcMembersOf(x)).filter(u => u !== g.me).length + held >= GC_MAX) return t("Звонок заполнен ({n})", { n: GC_MAX });
+              if (((x.c && x.c[g.me]) || 0) >= 20) return t("Слишком много переподключений");
+          } catch (_) {}
+          return t("Не удалось позвонить");
+      }
+      function gcFlowError(g, e) {
+          if (gc !== g) return;
+          console.log("Групповой звонок:", g.step, e && (e.code || e.name), e && e.message);
+          const noMic = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+          const msg = noMic ? t("Нет доступа к микрофону — разрешите его в настройках браузера")
+              : e && e.code === "offline" ? t("Нет связи с интернетом — звонок не начался")
+              : e && e.code === "timeout" ? t("Не удалось соединиться")
+              : t("Не удалось позвонить") + " (" + (g.step || "?") + ": " + errName(e) + ")";
+          if (!noMic) gcReport(g, g.step || "?", e);
+          gcFail(g, msg, null, !g.entryTry);
+      }
+      function gcFail(g, msg, report, noWrite) {
+          if (gc !== g) return;
+          if (report) gcReport(g, report, { name: report });
+          gcEnd("fail", { text: msg || t("Не удалось соединиться"), noWrite: !!noWrite, toast: true });
+      }
+      // Часы сервера: свой новый t приходит с сервера сразу после своей записи — по нему поправка к часам телефона (g.skew, с точностью
+      // до задержки сети). Нужна, чтобы сравнивать с временем сервера чужие отметки (kt «пинка», created пары)
+      function gcClock(g, ts) {
+          const ms = gcMs(ts);
+          if (ms && (g.skew === undefined || !g.myT || gcMs(g.myT) !== ms)) g.skew = Date.now() - ms;
+      }
+      const gcSrvNow = (g) => Date.now() - (g.skew || 0);
+      // Изменилась запись звонка (из общего слушателя gcalls). meta: {fromCache, pending}
+      function gcOnDoc(g, d, meta) {
+          if (gc !== g) return;
+          const server = !meta.fromCache && !meta.pending;
+          if (!d || d.s !== g.s) {
+              if (meta.fromCache || g.phase === "prep" || (g.phase === "wait" && !g.sawOwn)) return; // старт поверх мёртвой: старую видно, пока не дошла наша
+              return gcOnDocGone(g);
+          }
+          g.doc = d; g.sawOwn = true;
+          const mine = gcMembersOf(d)[g.me];
+          if (g.phase === "wait") {
+              if (!server || !mine || mine.j !== g.j || !mine.t) return;
+              gcClock(g, mine.t);
+              g.phase = "in"; g.myT = mine.t; g.inAt = g.inAt || Date.now();
+              gcCrashed.delete(g.gid); // вернулся за упавшую вкладку — в беседе больше не «Вернуться»
+              clearTimeout(g.tTimer); if (g.tReady) g.tReady();
+          }
+          if (g.phase !== "in") return;
+          if (!mine) { if (server && !g.returning) gcSelfGone(g, d); return; }
+          // мой uid в m, но j не мой — звонок перенесли на другое устройство: молча закрываемся, ничего не пишем
+          if (server && mine.j !== g.j) return gcEnd("elsewhere", { noWrite: true });
+          if (mine.t) { if (server) gcClock(g, mine.t); g.myT = mine.t; }
+          const n = gcN(d);
+          if (n > 1) g.everOthers = true;
+          if (n > GC_VIDEO_MAX && (g.vtrack || g.vpending)) { gcVideoOff(g); showToast(t("Видео выключено: в звонке больше 4 человек"), "info"); }
+          if (n !== g.lastN) { g.lastN = n; gcBitrate(g); gcVideoApply(g); }
+          gcSync(g); gcRender();
+      }
+      // Запись удалена (или поверх начат другой звонок). Есть живые соединения — НЕ вешаем трубку (cron удалил запись, пока все iPhone
+      // были в кармане): разговор идёт, пока люди не выйдут, но новые войти не смогут. Нет — звонок закончился
+      function gcOnDocGone(g) {
+          if (g.phase === "wait") return gcFail(g, t("Звонок уже закончился"), null, true);
+          if (g.phase !== "in" || g.lost) return;
+          // запись пропала потому, что меня исключили из беседы (или её удалили) — это не «потерянный» звонок, а выход
+          const grp = gcGroup(g.gid);
+          if (!grp || (Array.isArray(grp.members) && !grp.members.includes(g.me))) return gcEnd("removed", { noWrite: true, toast: true });
+          if (gcAllLinks(g).some(gcUp)) {
+              g.lost = true; g.note = t("Связь с сервером звонка потеряна: новые участники не смогут войти");
+              g.wait.clear(); g.held.clear();
+              if (g.vtrack || g.vpending) gcVideoOff(g); // видео в «потерянном» звонке нельзя (gcCanVideo), а кнопки выключить уже не будет
+              gcRender(); gcBarRender(currentChatId);
+              return;
+          }
+          gcEnd("ended", { noWrite: true });
+      }
+      function gcTick(g) {
+          if (gc !== g) return;
+          const now = Date.now(), d = g.doc, even = (g.ticks = g.ticks + 1) % 2 === 0;
+          for (const L of gcAllLinks(g)) {
+              if (L.closed) continue;
+              if (gcUp(L)) { L.lastUp = now; g.lastConn = now; }
+              if (!gcPeerOk(g, L.uid)) { gcDropPeer(g, L.uid); continue; }
+              // X не вернулся за 30 с — связь закрываем и пару удаляем: вернётся с тем же j позже — у него сработает gcPairGone,
+              // и новая пара не упрётся в старую с тем же номером
+              if (L.goneAt && now - L.goneAt > GC_GRACE_MS) { gcCloseLink(g, L, "gone"); gcPairDel(g, L.pid); continue; }
+              if (g.lost && !gcUp(L) && now - (L.lastUp || L.created) > GC_GRACE_MS) { gcCloseLink(g, L, "lost"); continue; }
+              // попытки переподключиться кончились — «Нет связи с {name}»: 30 restart; ни разу не соединились за 3 (offer2 больше нет);
+              // пару пересоздавали без ответа и ждём паузы (stuck)
+              const from = L.role === "from", r = from ? L.r : L.pr, last = from ? L.o2At : L.o2RecvAt;
+              L.dead = !gcUp(L) && ((r >= GC_R_MAX && now - last > GC_RESTART_MS) || (!L.connectedAt && r >= GC_R_NEW_MAX && now - last > (from ? GC_RESTART_MS : 60000))
+                  || (from && L.stuck && now < L.holdUntil));
+          }
+          // ICE restart там, где предлагал я: не соединилось за 15 с после ответа или связь упала дольше 4 с; повтор раз в 20 с
+          // (X сказал «ушёл в фон» — раз в 30 с: ответить он всё равно не может). Ни разу не соединились за 3 restart — хватит
+          for (const L of [...g.links.values()]) {
+              if (L.role !== "from" || !L.gotAnswer || L.closed || L.restarting || gcUp(L) || L.r >= GC_R_MAX) continue;
+              if (!L.connectedAt && L.r >= GC_R_NEW_MAX) {
+                  // а с другими говорим — пересоздать пару (новое соединение, новый адрес TURN) с паузами gcRelink;
+                  // ни с кем не говорим — это «все связи мертвы» ниже (возврат с новым j)
+                  if (now - L.o2At > GC_RESTART_MS && now >= L.holdUntil && !L.relinking && g.phase === "in" && !g.lost
+                      && gcAllLinks(g).some(x => x !== L && gcUp(x))) gcRelink(g, L);
+                  continue;
+              }
+              const due = L.connectedAt ? (L.downSince && now - L.downSince > GC_DROP_MS) : now - L.answeredAt > GC_CONNECT_MS;
+              const gap = L.bgAt && now - L.bgAt < GC_BG_MS ? GC_RESTART_BG_MS : GC_RESTART_MS;
+              if (due && now - L.tryAt >= gap) { L.tryAt = now; gcRestart(g, L); }
+          }
+          for (const [pid, h] of g.held) if (now - h.at > GC_HOLD_MS) g.held.delete(pid);
+          if (g.phase === "in" && d && !g.lost) {
+              if (even) {
+                  gcGhostCheck(g, now); gcRetryDenied(g, now);
+                  const m = gcMembersOf(d);
+                  if ([...g.links.values()].some(L => m[L.uid] && m[L.uid].j === L.jPeer && gcStaleLink(g, d, L, now))) gcSync(g);
+              }
+              gcPruneCheck(g.gid, d, now);
+              gcBanKick(g, now);
+              gcBeat(g, now, false);
+              // ни одной живой связи не осталось (все попытки кончились) — сам возвращаюсь с новым j: появятся новые пары
+              const cur = [...g.links.values()];
+              if (cur.length && cur.every(L => L.dead) && !g.returning && now - (g.rejoinAt || 0) > GC_UP_MS) { g.rejoinAt = now; g.returning = true; gcRejoin(g).finally(() => { g.returning = false; }); return; }
+          }
+          // ни одного соединения 10 мин (с входа, последней связи или появления нового участника) — выходим сами: никого и не было —
+          // «Никто не присоединился»; поговорили, и все ушли —
+          // «Звонок завершён»; люди в звонке есть (или были), а соединиться не вышло — «Не удалось соединиться»
+          if (g.phase === "in" && !gcAllLinks(g).some(gcUp) && now - Math.max(g.lastConn || 0, g.inAt || 0, g.peerAt || 0) > GC_ALONE_MS) {
+              return gcEnd(gcN(d) > 1 ? "fail" : !g.everOthers ? "alone" : g.connectedAt ? "done" : "fail");
+          }
+          if (g.lost && !gcAllLinks(g).length) return gcEnd("ended", { noWrite: true });
+          if (g.ticks % 10 === 0) { gcCtlAll(g, { p: 1 }); gcMark(g); gcCleanPairs(g); }
+          if (g.ticks % 30 === 0) gcSwMark(true);
+          if (even) { gcStats(g, now); gcVideoApply(g); }
+          gcRender();
+      }
+      // ВЫЙТИ: сначала закрыть соединения и микрофон, потом писать в базу (выход посреди входа не оставит «призрака»).
+      // opts: text — итог на экране, toast — ещё и всплывашкой, noWrite — ничего не писать (перенесли, исключили, запись уже не наша)
+      const GC_END_TEXT = { alone: "Никто не присоединился", fail: "Не удалось соединиться", done: "Звонок завершён", elsewhere: "Звонок продолжен на другом устройстве", ended: "Звонок уже закончился", lost: "Связь потеряна", removed: "Вы больше не участник беседы" };
+      async function gcEnd(why, opts = {}) {
+          const g = gc; if (!g || g.ending) return;
+          g.ending = true; gc = null; gcLeft = { gid: g.gid, j: g.j };
+          gcSwMark(false);
+          // «Вернуться» за упавшую вкладку больше не нужно (вернулся и вышел; вышли за неё) — карточки и плашка: «Присоединиться»
+          gcCrashed.delete(g.gid);
+          clearInterval(g.tick); clearInterval(g.lvl); clearTimeout(g.tTimer);
+          if (g.tFail) g.tFail(Object.assign(new Error("ended"), { code: "ended" }));
+          if (g.unsubPairs) { try { g.unsubPairs(); } catch (_) {} g.unsubPairs = null; }
+          gcAllLinks(g, true).forEach(L => gcCloseLink(g, L, "end"));
+          if (g.stream) g.stream.getTracks().forEach(x => x.stop());
+          gcStopLocalVideo(g);
+          if (g.an && g.an.src) { try { g.an.src.disconnect(); } catch (_) {} if (g.an.own) g.an.ctx.close().catch(() => {}); }
+          gcAudioEls().forEach(a => { try { a.pause(); } catch (_) {} a.srcObject = null; a._gc = null; });
+          g.mix = null;
+          if (relayCtx && relayCtx.state !== "closed") relayCtx.suspend().catch(() => {}); // между звонками смеситель спит
+          if (sinkDirty) $c("call-audio").setSinkId("").then(() => { sinkDirty = false; }).catch(() => {});
+          if (spDirty) $c("call-audio-sp").setSinkId("").then(() => { spDirty = false; }).catch(() => {}); // по касанию «Выйти» — сразу
+          restoreAmbient();
+          gcUnlock(g);
+          closeGcNotifs(g.gid);
+          if (gcRingPend.size) setTimeout(gcRingResume, 1800); // после того как экран группового закроется (gcHideScreen: до 1,6 с)
+          const key = GC_END_TEXT[why], text = opts.text !== undefined ? opts.text : key ? t(key) : "";
+          if (opts.toast && text) showToast(text, "error");
+          gcHideScreen(text, !!opts.toast);
+          gcRefresh(new Set([g.gid]));
+          if (opts.noWrite || !g.entryTry || !currentUser || g.lost) return;
+          await gcLeaveWrite(g);
+          gcDeleteMyPairs(g);
+      }
+      // Выход в базе: по моему снимку m[я].j не мой (перенесли) — ничего; запись уже не живая — сразу удалить (выход правила не примут);
+      // иначе убрать себя (с wj), и если был последним — удалить запись (удаление читателям бесплатно)
+      async function gcLeaveWrite(g) {
+          const ref = doc(db, "gcalls", g.gid), d = g.doc, m = gcMembersOf(d);
+          if (d && d.s !== g.s && g.sawOwn) return;
+          if (g.myT && d && d.s === g.s && m[g.me] && m[g.me].j !== g.j) return; // до подтверждения входа в снимке ещё старый j (перенос) — пишем
+          const alone = !d || d.s !== g.s || Object.keys(m).every(u => u === g.me);
+          if (d && d.s === g.s && !gcLive(d)) { await deleteDoc(ref).catch(() => updateDoc(ref, { ["m." + g.me]: deleteField(), upd: serverTimestamp(), wj: g.j }).catch(() => {})); return; }
+          try {
+              await updateDoc(ref, { ["m." + g.me]: deleteField(), upd: serverTimestamp(), wj: g.j });
+              if (alone) await deleteDoc(ref).catch(() => {});
+          } catch (e) {
+              console.log("Групповой звонок (выход):", e.code || e.message);
+              if (e.code === "permission-denied" && alone) deleteDoc(ref).catch(() => {});
+          }
+      }
+      // Свои пары (с моим j) старше 30 с — по одной (остальные уберёт cron)
+      function gcDeleteMyPairs(g) {
+          const now = gcSrvNow(g); // created — время сервера
+          for (const [pid, p] of g.pairs) if (((p.from === g.me && p.jf === g.j) || (p.to === g.me && p.jt === g.j)) && p.created && now - p.created > GC_HOLD_MS + 3000) deleteDoc(doc(db, "gpairs", pid)).catch(() => {});
+      }
+      // Закрыли вкладку — только запись выхода, без ожидания (как у 1-на-1). Застрянет в очереди и уйдёт позже — правило отвергнет её по wj.
+      // Отметку «в групповом звонке» для service worker стираем сразу (без гарантии: успеет ли — решает браузер), иначе до 90 с личные
+      // звонки приходили бы без звука; вкладка вернётся из bfcache — gcTick поставит её снова
+      function gcPageHide() {
+          const g = gc; if (!g) return;
+          gcSwMark(false);
+          if (!g.entryTry || g.ending || g.lost || !currentUser) return;
+          const d = g.doc, m = gcMembersOf(d);
+          if (g.myT && d && d.s === g.s && m[g.me] && m[g.me].j !== g.j) return;
+          if (d && d.s !== g.s && g.sawOwn) return;
+          const ref = doc(db, "gcalls", g.gid);
+          updateDoc(ref, { ["m." + g.me]: deleteField(), upd: serverTimestamp(), wj: g.j }).catch(() => {});
+          if (d && d.s === g.s && Object.keys(m).every(u => u === g.me)) deleteDoc(ref).catch(() => {});
+      }
+
+      // ----- слушатель записей звонков моих бесед -----
+      // gcalls where gm array-contains я (плюс подтверждения сервера — includeMetadataChanges, они чтений не стоят).
+      // Из кэша — без всплывашки; удалена — закрыть уведомления owl-gcall-<gid>
+      function startGcListener() {
+          if (gcListener) { gcListener(); gcListener = null; }
+          gcListenReady = false;
+          if (!currentUser || !gcEnabled()) return;
+          gcListener = onSnapshot(query(collection(db, "gcalls"), where("gm", "array-contains", currentUser.uid)), { includeMetadataChanges: true }, (snap) => {
+              const cache = snap.metadata.fromCache, seen = new Set(), changed = new Set();
+              if (!cache && !gcListenReady) { gcListenReady = true; if (gcProbeWait) { gcProbeWait = false; gcProbeSoon(); } }
+              snap.docs.forEach(ds => {
+                  const gid = ds.id; if (!GC_ID.test(gid)) return;
+                  const d = { ...ds.data(), _cache: cache, _pending: ds.metadata.hasPendingWrites };
+                  seen.add(gid); changed.add(gid);
+                  gcCalls.set(gid, d); gcProbe.delete(gid);
+                  if (gc && gc.gid === gid) gcOnDoc(gc, d, { fromCache: cache, pending: d._pending });
+                  if (cache) { if (GC_S.test(d.s || "")) gcSeenS.set(gid, d.s); }
+                  else if (!d._pending) gcAfterServerDoc(gid, d);
+              });
+              for (const gid of [...gcCalls.keys()]) if (!seen.has(gid)) {
+                  gcCalls.delete(gid); gcMine.delete(gid); changed.add(gid);
+                  closeGcNotifs(gid);
+                  if (gc && gc.gid === gid) gcOnDoc(gc, null, { fromCache: cache, pending: false });
+              }
+              gcRefresh(changed);
+          }, (e) => {
+              console.log("gcalls:", e.code);
+              gcListenReady = true; if (gcProbeWait) { gcProbeWait = false; gcProbeSoon(); } // слушателя нет — карточки проверяет getDoc
+          });
+      }
+      function gcAfterServerDoc(gid, d) {
+          gcToastCheck(gid, d);
+          gcCheckMine(gid, d);
+          if (!(gc && gc.gid === gid)) gcPruneCheck(gid, d, Date.now());
+      }
+      // Всплывашка: новый s этой беседы, снимок с сервера, звонку < 2 мин, начал не я, не заблокирован и не забанен, меня в звонке нет,
+      // для этой беседы не было всплывашки 10 мин. Звук — короткий (≈1 с), ночью («Сова не будит»), во время своего звонка и в фоне — без звука
+      function gcToastCheck(gid, d) {
+          if (!d || !GC_S.test(d.s || "")) return;
+          const was = gcSeenS.get(gid); gcSeenS.set(gid, d.s);
+          if (was === d.s || !gcShown(d)) return;
+          const me = currentUser.uid, st = gcMs(d.started), now = Date.now();
+          if (!st || now - st > GC_TOAST_FRESH_MS || d.by === me || gcMembersOf(d)[me] || iBlocked(d.by) || bansCache[d.by]) return;
+          if ((gc && gc.gid === gid) || now - (gcToastAt.get(gid) || 0) < GC_TOAST_EVERY_MS) return;
+          gcToastAt.set(gid, now);
+          if (!usersCache[d.by]) watchUser(d.by);
+          gcToast(gid, d);
+          // сигнал — только на виду: в фоне звонит push (иначе два звука на одно событие)
+          if (!iAmAsleep() && !inCall() && document.visibilityState === "visible") playTone("ring", { once: true });
+      }
+      // Я в m этой записи, а звонка на этой вкладке нет: замок owl-gc-<j> (или свежая отметка) у другой вкладки — «другое устройство»;
+      // это мой сохранённый j, но замка нет — вкладка со звонком упала: тихо выходим за неё (wj = её j), в беседе — «Вернуться»
+      async function gcCheckMine(gid, d) {
+          const me = currentUser.uid, e = gcMembersOf(d)[me];
+          if (!e) { gcMine.delete(gid); return; }
+          if ((gc && gc.gid === gid) || !gcLive(d) || gcLeftJ(gid, e.j)) return;
+          const was = gcMine.get(gid);
+          if (was && was.j === e.j) return;
+          let saved = null; try { saved = JSON.parse(localStorage.getItem("owl-gc") || "null"); } catch (_) {}
+          let state = "elsewhere";
+          if (saved && saved.gid === gid && saved.s === d.s && saved.j === e.j) {
+              let held = null;
+              try { if (navigator.locks && navigator.locks.query) held = ((await navigator.locks.query()).held || []).some(l => l.name === "owl-gc-" + e.j); } catch (_) {}
+              if (held === null) held = Date.now() - (saved.at || 0) < 25000;
+              if (!held) state = "crashed";
+          }
+          if ((gc && gc.gid === gid) || !gcCalls.has(gid)) return;
+          gcMine.set(gid, { state, j: e.j });
+          if (state === "crashed") {
+              gcCrashed.set(gid, d.s);
+              try { localStorage.removeItem("owl-gc"); } catch (_) {}
+              const ref = doc(db, "gcalls", gid), alone = Object.keys(gcMembersOf(d)).every(u => u === me);
+              updateDoc(ref, { ["m." + me]: deleteField(), upd: serverTimestamp(), wj: e.j })
+                  .then(() => { if (alone) return deleteDoc(ref); })
+                  .catch(err => console.log("Групповой звонок (выход за упавшую вкладку):", err.code || err.message));
+          }
+          gcRefresh(new Set([gid]));
+      }
+      // Изменились беседы (слушатель groups): исключённых — убрать из звонка, связи с ними закрыть
+      function gcOnGroups() {
+          if (!currentUser || !gcEnabled()) return;
+          const now = Date.now(), g = gc;
+          for (const [gid, d] of gcCalls) if (!(g && g.gid === gid)) gcPruneCheck(gid, d, now);
+          if (g && g.phase === "in" && !g.lost) { gcSync(g); if (g.doc) gcPruneCheck(g.gid, g.doc, now); }
+          if (g) gcRender();
+          gcBarRender(currentChatId);
+          updateCallBtn(); // в беседе стало ≥2 участников (или меня убрали) — трубка в шапке появляется/прячется
+      }
+      // Меня исключили из беседы (или её удалили) — выходим (правило выхода членства не требует)
+      function gcGroupGone(gid) { if (gc && gc.gid === gid) gcEnd("removed", { toast: true }); }
+      // Исключить uid из беседы (админ) или выйти из неё самому — и одной пачкой убрать его из идущего звонка: gm и m (gcPruneOk видит
+      // беседу «до» через get и «после» через getAfter). Иначе он оставался бы в gm до уборки (ведущим — сразу, остальными — через 30 с,
+      // а iPhone в кармане её не сделают): видел бы, кто в звонке, и проходил бы проверки Worker. Запись звонка не видна (не пилот,
+      // звонка нет) или пачку отклонили — только беседа, как раньше (дальше уберёт gcPruneCheck)
+      async function gcGroupLeaveWrite(gid, uid) {
+          const gref = doc(db, "groups", gid);
+          // выхожу сам, а звонок этой беседы идёт на этом устройстве — сначала обычный выход из звонка (если был один — запись удалится)
+          if (uid === currentUser.uid && gc && gc.gid === gid) await Promise.race([gcEnd("left"), new Promise(r => setTimeout(r, 3000))]);
+          const rec = gcEnabled() ? gcCalls.get(gid) : null;
+          if (rec && gcLive(rec) && Array.isArray(rec.gm) && rec.gm.includes(uid) && GC_UID.test(uid)) {
+              try {
+                  const b = writeBatch(db), upd = { gm: arrayRemove(uid), upd: serverTimestamp() };
+                  if (gcMembersOf(rec)[uid]) upd["m." + uid] = deleteField();
+                  b.set(gref, { members: arrayRemove(uid) }, { merge: true });
+                  b.update(doc(db, "gcalls", gid), upd);
+                  await b.commit();
+                  return;
+              } catch (e) { console.log("Групповой звонок (уборка вместе с беседой):", e.code || e.message); }
+          }
+          await setDoc(gref, { members: arrayRemove(uid) }, { merge: true });
+      }
+      // Блокировки и профили поменялись (applyBlockState): заблокированного не слышно и не видно, ему — {v:0}
+      function gcAfterBlockState() {
+          gcBarRender(currentChatId);
+          const g = gc; if (!g) return;
+          gcAudioRoute(g); gcVideoApply(g); gcRender();
+      }
+      // Состояние звонка беседы для интерфейса
+      function gcState(gid) {
+          const me = currentUser && currentUser.uid;
+          if (gc && gc.gid === gid) return { kind: gc.lost ? "lost" : "mine", n: gcMyN(gc), s: gc.s, d: gcDocOf(gc) };
+          const d = gcRec(gid);
+          if (!me || !d || !gcShown(d) || !GC_S.test(d.s || "")) return { kind: "none", n: 0, s: null, d: null };
+          const n = gcN(d), e = gcMembersOf(d)[me];
+          if (e && !gcLeftJ(gid, e.j)) { const x = gcMine.get(gid); return { kind: x && x.state === "crashed" ? "crashed" : "elsewhere", n, s: d.s, d }; }
+          return { kind: gcCrashed.get(gid) === d.s ? "crashed" : "live", n, s: d.s, d };
+      }
+      // Перерисовать всё, что зависит от записей gids: карточки, плашку, список чатов (только если поменялось «идёт · сколько»), трубку
+      function gcRefresh(gids) {
+          if (!currentUser) return;
+          for (const gid of gids) gcRepaintNotes(gid);
+          if (currentChatId && gids.has(currentChatId)) gcBarRender(currentChatId);
+          let dirty = false;
+          for (const gid of gids) { const st = gcState(gid), sig = st.kind === "none" ? "" : st.kind + ":" + st.n; if ((gcSig.get(gid) || "") !== sig) { gcSig.set(gid, sig); dirty = true; } }
+          if (dirty) renderChatList(document.getElementById("search-input").value);
+          updateCallBtn();
+      }
+      // Карточка самой свежей беседы, где меня нет в gm (вступил после начала): один getDoc, только если ей < 12 ч, раз на беседу за сессию;
+      // ещё раз — только если проба показывает идущий звонок и ей больше 2 мин (gcProbeOld: её никто не обновляет).
+      // Не читаем: пока не пришёл первый снимок слушателя с сервера (холодный старт: я, скорее всего, в gm — запись вот-вот придёт сама)
+      // и если эту сессию (s карточки) слушатель уже видел — раз её нет в gcCalls, звонок закончился
+      function gcProbeSoon() { if (!gcProbeTimer) gcProbeTimer = setTimeout(gcProbeNotes, 300); }
+      async function gcProbeNotes() {
+          gcProbeTimer = null;
+          const gid = currentChatId;
+          if (!gcEnabled() || !GC_ID.test(gid || "") || gcCalls.has(gid) || (gcProbe.has(gid) && !gcProbeOld(gid)) || !gcGroup(gid)) return;
+          const notes = document.querySelectorAll(`#chat-box .gc-note[data-gc-gid="${gid}"]`), last = notes[notes.length - 1];
+          if (!last || Date.now() - (+last.dataset.ts || 0) > GC_AGE_MS) return;
+          if (!gcListenReady) { gcProbeWait = true; return; }
+          if (last.dataset.gcS && gcSeenS.get(gid) === last.dataset.gcS) return;
+          const old = gcProbe.get(gid);
+          if (old) old._at = Date.now(); else gcProbe.set(gid, null); // пока читаем — второй раз не читаем (не прочитали — прежняя остаётся)
+          try { const s = await getDoc(doc(db, "gcalls", gid)); if (!gcCalls.has(gid)) gcProbe.set(gid, s.exists() ? { ...s.data(), _cache: s.metadata.fromCache, _at: Date.now() } : null); } catch (_) {}
+          gcRefresh(new Set([gid]));
+      }
+
+      // ----- интерфейс (минимальный; оформление — следующий этап, см. контракт крючков в начале блока) -----
+      function gcShow() {
+          const g = gc; if (!g) return;
+          const scr = $c("call-screen");
+          scr.classList.remove("out", "vid", "self", "ringing"); scr.classList.add("on", "group");
+          $c("call-pill").classList.remove("on");
+          gcRender(); gcVideoApply(g);
+      }
+      function gcMinimize() {
+          const g = gc; if (!g) return;
+          $c("call-screen").classList.remove("on"); $c("call-pill").classList.add("on");
+          gcRender(); gcVideoApply(g);
+      }
+      function gcHideScreen(text, toasted) {
+          const scr = $c("call-screen"), shown = scr.classList.contains("on") && scr.classList.contains("group");
+          $c("call-pill").classList.remove("on");
+          if (text && shown) { $c("gc-status").textContent = text; $c("call-acts").innerHTML = ""; $c("call-acts")._html = ""; }
+          else if (text && !toasted) showToast(text, "info");
+          // call-av сбрасываем: следующий личный звонок заново поставит и аватар, и фон (сейчас фон — аватар беседы)
+          const done = () => { if (gc || call) return; scr.classList.remove("on", "out", "group"); $c("gc-grid").innerHTML = ""; $c("call-note").textContent = ""; $c("call-av").removeAttribute("src"); };
+          setTimeout(() => {
+              if (gc || call) return;
+              if (!scr.classList.contains("on") || reduceMotion()) return done();
+              scr.classList.add("out"); setTimeout(done, 300);
+          }, shown && text ? 1300 : 0);
+      }
+      function gcStatusText(g, n) {
+          if (g.phase !== "in") return t("Соединяется…");
+          if (!gcAllLinks(g).some(gcUp)) return n <= 1 ? t("Ждём участников…") : t("Соединяется…");
+          return tp(n, "участник|участника|участников") + " · " + callDur(Math.max(0, Math.round((Date.now() - (g.connectedAt || Date.now())) / 1000)));
+      }
+      function gcRender() {
+          const g = gc; if (!g) return;
+          $c("call-screen").classList.add("group");
+          const grp = gcGroup(g.gid), title = (grp && grp.name) || t("Групповой звонок");
+          const n = gcMyN(g);
+          if ($c("gc-title").textContent !== title) $c("gc-title").textContent = title;
+          const bg = (grp && safeImg(grp.photoURL)) || generateAvatarSVG(title, true); // фон — аватар беседы (не собеседника прошлого звонка)
+          if ($c("call-bg-img").getAttribute("src") !== bg) $c("call-bg-img").src = bg;
+          const status = g.hint || gcStatusText(g, n);
+          if ($c("gc-status").textContent !== status) $c("gc-status").textContent = status;
+          const pill = title + " · " + n;
+          if ($c("call-pill-text").textContent !== pill) $c("call-pill-text").textContent = pill;
+          const note = g.note || "";
+          if ($c("call-note").textContent !== note) $c("call-note").textContent = note;
+          gcTiles(g);
+          const canVid = gcCanVideo(g);
+          const acts = [["mute", g.muted ? "on" : "", g.muted ? CALL_SVG.micOff : CALL_SVG.mic, g.muted ? t("Микрофон выкл.") : t("Микрофон")],
+              ...(g.outs ? [["speaker", g.speaker ? "on" : "", CALL_SVG.speaker, t("Динамик")]] : []),
+              ...(canVid ? [["cam", g.vsrc === "cam" || g.vpending === "cam" ? "on" : "", CALL_SVG.cam, t("Камера")]] : []),
+              ...(canVid && g.vsrc === "cam" && isMobileCam() ? [["flip", "", CALL_SVG.flip, t("Повернуть")]] : []),
+              ...(canVid && canShareScreen() ? [["screen", g.vsrc === "screen" || g.vpending === "screen" ? "on" : "", CALL_SVG.screen, t("Экран")]] : []),
+              ["leave", "red", CALL_SVG.hang, t("Выйти из звонка")]];
+          const box = $c("call-acts"), html = acts.map(([a, cls, svg, label]) => `<button type="button" class="call-act ${cls}" data-gc-act="${a}"><span class="b">${svg}</span><span>${escapeHTML(label)}</span></button>`).join("");
+          if (box._html !== html) { box._html = html; box.classList.toggle("many", acts.length > 3); box.innerHTML = html; }
+          if (!$c("call-min").firstChild) { $c("call-min").title = t("Свернуть"); $c("call-min").innerHTML = CALL_SVG.min; }
+      }
+      // Плитки: я первым, остальные — по порядку входа. Элементы живут между перерисовками (видео не мигает)
+      function gcTiles(g) {
+          const grid = $c("gc-grid"), d = gcDocOf(g), m = gcMembersOf(d);
+          const others = [...new Set([...Object.keys(m).filter(u => u !== g.me && GC_UID.test(u)), ...g.links.keys()])].sort((a, b) => gcCmp(d, a, b));
+          const uids = [g.me, ...others].slice(0, GC_MAX + 1), keep = new Set(uids);
+          grid.dataset.n = String(uids.length);
+          grid.querySelectorAll("[data-gc-tile]").forEach(el => { if (!keep.has(el.dataset.gcTile)) el.remove(); });
+          uids.forEach((uid, i) => {
+              let el = grid.querySelector(`[data-gc-tile="${uid}"]`);
+              if (!el) {
+                  el = document.createElement("div"); el.className = "gc-tile"; el.dataset.gcTile = uid;
+                  el.innerHTML = `<img class="gc-av" alt=""><video playsinline autoplay muted></video><span class="gc-flag"></span><span class="gc-name"><i class="gc-mu">${GC_MIC_OFF}</i><span></span></span>`;
+              }
+              if (grid.children[i] !== el) grid.insertBefore(el, grid.children[i] || null);
+              gcTile(g, el, uid);
+          });
+      }
+      function gcTile(g, el, uid) {
+          const mine = uid === g.me, L = mine ? null : g.links.get(uid) || g.old.get(uid) || null;
+          const name = mine ? t("Вы") : gcName(uid);
+          if (!mine && !usersCache[uid]) watchUser(uid);
+          // аватар-заглушка — от настоящего имени (из «Вы» вышли бы инициалы «ВЫ» и чужой цвет); подпись — «Вы»
+          const av = getAvatar(uid, mine ? ((usersCache[uid] && usersCache[uid].name) || currentUser.displayName) : name), img = el.querySelector(".gc-av");
+          if (img.getAttribute("src") !== av) img.src = av;
+          const nm = el.querySelector(".gc-name span"); if (nm.textContent !== name) nm.textContent = name;
+          const hidden = !mine && (iBlocked(uid) || !!bansCache[uid]);
+          let flag = "", vtr = null, showBtn = false;
+          if (mine) vtr = g.vtrack;
+          else if (hidden) flag = t("Скрыт");
+          else if (!gcUp(L)) flag = L && L.dead ? t("Нет связи с {name}", { name }) : t("Соединяется…");
+          if (L && !hidden) {
+              if (gcShowVid(g, L)) vtr = L.rvTrack;
+              else if ((L.peerCam || L.peerScr) && isPremium(uid) && gcN(g.doc) <= GC_VIDEO_MAX && !gcTrusts(uid) && !g.showVid.has(uid)) showBtn = true;
+          }
+          const fl = el.querySelector(".gc-flag"); if (fl.textContent !== flag) fl.textContent = flag;
+          let sb = el.querySelector("[data-gc-show]");
+          if (showBtn && !sb) { sb = document.createElement("button"); sb.type = "button"; sb.className = "gc-show"; sb.dataset.gcShow = uid; sb.textContent = t("Показать видео"); el.appendChild(sb); }
+          else if (!showBtn && sb) sb.remove();
+          const v = el.querySelector("video");
+          if (vtr) { if (!v.srcObject || v.srcObject.getVideoTracks()[0] !== vtr) { v.srcObject = new MediaStream([vtr]); v.play().catch(() => {}); } }
+          else if (v.srcObject) v.srcObject = null;
+          v.classList.toggle("mirror", mine && g.vsrc === "cam" && (g.facing || "user") === "user");
+          v.classList.toggle("contain", mine ? g.vsrc === "screen" : !!(L && L.peerScr));
+          el.classList.toggle("vid", !!vtr);
+          el.classList.toggle("muted", mine ? !!g.muted : !!(L && L.peerMu));
+          el.classList.toggle("hidden-peer", hidden);
+          el.classList.toggle("conn", !mine && !hidden && !gcUp(L) && !(L && L.dead)); // «Соединяется…» — аватар приглушён
+          el.classList.toggle("dead", !mine && !hidden && !!(L && L.dead) && !gcUp(L));
+          el.classList.toggle("me", mine);
+          if (el.title !== name) el.title = name;
+          el.classList.toggle("speaking", mine ? !!g.meSpeaking : !!(L && L.speaking && !hidden));
+      }
+      function gcPaintLevels() {
+          const g = gc; if (!g) return;
+          $c("gc-grid").querySelectorAll("[data-gc-tile]").forEach(el => {
+              const uid = el.dataset.gcTile, L = g.links.get(uid);
+              el.classList.toggle("speaking", uid === g.me ? !!g.meSpeaking : !!(L && L.speaking && !iBlocked(uid) && !bansCache[uid]));
+          });
+      }
+      const gcBarHtml = (text, act, btn) => `<span class="gc-bar-ic">${GC_ICON(18)}</span><span class="gc-bar-text" data-gc-bar="open">${escapeHTML(text)}</span>${btn ? `<button type="button" data-gc-bar="${act}">${escapeHTML(btn)}</button>` : ""}`;
+      function gcBarRender(gid) {
+          const bar = $c("gc-bar"); if (!bar) return;
+          const st = currentUser && gid && gcGroup(gid) && gcEnabled() ? gcState(gid) : { kind: "none" };
+          const html = st.kind === "live" ? gcBarHtml(t("Идёт звонок") + " · " + st.n, "join", t("Присоединиться"))
+              : st.kind === "crashed" ? gcBarHtml(t("Идёт звонок") + " · " + st.n, "join", t("Вернуться"))
+              : st.kind === "elsewhere" ? gcBarHtml(t("Вы в звонке на другом устройстве"), "join", t("Перенести сюда"))
+              : st.kind === "lost" ? gcBarHtml(t("Связь с сервером звонка потеряна: новые участники не смогут войти"), "open", "")
+              : st.kind === "mine" ? gcBarHtml(t("Идёт звонок") + " · " + st.n, "open", "") : "";
+          if (bar._html !== html) { bar._html = html; bar.innerHTML = html; }
+          if (bar.dataset.kind !== st.kind) bar.dataset.kind = st.kind; // цвет значка и «нажимается ли текст» (mine, lost — открыть экран звонка)
+          bar.classList.toggle("on", !!html);
+          if (st.kind !== "none" && gcProbeOld(gid)) gcProbeSoon(); // «идёт» по давней пробе — перечитать
+      }
+      // Вид карточки: «идёт» (и какая кнопка) и сколько людей — всё, от чего зависит её HTML (gid, s, время — у карточки свои)
+      function gcNoteState(gid, s) {
+          const ok = GC_ID.test(gid), st = ok && s && currentUser && gcEnabled() ? gcState(gid) : { kind: "none" };
+          const live = st.kind !== "none" && st.s === s;
+          return { ok, st, live, sig: live ? st.kind + ":" + st.n : "" };
+      }
+      function gcNoteHtml(msg) {
+          const gid = String(msg.chatId || ""), s = msg.gcall && typeof msg.gcall.s === "string" && GC_S.test(msg.gcall.s) ? msg.gcall.s : "";
+          const { ok, st, live, sig } = gcNoteState(gid, s);
+          const btn = live && (st.kind === "live" || st.kind === "crashed" || st.kind === "elsewhere")
+              ? `<button type="button" class="gc-join" data-gc-join>${escapeHTML(t(st.kind === "crashed" ? "Вернуться" : st.kind === "elsewhere" ? "Перенести сюда" : "Присоединиться"))}</button>` : "";
+          const sub = live ? `<small>${escapeHTML(t("Идёт звонок"))} · ${st.n}</small>` : "";
+          if (ok && s && (!live || gcProbeOld(gid))) gcProbeSoon();
+          return `<div class="gc-note${live ? " live" : ""}" data-gc-gid="${ok ? gid : ""}" data-gc-s="${s}" data-gc-sig="${escapeHTML(sig)}" data-ts="${getTime(msg.timestamp) || 0}"><span class="call-ic">${GC_ICON(17)}</span><span class="gc-note-txt"><b>${escapeHTML(t("Групповой звонок"))}</b>${sub}</span>${btn}</div>`;
+      }
+      // Перерисовка карточек — только если поменялся их вид (data-gc-sig): иначе кнопка «Присоединиться» подменялась бы на каждый снимок
+      // слушателя, а на iPhone касание по подменённой кнопке теряется
+      function gcRepaintNotes(gid) {
+          if (!GC_ID.test(gid || "")) return;
+          document.querySelectorAll(`#chat-box .gc-note[data-gc-gid="${gid}"]`).forEach(el => {
+              const s = el.dataset.gcS || "", ns = gcNoteState(gid, s);
+              if (ns.ok && s && (!ns.live || gcProbeOld(gid))) gcProbeSoon(); // беседа могла загрузиться позже карточки — проверить запись ещё раз
+              if (el.dataset.gcSig === ns.sig) return;
+              el.outerHTML = gcNoteHtml({ chatId: gid, gcall: { s }, timestamp: +el.dataset.ts || 0 });
+          });
+      }
+      function gcListMark(gid) {
+          if (!currentUser || !gcEnabled()) return null;
+          const st = gcState(gid);
+          if (st.kind === "none") return null;
+          return { mark: `<i class="gc-dot" title="${escapeHTML(t("Идёт звонок"))}">${GC_ICON(10)}</i>`, sub: `<span class="gc-sub">${escapeHTML(t("Идёт звонок"))} · ${st.n}</span>` };
+      }
+      // Всплывашка: «Присоединиться» — кнопка (её click — касание для iPhone); нажатие на сам текст — открыть беседу (там плашка)
+      function gcToast(gid, d) {
+          const grp = gcGroup(gid), s = d.s;
+          showToast(t("{name} начинает групповой звонок", { name: gcName(d.by) }) + (grp && grp.name ? " · " + grp.name : ""), "phone", {
+              ms: 15000, onClick: () => window.openChatById(gid),
+              action: { label: t("Присоединиться"), onClick: () => { const st = gcState(gid); if (st.kind === "none" || st.s !== s) return showToast(t("Звонок уже закончился"), "info"); gcJoinTap(gid, s); } }
+          });
+      }
+      function gcConfirmStart(gid) {
+          const box = $c("gc-confirm"); if (!box) return;
+          box.dataset.gid = gid;
+          $c("gc-confirm-title").textContent = t("Начать групповой звонок?");
+          $c("gc-confirm-text").textContent = t("Участники получат уведомление");
+          $c("gc-confirm-go").textContent = t("Начать");
+          $c("gc-confirm-no").textContent = t("Отмена");
+          box.style.display = "flex";
+      }
+      function gcRingNote(id, d) {
+          const uid = d.from;
+          gcRingPend.set(id, d);
+          if (gcRingSeen.has(id)) return;
+          gcRingSeen.add(id);
+          if (!usersCache[uid]) watchUser(uid);
+          const text = t("{name} звонит вам", { name: gcName(uid) });
+          showToast(text, "phone"); // без звука и без «Принять»: другие устройства звонят как обычно
+          const g = gc; if (!g) return;
+          g.note = text; gcRender();
+          setTimeout(() => { if (gc === g && g.note === text) { g.note = null; gcRender(); } }, CALL_RING_MS);
+      }
+      // Групповой закончился, а личный звонок, о котором была тихая надпись, ещё звонит (слушатель не видел, что он закончился):
+      // теперь звоним — самый свежий из них. Слушатель входящих его второй раз не пришлёт («added» уже было), поэтому так.
+      // Как с записью из кэша: экран звонка — только когда сервер подтвердит, что он ещё звонит (1 чтение)
+      function gcRingResume() {
+          if (gc) return; // уже в другом групповом — ждём его конца
+          const now = Date.now();
+          let best = null;
+          for (const [id, d] of gcRingPend) {
+              const ms = d.created ? getTime(d.created) : 0;
+              if (now - ms < CALL_RING_MS + 15000 && (!best || ms > best.ms)) best = { id, d, ms }; // запас — на часы телефона
+          }
+          gcRingPend.clear();
+          if (!best || call || !currentUser || iBlocked(best.d.from) || bansCache[best.d.from]) return;
+          incomingCall(best.id, best.d, true);
+      }
+      async function gcAct(g, a) {
+          if (gc !== g) return;
+          if (a === "leave") return gcEnd("left");
+          if (a === "mute") { g.muted = !g.muted; gcMuteApply(g); gcRender(); }
+          else if (a === "speaker") { callRelayCtx(); if (!(await gcSetSpeaker(g, !g.speaker))) showToast(t("Звук на этом устройстве выбирает система") + (g.outNames ? " (" + g.outNames + ")" : ""), "info"); }
+          else if (a === "cam") gcCamera(g, !(g.vsrc === "cam" || g.vpending === "cam"));
+          else if (a === "flip") { if (!g.vpending) gcCamera(g, true, true); }
+          else if (a === "screen") gcScreen(g, !(g.vsrc === "screen" || g.vpending === "screen"));
+      }
+      $c("call-acts").addEventListener("click", (e) => { const b = e.target.closest("[data-gc-act]"); if (b && gc && !call) gcAct(gc, b.dataset.gcAct); });
+      $c("gc-grid").addEventListener("click", (e) => { const b = e.target.closest("[data-gc-show]"), g = gc; if (!b || !g) return; g.showVid.add(b.dataset.gcShow); gcVideoApply(g); gcRender(); });
+      $c("call-min").addEventListener("click", () => { if (gc && !call) gcMinimize(); });
+      $c("call-pill").addEventListener("click", () => { if (gc && !call) gcShow(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape" && gc && !call && $c("call-screen").classList.contains("on")) gcMinimize(); });
+      $c("gc-bar").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-gc-bar]"), gid = currentChatId; if (!b || !gid) return;
+          if (b.dataset.gcBar === "join") { const st = gcState(gid); if (st.s) gcJoinTap(gid, st.s); }
+          else if (gc && gc.gid === gid) gcShow();
+      });
+      $c("gc-confirm-go").addEventListener("click", () => { const box = $c("gc-confirm"), gid = box.dataset.gid; box.style.display = "none"; if (gid) gcStartTap(gid); });
+      document.getElementById("chat-box").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-gc-join]"); if (!b) return;
+          const n = b.closest(".gc-note"); if (n && n.dataset.gcGid && n.dataset.gcGid === currentChatId) gcJoinTap(n.dataset.gcGid, n.dataset.gcS);
+      });
+      // Фон ↔ экран: всем по ctl {bg}; вернулись — камера (iPhone гасит её в фоне), «жив», ICE restart там, где предлагал я (мой j ещё в m —
+      // без нового входа и без записи в gcalls, которую оплачивают все)
+      document.addEventListener("visibilitychange", () => {
+          const g = gc; if (!g) return;
+          const hidden = document.visibilityState === "hidden";
+          gcCtlAll(g, { bg: hidden ? 1 : 0 });
+          gcVideoApply(g);
+          if (hidden) return;
+          if (g.camLost && !g.vtrack) { g.camLost = false; gcCamera(g, true); }
+          if (g.phase === "in" && !g.lost) gcBeat(g, Date.now(), true);
+          // не чаще правила (offer2 раз в 5 с), не там, где 3 restart так и не соединили (см. gcTick), и не посреди первого соединения
+          // (ответ пришёл меньше 15 с назад: restart только сбил бы проверку адресов, а правило в первые 5 с после пары его и не примет)
+          for (const L of g.links.values()) {
+              if (L.role !== "from" || !L.gotAnswer || gcUp(L) || L.restarting || Date.now() - L.o2At < GC_RESTART_MIN_MS || (!L.connectedAt && L.r >= GC_R_NEW_MAX)
+                  || (!L.connectedAt && Date.now() - L.answeredAt < GC_CONNECT_MS)) continue;
+              L.tryAt = Date.now(); gcRestart(g, L);
+          }
+          gcRender();
+      });
 
       // ===== ПОДСКАЗКА «ВКЛЮЧИ УВЕДОМЛЕНИЯ» =====
       // Без уведомлений человек не узнает о звонке, пока Owl закрыт. Раз в 3 дня, через 20 с после входа, мягко напоминаем.
@@ -2435,7 +4615,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 92; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 94; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -2448,7 +4628,7 @@
       }
       const updBusy = () => {
           const inp = document.getElementById("message-input");
-          return !!call || isRecording || document.visibilityState !== "visible" || (inp && document.activeElement === inp && inp.value.trim())
+          return inCall() || isRecording || document.visibilityState !== "visible" || (inp && document.activeElement === inp && inp.value.trim())
               || ["e2e-screen", "e2e-fp-screen"].some(id => document.getElementById(id)?.style.display === "flex"); // человек сохраняет или вводит Совиный ключ
       };
       function tryApplyUpdate() {
@@ -3042,6 +5222,10 @@
               const scr = document.getElementById("banned-screen");
               if (iAmBanned) {
                   scr.style.display = "flex";
+                  // звонки — завершить: под экраном бана микрофон оставался бы открытым, а групповой звонок «пинал» бы остальных
+                  // как призраков (связи со мной они закрыли). Выход из группового правила пускают и забаненного
+                  if (gc) gcEnd("left");
+                  if (call) endCall();
                   stopPresence();
                   if (activeListener) { activeListener(); activeListener = null; }
                   if (!myReasonListener) myReasonListener = onSnapshot(doc(db, "ban_reasons", currentUser.uid), (r) => {
@@ -3145,6 +5329,8 @@
       // Учётную запись входа (email+пароль) из браузера удалить нельзя — это умеет только сервер (Cloud Functions).
       // Поэтому: стираем все данные и ставим метку deleted_accounts/{uid}, по которой вход навсегда блокируется.
       function showDeletedScreen() {
+          if (gc) gcEnd("left");
+          if (call) endCall();
           stopPresence(false);
           document.getElementById("global-loader").style.display = "none";
           document.getElementById("deleted-screen").style.display = "flex";
@@ -3203,6 +5389,7 @@
           await step("подписки", () => deleteFollowEdges(uid));
           await step("бан и обращения", () => deleteRefsInChunks(["bans", "ban_reasons", "appeals", "verified", "users_private"].map(c => doc(db, c, uid))));
           await step("профиль", () => deleteDoc(doc(db, "users", uid)));
+          await step("счётчики", () => deleteDoc(doc(db, "ratelimits", uid))); // правила пускают только после профиля
           // Сейф Совиного ключа и его история: правила разрешают админу удалять их только после профиля
           await step("ключ шифрования", async () => {
               let old;
@@ -3361,6 +5548,7 @@
           devFilter = t.getAttribute("data-f");
           document.querySelector("#dev-panel-screen .dev-search").style.display = devFilter === "stats" || devFilter === "backup" ? "none" : "";
           if (devFilter === "stats") statsDocs = null; // при каждом открытии — свежие цифры
+          if (devFilter === "backup") checkTurnGuard(); // предохранитель TURN — при каждом открытии вкладки (не на каждую перерисовку)
           document.querySelectorAll("#dev-tabs .tab").forEach(el => el.classList.toggle("active", el === t));
           renderDevPanel();
       });
@@ -3514,12 +5702,14 @@
             snapshot.docChanges().forEach(change => {
                 let g = change.doc.data();
                 let docId = change.doc.id; 
-                if(change.type === 'removed') delete groupsCache[docId];
+                if(change.type === 'removed') { delete groupsCache[docId]; gcGroupGone(docId); } // меня исключили — из группового звонка тоже
                 else if (SAFE_ID.test(docId)) groupsCache[docId] = { ...g, id: docId }; // беседу с «хитрым» номером не показываем; поле id внутри записи не подменит номер
             });
             syncGroupMetaListeners();
             watchContacts();
             renderChatList(document.getElementById("search-input").value);
+            tryPendingChat(); // холодный старт из push беседы: беседа могла прийти позже профилей
+            gcOnGroups();
           });
 
           // ПРЕВЬЮ ЧАТОВ: загружаем только свои — личные (members содержит меня), свои беседы и глобальный чат.
@@ -3527,7 +5717,7 @@
           const metaChanged = () => {
             watchContacts();
             updateUnreadIndicators(totalUnread());
-            if (window.__pendingChat && Object.keys(usersCache).length) { const id = window.__pendingChat; window.__pendingChat = null; window.openChatById(id); }
+            if (window.__pendingChat && Object.keys(usersCache).length) tryPendingChat();
             renderChatList(document.getElementById("search-input").value);
           };
           const applyMeta = (id, meta, quiet) => {
@@ -4022,7 +6212,7 @@
 
       window.removeGroupMember = async (groupId, targetUid) => {
           if(confirm(t("Точно хотите исключить этого участника из беседы?"))) {
-              try { await setDoc(doc(db, "groups", groupId), { members: arrayRemove(targetUid) }, { merge: true }); deleteDoc(doc(db, "group_invites", groupId + "_" + targetUid)).catch(() => {}); showToast(t("Участник исключен"), "logout"); openPublicProfile(groupId); } catch(e) { console.error(e); }
+              try { await gcGroupLeaveWrite(groupId, targetUid); deleteDoc(doc(db, "group_invites", groupId + "_" + targetUid)).catch(() => {}); showToast(t("Участник исключен"), "logout"); openPublicProfile(groupId); } catch(e) { console.error(e); }
           }
       };
       // Кнопки «Сделать админом» / «Исключить» в списке участников (обработчик один на список — без onclick в разметке)
@@ -4110,7 +6300,7 @@
                 };
             } else { document.getElementById("delete-group-btn").style.display = "none"; document.getElementById("leave-group-btn").style.display = "block"; document.getElementById("add-members-block").style.display = "none"; }
             let leaveBtn = document.getElementById("leave-group-btn");
-            leaveBtn.onclick = async () => { if(confirm(t("Точно хотите покинуть беседу?"))) { await setDoc(doc(db, "groups", g.id), { members: arrayRemove(currentUser.uid) }, { merge: true }); document.getElementById("group-info-screen").style.display = "none"; window.loadChat(NEWS_ID, t("Новости Owl"), null, false); } };
+            leaveBtn.onclick = async () => { if(confirm(t("Точно хотите покинуть беседу?"))) { await gcGroupLeaveWrite(g.id, currentUser.uid); document.getElementById("group-info-screen").style.display = "none"; window.loadChat(NEWS_ID, t("Новости Owl"), null, false); } };
             document.getElementById("group-info-screen").style.display = "flex"; return;
         }
 
@@ -4328,9 +6518,10 @@
                   let preview = meta && meta.lastMessageText ? sharedPreview(meta) : tp(g.members.length, "участник|участника|участников");
                   let time = meta && meta.timestamp ? getTime(meta.timestamp) : (g.createdAt ? getTime(g.createdAt) : 0);
                   let safeName = escapeHTML(g.name); let av = safeImg(g.photoURL) || generateAvatarSVG(g.name, true);
+                  const gcm = gcListMark(g.id), avImg = `<img src="${av}" data-profile-target="${escapeHTML(g.id)}" title="${t("Открыть профиль группы")}">`; // идёт групповой звонок — трубка на аватаре
                   chatItemsArray.push({
-                      id: g.id, targetUid: escapeHTML(g.id), isGroup: true, name: safeName, subtext: preview, namePrefix: groupIconSVG,
-                      avatarHtml: `<img src="${av}" data-profile-target="${escapeHTML(g.id)}" title="${t("Открыть профиль группы")}">`, time: time, unread: 0, isOfficial: false, isPinned: myPinned.includes(g.id)
+                      id: g.id, targetUid: escapeHTML(g.id), isGroup: true, name: safeName, subtext: gcm ? gcm.sub : preview, namePrefix: groupIconSVG,
+                      avatarHtml: gcm ? `<span class="av-wrap">${avImg}${gcm.mark}</span>` : avImg, time: time, unread: 0, isOfficial: false, isPinned: myPinned.includes(g.id)
                   });
                }
             });
@@ -4783,6 +6974,7 @@
           startBanListeners();
           startBlockListeners();
           startCallsListener();
+          startGcListener(); // групповые звонки моих бесед (пилот: админ и тестеры)
           setTimeout(pushNudge, 20000);
           setTimeout(markActiveToday, 3000);
           startPresence();
@@ -4809,6 +7001,9 @@
           // прошлого аккаунта (например, панель разработчика) не достались следующему
           // Заодно стираем личное с устройства: черновики и прочее (clearPersonalData) и офлайн-копию переписки (хранилище Firestore)
           if (currentUser) {
+              // групповой звонок (вышли из аккаунта не кнопкой — в другой вкладке, сессия кончилась): писать уже нельзя — просто закрыть
+              // соединения и микрофон; pagehide при перезагрузке тогда не пишет в уже закрытую базу
+              if (gc) gcEnd("left", { noWrite: true });
               clearTimeout(draftTimer); clearPersonalData();
               await e2eOnSignedOut(); // §3.8: метка сессии off и отписка push (≤1,5 с); ключи НЕ стираем — вход тем же аккаунтом их вернёт
               const wait = (ms) => new Promise(r => setTimeout(r, ms));
@@ -5619,6 +7814,7 @@
               if (!isAdmin && input) { input.style.display = "none"; cancelReply(); }
           }
           refreshNightBar();
+          gcAfterBlockState(); // плашка группового звонка; в звонке — заблокированного не слышно и не видно
           const inDM = !!dmPeer(currentChatId);
           document.querySelectorAll("#chat-box .message-row.other-msg[data-uid]").forEach(r => r.classList.toggle("from-blocked", !inDM && iBlocked(r.getAttribute("data-uid"))));
       }
@@ -5657,6 +7853,7 @@
           "340YPw2Ad4f3L9tC1lf8byEqcZo2", // HMonday (12.11)
           "p8izqOpJmcNpnu2mWnZISqbNJ3r1", // Sofia Trushkina (12.11)
           "VAYDwgE41nNsMG7vHSdZWIChrQy1", // wxkizxshi (12.11)
+          "vqy03g6uI6PDuMjxeQi8LiyO2TJ2", // Elena (12.11, с групповыми звонками)
       ]);
       const E2E_ALL = false;
       // ключ для запросов не вшит (E2E_ESCROW ниже) — ключи не создаются ни у кого: все работают как вне пилота
@@ -7645,7 +9842,7 @@
       }
 
       function startEdit(id) {
-          const m = loadedMsgs[id]; if (!m || m.uid !== currentUser.uid || !m.text || e2eHidden(m)) return; // нерасшифрованное не правим
+          const m = loadedMsgs[id]; if (!m || m.uid !== currentUser.uid || !m.text || m.gcall || e2eHidden(m)) return; // нерасшифрованное и карточку звонка не правим
           cancelReply(); editingMsgId = id;
           const input = document.getElementById("message-input"); input.value = m.text; input.focus();
           document.getElementById("send-button").innerHTML = checkIconSVG;
@@ -7715,10 +9912,10 @@
           if (!hidden && !sealed && !(m.chatId === NEWS_ID && !isAdmin)) acts.push(["reply", replyIconSVG.replace(/width="16" height="16"/, 'width="20" height="20"'), t("Ответить")]);
           if (!hidden && !sealed && m.text) acts.push(["copy", icon("copy", 20), t("Копировать текст")]);
           if (!hidden && !sealed && m.imageUrl) acts.push(["photo", icon("image", 20), t("Открыть фото")]);
-          if (!hidden && !sealed && !m.poll) acts.push(["forward", icon("forward", 20), t("Переслать")]);
-          if (!hidden && !sealed && !m.poll && !isNest(m.chatId)) acts.push(["nest", NEST_SVG(20), t("Сохранить в Гнездо")]);
+          if (!hidden && !sealed && !m.poll && !m.gcall) acts.push(["forward", icon("forward", 20), t("Переслать")]);
+          if (!hidden && !sealed && !m.poll && !m.gcall && !isNest(m.chatId)) acts.push(["nest", NEST_SVG(20), t("Сохранить в Гнездо")]);
           if (!hidden && !sealed) acts.push(["select", icon("check", 20), t("Выбрать")]);
-          if (isMe && !sealed && m.text) acts.push(["edit", icon("pencil", 20), t("Изменить")]);
+          if (isMe && !sealed && m.text && !m.gcall) acts.push(["edit", icon("pencil", 20), t("Изменить")]);
           if (isMe || isAdmin) acts.push(["delete", icon("trash", 20), t("Удалить"), "danger"]);
           if (!isMe && !isAdmin) acts.push(["report", icon("flag", 20), t("Пожаловаться"), "danger"]);
           document.getElementById("mm-actions").innerHTML = acts.map(([a, ic, t, cls]) => `<button data-act="${a}" class="${cls || ""}">${ic}<span>${t}</span></button>`).join("");
@@ -7778,7 +9975,7 @@
       function selPaint() {
           const list = selMsgs();
           document.getElementById("sel-count").textContent = t("Выбрано: {n}", { n: list.length });
-          const can = { copy: list.some(m => m.text), forward: list.some(m => !m.poll), nest: !isNest(currentChatId) && list.some(m => !m.poll), delete: list.length > 0 && list.every(canDeleteMsg) };
+          const can = { copy: list.some(m => m.text), forward: list.some(m => !m.poll && !m.gcall), nest: !isNest(currentChatId) && list.some(m => !m.poll && !m.gcall), delete: list.length > 0 && list.every(canDeleteMsg) };
           document.querySelectorAll("#select-bar [data-sel]").forEach(b => { const a = b.getAttribute("data-sel"); b.classList.toggle("off", !can[a]); b.style.display = a === "nest" && isNest(currentChatId) ? "none" : ""; });
       }
       function enterSelect(id) {
@@ -7831,12 +10028,12 @@
                   return exitSelect();
               }
               case "forward": {
-                  const fw = list.filter(m => !m.poll);
+                  const fw = list.filter(m => !m.poll && !m.gcall);
                   if (!fw.length) return showToast(t("Эти сообщения нельзя переслать"), "info");
                   exitSelect(); return openForward(fw);
               }
               case "nest": {
-                  const fw = list.filter(m => !m.poll);
+                  const fw = list.filter(m => !m.poll && !m.gcall);
                   if (!fw.length) return showToast(t("Эти сообщения нельзя переслать"), "info");
                   exitSelect(); return forwardManyTo(fw, { chatId: nestId(), title: t("Гнездо"), targetUid: null }, t("Сохранено в Гнездо 🪺"));
               }
@@ -8085,7 +10282,7 @@
               trackPendingWrites(snapshot);
 
               const firstSnapNow = firstSnap;
-              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added" && !change.doc.metadata.hasPendingWrites) { let msg = change.doc.data(); if (msg.uid !== currentUser.uid && !iBlocked(msg.uid)) { playNotifySound(); } } });
+              if (!firstSnap) snapshot.docChanges().forEach(change => { if (change.type === "added" && !change.doc.metadata.hasPendingWrites) { let msg = change.doc.data(); if (msg.uid !== currentUser.uid && !iBlocked(msg.uid) && !(msg.gcall && gcEnabled())) { playNotifySound(); } } }); // карточка звонка — сигнал уже дала всплывашка
               firstSnap = false;
               if (!firstSnapNow) pendingFresh += snapshot.docChanges().filter(c => c.type === "added" && !c.doc.metadata.hasPendingWrites && c.doc.data().uid !== currentUser.uid && getTime(c.doc.data().timestamp) > Date.now() - 60000).length;
 
@@ -8187,7 +10384,7 @@
 
                     // нерасшифрованное (§4.1 п.19): ни ответа, ни правки; текст для правки берётся из loadedMsgs (дубль data-text убран)
                     let actionsHtml = `<div class="msg-actions">${e2eBad ? "" : `<button class="msg-action-btn reply-btn" data-id="${msg.id}" title="${t("Ответить")}">${replyIconSVG}</button>`}<button class="msg-action-btn" data-rx="👍">👍</button><button class="msg-action-btn" data-rx="❤">❤️</button><button class="msg-action-btn" data-rx="😂">😂</button>`;
-                    if ((isMe || (chPost && authorIsMe)) && !msg.guard && !msg.call && !e2eBad) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" title="${t("Редактировать")}">${editIconSVG}</button>`;
+                    if ((isMe || (chPost && authorIsMe)) && !msg.guard && !msg.call && !msg.gcall && !e2eBad) actionsHtml += `<button class="msg-action-btn edit-btn" data-id="${msg.id}" title="${t("Редактировать")}">${editIconSVG}</button>`;
                     if (isMe || isAdmin) actionsHtml += `<button class="msg-action-btn delete-btn" data-id="${msg.id}" title="${t("Удалить")}">${deleteIconSVG}</button>`;
                     if (!isMe && !isAdmin) actionsHtml += `<button class="msg-action-btn report-btn" data-id="${msg.id}" title="${t("Пожаловаться")}">${icon("flag", 16)}</button>`;
                     actionsHtml += `</div>`; contentHtml += actionsHtml;
@@ -8209,7 +10406,8 @@
                       contentHtml += `<div class="reply-quote" data-reply-id="${escapeHTML(msg.replyTo.id)}"><b>${escapeHTML(rs || '')}</b><span>${iconizePreview(escapeHTML(rt || ''))}</span></div>`; }
                     if (msg.guard) messageRow.classList.add(msg.guard.kind === "ok" ? "guard-ok-msg" : "guard-msg");
                     if (msg.call) { messageRow.classList.add("call-msg"); contentHtml += callNoteHtml(msg, isMe); }
-                    if (msg.text && !msg.call) { const shown = chPost ? newsText(msg) : msg.guard ? guardMsgText(msg) : msg.text; let body = highlightMentions(linkify(shown), msg); if (msg.guard) body = body.replace(/^(⚠\uFE0F?|✅)/u, (e) => emojiIcon(e)); contentHtml += `<span class="msg-text-content" data-raw="${escapeHTML(shown)}">${body}</span>`; }
+                    else if (msg.gcall && isGroup) { messageRow.classList.add("call-msg"); contentHtml += gcNoteHtml(msg); } // групповой звонок: одна карточка
+                    if (msg.text && !msg.call && !(msg.gcall && isGroup)) { const shown = chPost ? newsText(msg) : msg.guard ? guardMsgText(msg) : msg.text; let body = highlightMentions(linkify(shown), msg); if (msg.guard) body = body.replace(/^(⚠\uFE0F?|✅)/u, (e) => emojiIcon(e)); contentHtml += `<span class="msg-text-content" data-raw="${escapeHTML(shown)}">${body}</span>`; }
                     // Шифрование: пузырь-ошибка (у «не подключено» нажатие открывает подключение); «Сова на страже» в зашифрованном чате — открыта
                     if (e2eBad) { const [ftxt, tap] = e2eFailText(msg._e2e); contentHtml += `<span class="e2e-fail${tap ? " tap" : ""}" data-e2e-fail="${escapeHTML(msg._e2e)}"${tap ? ' role="button" tabindex="0"' : ""}>${iconizeEmoji(escapeHTML(ftxt))}</span>`; }
                     if (msg.guard && isE2EChat(chatId) && E2E.pins.has(e2ePeer(chatId))) contentHtml += `<div class="e2e-svc">${escapeHTML(t("Служебное сообщение, не зашифровано"))}</div>`;
@@ -8959,17 +11157,40 @@
 
       document.getElementById("delete-account-btn").addEventListener("click", async () => {
           if (!currentUser) return;
-          let confirmFirst = confirm(t("Вы уверены, что хотите удалить свой аккаунт? Это действие необратимо!")); if (!confirmFirst) return;
-          let confirmSecond = confirm(t("АБСОЛЮТНО УВЕРЕНЫ? Будут стёрты профиль, ник, личные переписки и уведомления.")); if (!confirmSecond) return;
-
+          // во время звонка не начинаем: завершение звонка само пишет в базу (отметку о звонке), удаление шло бы наперегонки с ним
+          if (call || gc) return showToast(t("Сначала завершите звонок"), "alert");
+          const delBtn = document.getElementById("delete-account-btn");
+          if (delBtn.disabled) return; // уже идёт
+          delBtn.disabled = true; // сразу: второе нажатие, пока идут вопросы и проверка пароля, не начнёт второе удаление
           try {
+              let confirmFirst = confirm(t("Вы уверены, что хотите удалить свой аккаунт? Это действие необратимо!")); if (!confirmFirst) return;
+              let confirmSecond = confirm(t("АБСОЛЮТНО УВЕРЕНЫ? Будут стёрты профиль, ник, личные переписки и уведомления.")); if (!confirmSecond) return;
+
               const pw = prompt(t("Для подтверждения введите ваш пароль:"));
               if (!pw) return;
               if (!(await reauthWithPassword(pw))) return;
               stopPresence(false); let uidToDelete = currentUser.uid;
-              showToast(t("Удаляем данные..."), "trash");
               // Каждый шаг — отдельно: если на что-то нет прав, остальное всё равно удаляется
               const step = async (name, fn) => { try { await fn(); } catch (e) { console.log("Удаление аккаунта, " + name + ":", e.code || e); } };
+              // Служебные счётчики (защита от спама: последнее сообщение, время старта группового звонка и беседа) стираются сразу после
+              // профиля, а правила пускают это, только когда лимиты в записи истекли (иначе так обнуляли бы лимит сообщений). Минутное
+              // окно сообщений дожидаемся ЗДЕСЬ — до первого шага удаления и с надписью: закрытое во время ожидания приложение ничего
+              // не стёрло (иначе аккаунт остался бы полуудалённым — без ника, бесед и переписок, но со входом). Окно группового звонка
+              // (5 мин), если до конца больше минуты, не ждём: стираем, только если к шагу «счётчики» оно истекло. Ожидание отодвигает
+              // проверку входа (e2eFreshLogin(4) ниже) не больше чем на минуту; не уложились — пароль спросят ещё раз
+              let rlRef = doc(db, "ratelimits", uidToDelete), rlUntil = 0, rlGcOpen = false; // rlUntil — когда истекут все окна в записи
+              try {
+                  const rs = await getDoc(rlRef);
+                  if (!rs.exists()) rlRef = null;
+                  else {
+                      const d = rs.data(), ms = (v) => (v && typeof v.toMillis === "function" ? v.toMillis() : 0);
+                      rlUntil = Math.max(ms(d.mw) + 60000, ms(d.g) + 800, ms(d.gc) + 5 * 60000);
+                      rlGcOpen = ms(d.gc) + 5 * 60000 - Date.now() > 60800; // окно звонка дольше минуты — не ждём: решит шаг «счётчики»
+                  }
+              } catch (e) { console.log("Удаление аккаунта, счётчики:", e.code || e); }
+              const rlWait = rlRef && !rlGcOpen && rlUntil > Date.now() ? Math.min(rlUntil - Date.now(), 60800) + 3000 : 0; // окно на сервере — не дольше 60,8 с; +3 с — на часы
+              showToast(t("Удаляем данные..."), "trash", rlWait ? { ms: rlWait } : {});
+              if (rlWait) await new Promise(r => setTimeout(r, rlWait));
               await step("уведомления на устройство", serverPushUnsubscribe);
               await step("личные переписки", async () => {
                   const metas = await getDocs(query(collection(db, "chats_metadata"), where("members", "array-contains", uidToDelete)));
@@ -9018,6 +11239,15 @@
                   }
                   if (!done) { try { await deleteDoc(doc(db, "users", uidToDelete)); } catch (e3) { console.log("Удаление аккаунта, профиль:", e3.code || e3); throw unfinished(); } } // правила без сейфа — профиль, как раньше
               }
+              // Счётчики — сразу после профиля. Окно сообщений дождались выше, и тогда стираем всегда (часы телефона могут отставать
+              // от серверных отметок); окно звонка не ждали — стираем, только если оно уже истекло, иначе запись останется. Пара
+              // коротких повторов — на спешащие часы; отдельным шагом: если правила старые, остальное уже удалено
+              if (rlRef && (!rlGcOpen || Date.now() >= rlUntil + 3000)) await step("счётчики", () => Promise.race([(async () => {
+                  for (let i = 0; ; i++) {
+                      try { await deleteDoc(rlRef); return; }
+                      catch (e) { if (i >= 2 || !e || e.code !== "permission-denied") throw e; await new Promise(r => setTimeout(r, 2000)); }
+                  }
+              })(), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000))]));
               e2eMarkWipe(); await e2eSessionOff(); await e2eWipeDevice(); e2eLoggingOut = true; // ключи с устройства — до выхода (deleteUser сразу разлогинит)
               await deleteUser(currentUser);
               showToast(t("Аккаунт успешно удален"), "trash"); document.getElementById("settings-screen").style.display = "none";
@@ -9027,7 +11257,7 @@
               else if (error.code === 'auth/requires-recent-login') { alert(t("В целях безопасности, чтобы удалить аккаунт, вам нужно выйти и зайти заново (ввести пароль).")); signOut(auth); } 
               else if (error.code === "owl/unfinished") { alert(error.message); }
               else { alert(t("Произошла ошибка при удалении аккаунта: ") + error.message); }
-          }
+          } finally { delBtn.disabled = false; }
       });
     
       // Рассылка уведомлений всем пользователям (только админ)

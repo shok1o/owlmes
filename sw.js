@@ -1,10 +1,16 @@
-const CACHE = 'owl-shell-v92';
+const CACHE = 'owl-shell-v94';
 // Приложение — index.html + boot.js/app.js/ui.js (?v= — как CACHE): кладём их сразу, иначе без сети после обновления не запустится
-const SHELL = ['/', '/boot.js?v=92', '/app.js?v=92', '/ui.js?v=92', '/i18n-en.js?v=92', '/i18n-de.js?v=92', '/i18n-pl.js?v=92',
-    '/e2e.js?v=92', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const SHELL = ['/', '/boot.js?v=94', '/app.js?v=94', '/ui.js?v=94', '/i18n-en.js?v=94', '/i18n-de.js?v=94', '/i18n-pl.js?v=94',
+    '/e2e.js?v=94', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 // Ядро шифрования (globalThis.OwlE2E) — для расшифровки текста в push. Номер ?v= — тот же, что у CACHE и SHELL.
 // Без try: не загрузилось — новый service worker не ставится, остаётся прежний, браузер повторит позже.
-importScripts('/e2e.js?v=92');
+importScripts('/e2e.js?v=94');
+// Служебные отметки приложения (Cache Storage, не файлы сайта): при обновлении service worker не стираются.
+// /__owl/gc-busy — «это устройство в групповом звонке до T» (app.js gcSwMark, обновляется раз в 30 с)
+const STATE = 'owl-state';
+function gcBusy() {
+    return caches.open(STATE).then((c) => c.match('/__owl/gc-busy')).then((r) => (r ? r.text() : '')).then((x) => +x > Date.now()).catch(() => false);
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -18,7 +24,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
-            .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+            .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== STATE).map((k) => caches.delete(k))))
             .then(() => clients.claim())
     );
 });
@@ -81,7 +87,9 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// Клик по уведомлению о сообщении — открываем приложение и нужный чат
+// Клик по уведомлению о сообщении — открываем приложение и нужный чат.
+// Групповой звонок (open: 'gcall', chatId — беседа): тоже просто открываем беседу. Войти сразу нельзя — микрофону и звуку
+// на iPhone нужно касание внутри приложения; в беседе уже висит плашка «Идёт звонок · N · Присоединиться»
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const chatId = event.notification.data && event.notification.data.chatId;
@@ -114,9 +122,21 @@ self.addEventListener('push', (event) => {
     // «Сова на страже»: тревога и напоминания — громко, с вибрацией и не исчезают сами
     if (d.loud) { opts.requireInteraction = true; opts.silent = false; opts.vibrate = [400, 150, 400, 150, 800]; }
     const title = d.title || 'Owl Messenger';
+    // Групповой звонок: такое же уведомление (тот же tag) уже могло показать само приложение из фоновой вкладки — тогда заменяем молча
+    const gcTag = tag.indexOf('owl-gcall-') === 0;
     event.waitUntil(
         // Список окон не получили — считаем, что приложение закрыто: уведомление показать нужно в любом случае
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).catch(() => []).then((list) => {
+        Promise.all([
+            clients.matchAll({ type: 'window', includeUncontrolled: true }).catch(() => []),
+            d.call ? gcBusy() : false,
+            gcTag ? self.registration.getNotifications({ tag: tag }).then((ns) => ns.length > 0).catch(() => false) : false
+        ]).then(([list, busy, shown]) => {
+            // Личный звонок, а это устройство сейчас в групповом звонке (и приложение может быть в фоне): тут не звоним поверх
+            // разговора — уведомление тихое, без вибрации и не «висит» (другие устройства звонят как обычно; вопрос 7, вариант «а»).
+            // Окон приложения нет — группового звонка здесь быть не может (отметка осталась от закрытой вкладки): звоним как обычно
+            const app = list.some((c) => { try { const p = new URL(c.url).pathname; return p === '/' || p === '/index.html'; } catch (_) { return false; } });
+            if (busy && app) { opts.silent = true; delete opts.requireInteraction; delete opts.vibrate; }
+            if (shown) opts.renotify = false;
             // Owl открыт на экране — уведомление покажет само приложение.
             // Safari требует показывать уведомление на каждый push, поэтому показываем и сразу убираем.
             // Входящий звонок при открытом приложении показывает экран звонка — уведомление тоже убираем.
