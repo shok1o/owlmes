@@ -25,7 +25,7 @@
          owlCalm() — «без лишнего движения»: этот режим или системное «Уменьшение движения» -->
     <!-- Защита от чужих скриптов (CSP): что странице можно загружать. Та же строка — в boot.js (OWL_CSP); менять обе вместе -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://www.gstatic.com/firebasejs/10.11.0/ https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://push.owlmes.ru https://www.gstatic.com/recaptcha/ https://www.google.com/recaptcha/ https://challenges.cloudflare.com; media-src 'self' data: blob:; connect-src 'self' data: blob: https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://content-firebaseappcheck.googleapis.com https://www.google.com/recaptcha/ https://push.owlmes.ru; frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/ https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-    <script src="boot.js?v=94"></script>
+    <script src="boot.js?v=96"></script>
 
     <style>
       :root {
@@ -1846,6 +1846,8 @@
       /* Всплывашка с кнопкой (showToast opts.action): «{name} начинает групповой звонок · Присоединиться» */
       .toast.has-act { align-items: center; padding-right: 10px; }
       .toast.has-act > span:nth-child(2) { flex: 1 1 auto; min-width: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; word-break: break-word; text-align: left; }
+      /* важные ошибки (opts.full) — текст целиком, без обрезки до 3 строк: совет «напишите близким сами» не должен пропасть */
+      .toast.full > span:nth-child(2) { display: block; -webkit-line-clamp: unset; overflow: visible; }
       .toast .toast-act { flex-shrink: 0; min-height: 34px; border: 0; border-radius: 14px; padding: 8px 14px; background: #34c759; color: #fff; font: inherit; font-size: 13px; font-weight: 700;
         cursor: pointer; white-space: nowrap; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
       /* Узкие телефоны (390 и 375 точек) */
@@ -2847,7 +2849,7 @@
         <button id="open-create-group-btn" class="new-chat-fab" title="Создать беседу" aria-label="Создать беседу">
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 20.5l1.5-4.7A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"></path><line x1="12" y1="8" x2="12" y2="15"></line><line x1="8.5" y1="11.5" x2="15.5" y2="11.5"></line></svg>
         </button>
-        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.121</div>
+        <div id="app-version" style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 6px 0; background: var(--bg-panel); flex-shrink: 0; border-top: 1px solid var(--border-color); font-weight: 500; user-select: none;">Owl Messenger v1.121.1</div>
       </div>
       
       <!-- ЧАТ -->
@@ -2938,7 +2940,7 @@
       </div>
     </div>
 
-    <script type="module" src="app.js?v=94"></script>
-    <script src="ui.js?v=94"></script>
+    <script type="module" src="app.js?v=96"></script>
+    <script src="ui.js?v=96"></script>
   </body>
 </html>

@@ -34,7 +34,7 @@
       // Загрузка не уложилась в 8 с, но потом всё-таки закончилась — e2eLateLib (ставит раздел шифрования) повторит запуск сам
       let e2eLateLib = null;
       const e2eImport = (bust) => {
-          const imp = import(bust ? `./e2e.js?v=94&r=${Date.now()}` : "./e2e.js?v=94");
+          const imp = import(bust ? `./e2e.js?v=96&r=${Date.now()}` : "./e2e.js?v=96");
           return Promise.race([imp, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 8000))])
               .then(() => globalThis.OwlE2E || null, () => {
                   if (!globalThis.OwlE2E) imp.then(() => { if (globalThis.OwlE2E && e2eLateLib) e2eLateLib(); }, () => {});
@@ -43,7 +43,7 @@
       };
       let e2eLoad = e2eImport(false); // «Повторить» (e2eRetry) подменяет промис новой попыткой; ждущие читают (await e2eLoad) || globalThis.OwlE2E
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=94`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=96`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -360,8 +360,8 @@
       const TOAST_MAX = 4;
       function showToast(message, icon_ = "bell", opts = {}) {
         const container = document.getElementById("toast-container"); if(!container) return;
-        const toast = document.createElement("div"); toast.className = "toast";
-        let msg = String(message == null ? "" : message); if (msg.length > 140) msg = msg.slice(0, 137).trimEnd() + "…";
+        const toast = document.createElement("div"); toast.className = opts.full ? "toast full" : "toast";
+        let msg = String(message == null ? "" : message); if (!opts.full && msg.length > 140) msg = msg.slice(0, 137).trimEnd() + "…";
         const ic = document.createElement("span"); ic.className = "toast-icon"; ic.innerHTML = icon(ICONS[icon_] ? icon_ : "info", 18);
         const tx = document.createElement("span"); tx.innerHTML = iconizeEmoji(escapeHTML(msg));
         toast.append(ic, tx);
@@ -644,7 +644,7 @@
               if (r.ok || r.status === 400) return lpStore(url, { none: 1, at: Date.now() }); // у страницы нет карточки или адрес не подходит
               return keepOld();
           };
-          const req = pushPost("/preview", { url }).then(async r => [r, await r.json().catch(() => null)]);
+          const req = pushPost("/preview", { url }, { timeout: 30000 }).then(async r => [r, await r.json().catch(() => null)]);
           return lpPending[url] = Promise.race([req, new Promise(ok => setTimeout(() => ok(null), 12000))]).then(res => {
               if (res) return settle(res);
               req.then(settle).catch(() => {}); // ответ пришёл позже — пригодится в следующий раз
@@ -1356,36 +1356,81 @@
       const b64uToBytes = (str) => { str = str.replace(/-/g, "+").replace(/_/g, "/"); while (str.length % 4) str += "="; const bin = atob(str); return Uint8Array.from(bin, c => c.charCodeAt(0)); };
       const bytesToB64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
       const serverPushSupported = () => "PushManager" in window && !!navigator.serviceWorker;
-      async function pushPost(path, data) {
-          const token = await currentUser.getIdToken();
-          // Пропуск App Check — сервер пушей читает базу от имени пользователя и предъявляет его
-          let ac = null; if (appCheck) try { ac = (await getAppCheckToken(appCheck)).token; } catch (e) { console.log("App Check токен:", e.code || e.message || e); }
-          // text/plain — без лишнего CORS-запроса; сервер всё равно разбирает JSON
-          return fetch(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token, ...(ac ? { appCheck: ac } : {}) }), keepalive: true });
+      // Запрос к серверу с пределом по времени (v1.121.1). В некоторых сетях соединение с сервером зависает молча — без предела
+      // запрос висел бы бесконечно, а кнопка — в «ожидании». Через ms запрос прерывается (AbortError), и вызвавший показывает
+      // понятную ошибку. Таймер не снимаем после заголовков: он сторожит и чтение тела ответа (abort после конца — ничего не делает)
+      function fetchT(url, init = {}, ms = 15000) {
+          if (!ms || typeof AbortController !== "function") return fetch(url, init);
+          const ac = new AbortController();
+          setTimeout(() => ac.abort(), ms);
+          return fetch(url, { ...init, signal: ac.signal });
       }
+      // Ошибка сети (нет ответа, прервано по времени), а не отказ сервера: у отказа есть info (разобранный ответ) или status
+      const isNetErr = (e) => !!e && !e.info && !e.status && (e.name === "AbortError" || e.name === "TypeError" || e.name === "TimeoutError" || /fetch|network|load failed/i.test(e.message || ""));
+      // opts.timeout — предел в мс (по умолчанию 15 с); keepalive (запрос доживает до конца, даже если вкладку закрыли) —
+      // только для маленьких тел: у браузера общий лимит 64 КБ, больший запрос с keepalive не уйдёт вовсе
+      // Промис с пределом: не уложился — ошибка TimeoutError (её isNetErr считает сбоем сети)
+      const withLimit = (p, ms) => !ms ? p : Promise.race([p, new Promise((_, no) => setTimeout(() => no(Object.assign(new Error("нет ответа"), { name: "TimeoutError" })), ms))]);
+      async function pushPost(path, data, opts = {}) {
+          const ms = opts.timeout ?? 15000;
+          // пропуска тоже в пределе: обновление ID token или проверка App Check могли бы повиснуть до самого запроса
+          const token = await withLimit(currentUser.getIdToken(), ms);
+          // Пропуск App Check — сервер пушей читает базу от имени пользователя и предъявляет его (не дождались за 5 с — без него)
+          let ac = null; if (appCheck) try { ac = (await withLimit(getAppCheckToken(appCheck), 5000)).token; } catch (e) { console.log("App Check токен:", e.code || e.message || e); }
+          // text/plain — без лишнего CORS-запроса; сервер всё равно разбирает JSON
+          const body = JSON.stringify({ ...data, token, ...(ac ? { appCheck: ac } : {}) });
+          const keepalive = opts.keepalive !== false && new TextEncoder().encode(body).length < 60000;
+          return fetchT(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body, keepalive }, ms);
+      }
+      let pushUnsubP = null; // отписка «застрявшей» подписки на экране входа (см. onAuthStateChanged)
+      // true — подписка сохранена; "net" — сервер не ответил из этой сети; false — другой сбой (отказ сервера, браузер не дал подписку)
       async function serverPushSubscribe() {
           if (!currentUser || !serverPushSupported()) return false;
+          let unsubLate = false;
+          if (pushUnsubP) { await withLimit(pushUnsubP, 5000).catch(() => { unsubLate = true; }); pushUnsubP = null; }
+          let net = false;
+          const netStep = (p) => p.catch(e => { net = isNetErr(e); throw e; });
           try {
               const reg = await navigator.serviceWorker.ready;
-              const { key } = await fetch(PUSH_SERVER + "/vapid").then(r => r.json());
+              const vr = await netStep(fetchT(PUSH_SERVER + "/vapid", {}, 10000));
+              const vj = vr.ok ? await netStep(vr.json()) : null;
+              const key = vj && vj.key;
+              // ключ проверяем до того, как трогать подписку: ответ сбоя сервера без ключа не должен отписать рабочее устройство
+              if (typeof key !== "string" || !/^[A-Za-z0-9_-]{80,100}$/.test(key)) return false;
               let sub = await reg.pushManager.getSubscription();
               const oldKey = sub && sub.options && sub.options.applicationServerKey;
-              if (sub && oldKey && bytesToB64u(oldKey) !== key) { await sub.unsubscribe().catch(() => {}); sub = null; }
+              if (sub && (unsubLate || (oldKey && bytesToB64u(oldKey) !== key))) { await sub.unsubscribe().catch(() => {}); sub = null; }
               if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(key) });
-              return (await pushPost("/subscribe", { subscription: sub.toJSON() })).ok;
-          } catch (e) { console.log("Push-подписка не удалась:", e); return false; }
+              return (await netStep(pushPost("/subscribe", { subscription: sub.toJSON() }))).ok;
+          } catch (e) { console.log("Push-подписка не удалась:", e); return net ? "net" : false; }
       }
+      // Отписка: сначала на самом устройстве (v1.121.1), потом сообщаем серверу. Раньше было наоборот — и если сервер из этой
+      // сети не отвечал, выход из аккаунта ждал 2,5 с и уходил, а устройство оставалось подписанным (чужие push продолжали бы
+      // приходить). Отписанный адрес служба доставки больше не принимает: даже если сервер не узнает, он сотрёт адрес при первом же push
       async function serverPushUnsubscribe() {
           try {
               const reg = await navigator.serviceWorker?.getRegistration(); if (!reg || !reg.pushManager) return;
               const sub = await reg.pushManager.getSubscription(); if (!sub) return;
-              if (currentUser) await pushPost("/unsubscribe", { endpoint: sub.endpoint }).catch(() => {});
+              const endpoint = sub.endpoint;
               await sub.unsubscribe().catch(() => {});
+              if (currentUser) await pushPost("/unsubscribe", { endpoint }, { timeout: 8000 }).catch(() => {});
           } catch (_) {}
       }
-      function notifyPushServer(messageId) {
+      // Уведомление получателям. Сеть не пустила (нет ответа, прервано, сбой сервера) — повторяем через 20 с и через 75 с:
+      // сервер принимает заказ не позже 5 минут после сообщения и по одному номеру сообщения рассылает один раз — в пределах
+      // своего дата-центра. Если повтор уйдёт в другой (сменили сеть), в редком случае получатель увидит push дважды —
+      // это лучше, чем не получить его вовсе
+      function notifyPushServer(messageId, attempt = 0) {
           if (!currentUser || !messageId) return;
-          pushPost("/notify", { messageId }).catch(() => {});
+          const uid = currentUser.uid;
+          const again = (sec) => {
+              if (attempt >= 2) return;
+              setTimeout(() => { if (currentUser && currentUser.uid === uid) notifyPushServer(messageId, attempt + 1); }, Math.max(sec, attempt ? 75 : 20) * 1000);
+          };
+          pushPost("/notify", { messageId }).then(async r => {
+              if (r.status === 429) { const j = await r.json().catch(() => ({})); again(Math.min(+j.retryAfter || 20, 120)); }
+              else if (r.status >= 500) again(0);
+          }).catch(() => again(0));
       }
       // Выход из аккаунта: отвязываем устройство, чтобы чужие сообщения сюда не приходили.
       // wipe — явный «Выйти»: ключи шифрования стираются с устройства (сначала окно с Совиным ключом, если он не отмечен
@@ -1506,16 +1551,43 @@
           try { if (guard) localStorage.setItem("owl-guard", JSON.stringify({ uid: currentUser.uid, g: guard })); else localStorage.removeItem("owl-guard"); } catch (_) {}
           renderGuard();
       }
-      async function guardCall(path, data = {}) {
-          const r = await pushPost(path, data);
-          const j = await r.json().catch(() => ({}));
-          if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { info: j });
+      async function guardCall(path, data = {}, opts = {}) {
+          const r = await pushPost(path, data, opts);
+          // ответ 200, а тело не дочиталось (обрыв по пределу времени) — это сбой сети, а не пустой успешный ответ:
+          // иначе guardSet(undefined) стёр бы с экрана таймер, который на сервере идёт (v1.121.1)
+          const j = await r.json().catch(() => { if (r.ok) throw Object.assign(new Error("ответ сервера оборвался"), { name: "AbortError", maybe: true }); return {}; });
+          if (!r.ok) throw Object.assign(new Error(j.error || String(r.status)), { info: j, status: r.status });
           return j;
+      }
+      // Таймер идёт, а сервер из этой сети не отвечает (v1.121.1): «Я в порядке» может не дойти — тогда близким уйдёт тревога.
+      // Предупреждаем заранее (не чаще раза в 10 минут) и подсказываем, что можно написать близким самому: переписка идёт другим путём
+      // guardMaybe — запрос «поставить таймер» ушёл, но ответа нет: сервер мог таймер поставить. Тогда сверяемся с сервером
+      // при возвращении в приложение и при появлении сети, даже если на экране таймера нет
+      let guardNetWarnAt = 0, guardMaybe = false, guardMaybeAt = 0, guardOpN = 0;
+      // «Написать»: личка с первым из близких (лучше с тем, чей профиль уже загружен). loadChat сам подгрузит профиль, если его нет
+      function guardWriteAction() {
+          const fr = guard && Array.isArray(guard.friends) ? guard.friends : [];
+          const uid = fr.find(f => usersCache[f]) || fr[0];
+          if (!uid) return undefined;
+          return { label: t("Написать"), onClick: () => { const scr = document.getElementById("guard-screen"); if (scr) scr.style.display = "none"; window.loadChat(guardDm(uid), usersCache[uid]?.name || "…", uid, false); } };
+      }
+      function guardSetMaybe() { guardMaybe = true; guardMaybeAt = Date.now(); guardSyncAt = 0; setTimeout(() => { if (guardMaybe) guardSync(); }, 20000); }
+      function guardNetWarn() {
+          if (!guard || Date.now() - guardNetWarnAt < 600000) return;
+          guardNetWarnAt = Date.now();
+          showToast(t("Сова не может связаться с сервером из этой сети. Если не получится отметиться — напишите близким сами"), "alert", { ms: 9000, full: true, action: guardWriteAction() });
       }
       async function guardSync() {
           if (!currentUser) return;
           guardSyncAt = Date.now();
-          try { const j = await guardCall("/guard/status"); guardSet(j.guard); } catch (e) { console.log("Сова на страже:", e.message); }
+          const op = guardBusy ? -1 : guardOpN; // начата во время действия — её ответ не применяем
+          try {
+              const j = await guardCall("/guard/status");
+              if (!j || !("guard" in j) || guardBusy || op !== guardOpN) return; // пока ждали ответ, человек нажал кнопку — ответ устарел
+              if (!j.guard && guardMaybe && Date.now() - guardMaybeAt < 90000) { setTimeout(() => { if (guardMaybe) guardSync(); }, 60000); return; }
+              guardMaybe = false; guardSet(j.guard);
+          }
+          catch (e) { console.log("Сова на страже:", e.message); if (isNetErr(e)) { guardSyncAt = 0; guardNetWarn(); } }
       }
       // При входе: показываем таймер из памяти устройства и сверяемся с сервером (таймер могли поставить с другого устройства)
       function guardInit() {
@@ -1601,7 +1673,9 @@
           if (left < -75000 && Date.now() - guardLateCheck > 60000) { guardLateCheck = Date.now(); guardSync(); }
       }
       setInterval(() => { if (guard && document.visibilityState === "visible") guardTickUi(); }, 1000);
-      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && guard && currentUser && Date.now() - guardSyncAt > 30000) guardSync(); });
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (guard || guardMaybe) && currentUser && Date.now() - guardSyncAt > 30000) guardSync(); });
+      // сеть вернулась — сразу сверяем таймер (в том числе «неизвестно, поставлен ли»)
+      window.addEventListener("online", () => { if ((guard || guardMaybe) && currentUser) guardSync(); });
       function guardErr(e) {
           const i = e.info || {}, who = i.uid && usersCache[i.uid]?.name;
           if (i.error === "not contact") return t("С {name} нет переписки — Сова не сможет предупредить. Сначала напишите в личку", { name: who || "…" });
@@ -1612,35 +1686,58 @@
           if (i.error === "banned") return t("Аккаунт заблокирован");
           if (i.error === "too many") return t("Слишком часто. Попробуйте чуть позже");
           if (i.error === "email not verified") return t("Сначала подтвердите почту");
+          if (e.status >= 500) return t("Ошибка сервера — неизвестно, поставлен ли таймер. Откройте Сову чуть позже: идущий таймер появится здесь");
+          // нет ответа: запрос мог дойти, и таймер мог встать — честно говорим «неизвестно» и сверимся позже (guardMaybe)
+          if (isNetErr(e)) return t("Сервер не ответил из этой сети — неизвестно, поставлен ли таймер. Попробуйте другую сеть и откройте Сову снова: идущий таймер появится здесь");
           return t("Нет связи с сервером — таймер не поставлен. Попробуйте ещё раз");
       }
       async function guardStart() {
           const min = guardMinutes(), text = document.getElementById("guard-text").value.trim();
           if (guardBusy || !text || !guardPick.size || !(min >= GUARD_MIN && min <= GUARD_MAX)) return;
-          guardBusy = true; guardFormState();
+          guardBusy = true; guardFormState(); guardOpN++;
           try {
-              const j = await guardCall("/guard/start", { text, minutes: min, friends: [...guardPick], tz: tzOffset() });
+              const j = await guardCall("/guard/start", { text, minutes: min, friends: [...guardPick], tz: tzOffset() }, { timeout: 45000 });
               try { localStorage.setItem("owl-guard-friends", JSON.stringify([...guardPick])); } catch (_) {}
-              guardBusy = false; guardSet(j.guard);
+              guardBusy = false; guardMaybe = false; guardSet(j.guard);
               document.getElementById("guard-text").value = "";
               showToast(t("Сова на страже до {time}", { time: guardHm(j.guard.due) }), "shield");
               if (!pushEnabled()) setTimeout(() => showToast(t("Уведомления выключены — напоминания придут, только пока Owl открыт. Включите их в настройках"), "bell"), 1200);
-          } catch (e) { showToast(guardErr(e), "error"); }
+          } catch (e) { if (isNetErr(e) || e.status >= 500) guardSetMaybe(); showToast(guardErr(e), "error", { full: true }); }
           guardBusy = false; renderGuard();
       }
       async function guardOk() {
           if (!guard || guardBusy) return;
-          const wasFired = !!guard.fired;
-          guardBusy = true; renderGuard();
-          try { await guardCall("/guard/cancel"); guardBusy = false; guardSet(null); showToast(wasFired ? t("Близким отправлено, что вы в порядке") : t("Отлично! Сова снята с поста"), "check"); }
-          catch (e) { showToast(t("Не получилось связаться с сервером — таймер всё ещё идёт. Попробуйте ещё раз"), "error"); }
+          const wasFired = !!guard.fired, late = wasFired || guard.due <= Date.now();
+          guardBusy = true; renderGuard(); guardOpN++;
+          try {
+              const j = await guardCall("/guard/cancel", {}, { timeout: 45000 });
+              guardBusy = false; guardSet(null);
+              showToast((typeof j.fired === "boolean" ? j.fired : wasFired) ? t("Близким отправлено, что вы в порядке") : t("Отлично! Сова снята с поста"), "check");
+          }
+          catch (e) {
+              // ответ 200 пришёл, а тело оборвалось — сервер таймер уже снял; узнать, ушло ли близким «всё в порядке», не можем
+              if (e.maybe) { guardBusy = false; guardSet(null); showToast(t("Таймер снят"), "check"); setTimeout(guardSync, 70000); }
+              // срок уже вышел — близких, возможно, уже предупредили: главное — написать им самому
+              else if (isNetErr(e) && late) { guardSyncAt = 0; showToast(t("Отметка не дошла до сервера из этой сети — близких, возможно, уже предупредили. Напишите им сами"), "error", { ms: 15000, full: true, action: guardWriteAction() }); }
+              else if (isNetErr(e)) { guardSyncAt = 0; showToast(t("Нет связи с сервером из этой сети — таймер ещё идёт. Попробуйте другую сеть или напишите близким сами"), "error", { ms: 12000, full: true, action: guardWriteAction() }); }
+              else showToast(t("Не получилось связаться с сервером — таймер всё ещё идёт. Попробуйте ещё раз"), "error");
+          }
           guardBusy = false; renderGuard();
       }
       async function guardExtend(min) {
           if (!guard || guardBusy) return;
-          guardBusy = true; renderGuard();
-          try { const j = await guardCall("/guard/extend", { minutes: min }); guardBusy = false; guardSet(j.guard); showToast(t("Срок продлён до {time}", { time: guardHm(j.guard.due) }), "clock"); }
-          catch (e) { showToast(e.info && e.info.error === "no timer" ? t("Таймер уже не идёт") : t("Не получилось продлить — попробуйте ещё раз"), "error"); if (e.info && e.info.error === "no timer") guardSync(); }
+          guardBusy = true; renderGuard(); guardOpN++;
+          try { const j = await guardCall("/guard/extend", { minutes: min }, { timeout: 45000 }); guardBusy = false; guardSet(j.guard); showToast(t("Срок продлён до {time}", { time: guardHm(j.guard.due) }), "clock"); }
+          catch (e) {
+              showToast(e.info && e.info.error === "no timer" ? t("Таймер уже не идёт")
+                  : e.maybe ? t("Ответ сервера оборвался — срок, скорее всего, продлён. Обновим его здесь через минуту")
+                  : isNetErr(e) ? t("Не удаётся подключиться к серверу из этой сети — срок не продлён. Попробуйте другую сеть или повторите позже")
+                  : t("Не получилось продлить — попробуйте ещё раз"), "error", { full: true });
+              if (e.info && e.info.error === "no timer") setTimeout(guardSync, 0); // после снятия guardBusy — иначе ответ отбросится
+              // сервер, скорее всего, продлил — сверяемся через минуту (запись на сервере догоняет до ~60 с), не продлевая дважды
+              else if (e.maybe) setTimeout(guardSync, 65000);
+              else if (isNetErr(e)) guardSyncAt = 0;
+          }
           guardBusy = false; renderGuard();
       }
       function openGuard() {
@@ -1702,7 +1799,7 @@
       function callIceServers() {
           if (callIce && Date.now() - callIce.at < 3600000) return Promise.resolve(callIce);
           if (callIceReq) return callIceReq;
-          const req = pushPost("/call/ice", {}).then(r => r.json()).then(j => {
+          const req = pushPost("/call/ice", {}, { timeout: 30000 }).then(r => r.json()).then(j => {
               // ответ с сервером связи запоминаем, даже если он опоздал к этому звонку — пригодится следующему
               if (j && Array.isArray(j.iceServers) && j.iceServers.length && j.relay) callIce = { iceServers: j.iceServers, relay: true, at: Date.now() };
               return j;
@@ -1710,7 +1807,7 @@
           const late = new Promise(res => setTimeout(() => res(null), 4000));
           return (callIceReq = Promise.race([req, late]).then(j => {
               callIceReq = null;
-              if (!j || !Array.isArray(j.iceServers) || !j.iceServers.length) return callIce && Date.now() - callIce.at < 3600000 ? callIce : STUN_ONLY; // опоздавший ответ мог уже лечь в callIce
+              if (!j || !Array.isArray(j.iceServers) || !j.iceServers.length) return callIce && Date.now() - callIce.at < 3600000 ? callIce : (j ? STUN_ONLY : { ...STUN_ONLY, net: true }); // net — сервер не ответил (для текста ошибки) // опоздавший ответ мог уже лечь в callIce
               return callIce && j.relay ? callIce : { iceServers: j.iceServers, relay: !!j.relay, at: Date.now() };
           }));
       }
@@ -2191,7 +2288,7 @@
               if (!ice.relay && !callTrusts(c)) {
                   use = await callIceServers();
                   if (call !== c) return;
-                  if (!use.relay) { callReport(c, "relay-refused", { name: "stun-only" }); showToast(t("Не удалось соединиться через защищённый сервер — попробуйте ещё раз"), "error"); c.id = null; return endCall("fail", true); }
+                  if (!use.relay) { callReport(c, "relay-refused", { name: "stun-only" }); showToast(use.net ? t("Не удалось соединиться через защищённый сервер из этой сети. Попробуйте другую сеть или повторите позже") : t("Сервер связи недоступен"), "error", { full: true }); c.id = null; return endCall("fail", true); }
               }
               c.ice = use; c.relay = use.relay; callUi();
               c.step = "rtc";
@@ -2260,7 +2357,7 @@
               if (!ice.relay && !callTrusts(c)) {
                   use = await callIceServers();
                   if (call !== c) return;
-                  if (!use.relay) { callReport(c, "relay-refused", { name: "stun-only" }); showToast(t("Не удалось соединиться через защищённый сервер — попробуйте ещё раз"), "error"); c.failWhy = "relay"; return endCall("fail"); }
+                  if (!use.relay) { callReport(c, "relay-refused", { name: "stun-only" }); showToast(use.net ? t("Не удалось соединиться через защищённый сервер из этой сети. Попробуйте другую сеть или повторите позже") : t("Сервер связи недоступен"), "error", { full: true }); c.failWhy = "relay"; return endCall("fail"); }
               }
               c.ice = use; c.relay = use.relay; callUi();
               c.step = "rtc";
@@ -2574,6 +2671,9 @@
       const gcRingPend = new Map(); // id → запись: личные звонки во время группового, ещё звонят (позвоним, когда групповой закончится)
       let gcLeft = null;           // {gid, j, oj} — откуда я только что вышел (j, а при неудачном возврате и прежний oj): пока выход в пути, это не «другое устройство»
       const gcLeftJ = (gid, j) => !!gcLeft && gcLeft.gid === gid && (gcLeft.j === j || gcLeft.oj === j);
+      // gcIceNet — последний запрос пароля не получил ответа (сеть), а не отказ Worker'а: от этого зависит текст ошибки (v1.121.1)
+      let gcIceNet = false;
+      const gcNetTxt = () => t("Групповой звонок не удалось соединить из этой сети. Попробуйте другую сеть или повторите позже");
       let gcListener = null, gcIce = null, gcIceReq = null, gcLastStart = 0, gcRejoins = [], gcPoolEls = [], gcProbeTimer = null;
       let gcListenReady = false, gcProbeWait = false; // первый снимок слушателя с сервера пришёл; карточку проверить, когда придёт
 
@@ -2678,6 +2778,7 @@
           if (gcIceReq && gcIceReq.gid === gid) return gcIceReq.p;
           const p = (async () => {
               const j = await Promise.race([pushPost("/call/ice", { gcall: gid }).then(r => r.json()), new Promise(r => setTimeout(() => r(null), 8000))]).catch(() => null);
+              gcIceNet = !j;
               const servers = j && j.relay ? gcIceFilter(j.iceServers) : [];
               if (!servers.length) return null;
               return (gcIce = { gid, servers, at: Date.now() });
@@ -3840,7 +3941,7 @@
               g.step = "probe";
               const pr = await g.relayP;
               if (gc !== g) return;
-              if (!pr.ok) { gcReport(g, "probe", { name: pr.why }); return gcFail(g, t("Сервер связи недоступен"), null, true); }
+              if (!pr.ok) { gcReport(g, "probe", { name: pr.why }); return gcFail(g, pr.why === "net" || pr.why === "timeout" ? gcNetTxt() : t("Сервер связи недоступен"), null, true); }
               // пока спрашивали микрофон, звонок могли начать другие — тогда это вход. Запись из пробы (меня нет в gm) никто
               // не обновляет — «идёт» по ней перепроверяем одним getDoc
               let rec = gcCalls.get(g.gid) || null;
@@ -3864,7 +3965,7 @@
               g.step = "ice2";
               const ice = await gcFetchIce(g.gid, true);
               if (gc !== g) return;
-              if (!ice) return gcFail(g, t("Сервер связи недоступен"), "relay");
+              if (!ice) return gcFail(g, gcIceNet ? gcNetTxt() : t("Сервер связи недоступен"), "relay");
               g.ice = ice;
               // карточка и push — только у победителя старта (Worker тоже проверяет by == я)
               const txt = GC_CARD_TXT;
@@ -3938,7 +4039,7 @@
                   const cur = gcCalls.has(g.gid) ? gcCalls.get(g.gid) : await gcReadRec(g.gid);
                   if (gc !== g) return;
                   if (!cur || cur.s !== g.s || !gcLive(cur)) return gcFail(g, t("Звонок уже закончился"), null, true);
-                  return gcFail(g, t("Сервер связи недоступен"), "relay", true);
+                  return gcFail(g, gcIceNet ? gcNetTxt() : t("Сервер связи недоступен"), "relay", true);
               }
               g.ice = ice;
               // запись — из слушателя (или переданная); из кэша, чужая сессия или её нет — один getDoc
@@ -4147,7 +4248,7 @@
           closeGcNotifs(g.gid);
           if (gcRingPend.size) setTimeout(gcRingResume, 1800); // после того как экран группового закроется (gcHideScreen: до 1,6 с)
           const key = GC_END_TEXT[why], text = opts.text !== undefined ? opts.text : key ? t(key) : "";
-          if (opts.toast && text) showToast(text, "error");
+          if (opts.toast && text) showToast(text, "error", { full: true });
           gcHideScreen(text, !!opts.toast);
           gcRefresh(new Set([g.gid]));
           if (opts.noWrite || !g.entryTry || !currentUser || g.lost) return;
@@ -4615,7 +4716,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 94; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 96; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -4658,7 +4759,8 @@
               hint.innerText = t("Подключаем уведомления…");
               updateUnreadIndicators(totalUnread());
               const ok = await serverPushSubscribe();
-              hint.innerText = ok ? t("Готово! Сообщения будут приходить, даже когда Owl закрыт.")
+              hint.innerText = ok === true ? t("Готово! Сообщения будут приходить, даже когда Owl закрыт.")
+                  : ok === "net" ? t("Уведомления включены, пока Owl открыт. Сервер уведомлений недоступен из этой сети — попробуйте другую сеть или повторите позже.")
                   : serverPushSupported() ? t("Уведомления включены, пока Owl открыт. Сервер уведомлений недоступен — попробуйте позже.")
                   : t("Уведомления включены, пока Owl открыт. Чтобы получать их при закрытом приложении, установите Owl на экран «Домой».");
           } else {
@@ -4680,7 +4782,7 @@
           btn.disabled = true; out.textContent = lines.join("\n") + "\n" + t("Отправляем тест…");
           try {
               const ok = await serverPushSubscribe(); // заодно обновим подписку этого устройства
-              lines.push(t("Подписка этого устройства:") + " " + (ok ? t("сохранена на сервере") : t("не удалось сохранить")));
+              lines.push(t("Подписка этого устройства:") + " " + (ok === true ? t("сохранена на сервере") : t("не удалось сохранить")));
               const r = await (await pushPost("/test", { lang: LANG })).json();
               if (!r.devices || !r.devices.length) lines.push(t("На сервере нет ни одного вашего устройства."));
               (r.devices || []).forEach((d, i) => {
@@ -4689,7 +4791,7 @@
                   lines.push(`${t("Устройство {n}", { n: i + 1 })}: ${who} — ${verdict}${d.text ? " (" + d.text + ")" : ""}`);
               });
               lines.push(t("Если сервис «принял», а уведомления нет — дело в настройках телефона: уведомления для Chrome/Owl, режим «Не беспокоить», экономия батареи."));
-          } catch (err) { lines.push(t("Сервер уведомлений недоступен:") + " " + (err.message || err)); }
+          } catch (err) { lines.push(isNetErr(err) ? t("Сервер уведомлений не отвечает из этой сети — попробуйте другую сеть или повторите позже") : t("Сервер уведомлений недоступен:") + " " + (err.message || err)); }
           out.innerHTML = iconizeEmoji(escapeHTML(lines.join("\n"))); btn.disabled = false;
       });
 
@@ -6830,10 +6932,11 @@
       const fmtWait = (sec) => { sec = Math.max(1, Number(sec) || 60); return sec < 90 ? t("{n} сек", { n: sec }) : t("{n} мин", { n: Math.ceil(sec / 60) }); };
       // Запрос к серверу писем: App Check обязателен, ID token — если вошли
       async function emailPost(path, data) {
-          let ac = null; if (appCheck) try { ac = (await getAppCheckToken(appCheck)).token; } catch (e) { console.log("App Check токен:", e.code || e.message || e); }
-          const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+          let ac = null; if (appCheck) try { ac = (await withLimit(getAppCheckToken(appCheck), 5000)).token; } catch (e) { console.log("App Check токен:", e.code || e.message || e); }
           try {
-              const res = await fetch(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token, appCheck: ac }) });
+              const token = auth.currentUser ? await withLimit(auth.currentUser.getIdToken(), 15000) : undefined;
+              // предел 15 с: не ответил — status 0, и экран переходит на запасной путь (письмо Firebase со ссылкой)
+              const res = await fetchT(PUSH_SERVER + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ ...data, token, appCheck: ac }) }, 15000);
               return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
           } catch (e) { return { ok: false, status: 0, data: {} }; }
       }
@@ -6887,8 +6990,16 @@
               if (code.length !== 5) { wrap.classList.add("bad"); msg.textContent = t("Введите все 5 цифр"); react("shake"); return; }
               verifyBtn.disabled = true; verifyBtn.textContent = t("Проверяем…");
               const r = await emailPost("/email/verify-code", { code });
-              verifyBtn.disabled = false; verifyBtn.textContent = t("Подтвердить");
               if (r.ok) return finish();
+              // ответ мог потеряться уже после проверки кода (сервер подтвердил почту и стёр код) — спрашиваем Firebase напрямую (≤5 с)
+              if (r.status === 0 || (r.data && r.data.error === "expired")) { try { await withLimit(user.reload(), 5000); } catch (_) {} if (user.emailVerified) return finish(); }
+              verifyBtn.disabled = false; verifyBtn.textContent = t("Подтвердить");
+              // сервер не ответил (сеть) — код не стираем: он ещё годится; предлагаем другую сеть или ссылку из письма
+              if (r.status === 0) {
+                  $v("verify-by-link").style.visibility = "visible";
+                  msg.textContent = t("Не удаётся подключиться к серверу из этой сети. Попробуйте другую сеть или подтвердите почту по ссылке");
+                  return;
+              }
               wrap.classList.add("bad"); react("shake"); input.value = ""; paint(); input.focus();
               const e = r.data.error;
               msg.textContent = e === "wrong code" ? (r.data.left > 0 ? t("Неверный код. Осталось попыток: {n}", { n: r.data.left }) : t("Неверный код. Запросите новый"))
@@ -7014,6 +7125,10 @@
           document.getElementById("global-loader").style.display = "none";
           document.getElementById("auth-screen").style.display = "flex"; 
           document.getElementById("app-container").style.display = "none";
+          // На экране входа push не нужен никому: снимаем подписку, оставшуюся от прошлого входа (v1.121 и раньше при
+          // недоступном сервере выходили из аккаунта, не отписав устройство). Только на устройстве — сервер сотрёт адрес сам
+          // при первом же push (служба доставки ответит 404/410)
+          try { pushUnsubP = navigator.serviceWorker?.getRegistration().then(reg => reg && reg.pushManager && reg.pushManager.getSubscription()).then(sub => sub && sub.unsubscribe()).catch(() => {}) || null; } catch (_) {}
           if(notificationsListener) notificationsListener(); 
           stopPresence(false);
           stopBanListeners();
@@ -10817,8 +10932,9 @@
           btn.disabled = true;
           try {
               const call = async (data) => {
-                  const r = await pushPost("/backup", { key: pass, ...data });
-                  const j = await r.json().catch(() => ({}));
+                  const r = await pushPost("/backup", { key: pass, ...data }, { timeout: 300000 });
+                  // ответ 200, а тело оборвалось — не считаем страницу последней (иначе копия молча вышла бы неполной)
+                  const j = await r.json().catch(() => { if (r.ok) throw new Error("Связь оборвалась при скачивании — копия не сохранена. Попробуйте ещё раз (лучше из другой сети)"); return {}; });
                   if (!r.ok) throw new Error(j.error === "bad key" ? `Неверный пароль копии (осталось попыток: ${j.left})` : j.error === "too many" ? `Слишком часто — попробуйте через ${Math.ceil((j.retryAfter || 60) / 60)} мин` : j.error === "backup not configured" ? "На сервере не задан пароль копии (секрет BACKUP_KEY)" : "Ошибка сервера: " + (j.error && j.error.message || j.error || r.status));
                   return j;
               };
@@ -10969,7 +11085,7 @@
           let cursor = null, guard = 0, sent = 0;
           try {
               do {
-                  const r = await (await pushPost("/broadcast", { text: trPreview(String(text || "")), chatId: NEWS_ID, i18n: i18n || null, cursor })).json();
+                  const r = await (await pushPost("/broadcast", { text: trPreview(String(text || "")), chatId: NEWS_ID, i18n: i18n || null, cursor }, { timeout: 60000 })).json();
                   if (!r.ok) throw new Error(r.error || "push");
                   sent += r.sent || 0; cursor = r.cursor;
               } while (cursor && ++guard < 200);
@@ -11293,7 +11409,7 @@
               let pushed = 0, cursor = null, guard = 0;
               if (toPush) try {
                   do {
-                      const r = await (await pushPost("/broadcast", { text, cursor })).json();
+                      const r = await (await pushPost("/broadcast", { text, cursor }, { timeout: 60000 })).json();
                       if (!r.ok) throw new Error(r.error || "push");
                       pushed += r.sent || 0; cursor = r.cursor;
                   } while (cursor && ++guard < 200);

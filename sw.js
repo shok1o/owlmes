@@ -1,10 +1,10 @@
-const CACHE = 'owl-shell-v94';
+const CACHE = 'owl-shell-v96';
 // Приложение — index.html + boot.js/app.js/ui.js (?v= — как CACHE): кладём их сразу, иначе без сети после обновления не запустится
-const SHELL = ['/', '/boot.js?v=94', '/app.js?v=94', '/ui.js?v=94', '/i18n-en.js?v=94', '/i18n-de.js?v=94', '/i18n-pl.js?v=94',
-    '/e2e.js?v=94', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const SHELL = ['/', '/boot.js?v=96', '/app.js?v=96', '/ui.js?v=96', '/i18n-en.js?v=96', '/i18n-de.js?v=96', '/i18n-pl.js?v=96',
+    '/e2e.js?v=96', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 // Ядро шифрования (globalThis.OwlE2E) — для расшифровки текста в push. Номер ?v= — тот же, что у CACHE и SHELL.
 // Без try: не загрузилось — новый service worker не ставится, остаётся прежний, браузер повторит позже.
-importScripts('/e2e.js?v=94');
+importScripts('/e2e.js?v=96');
 // Служебные отметки приложения (Cache Storage, не файлы сайта): при обновлении service worker не стираются.
 // /__owl/gc-busy — «это устройство в групповом звонке до T» (app.js gcSwMark, обновляется раз в 30 с)
 const STATE = 'owl-state';
