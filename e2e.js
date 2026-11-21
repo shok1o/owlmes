@@ -592,7 +592,9 @@
 
     // ───── IndexedDB «owl-e2e» v1: keys / peers / pins / prefs (ключи вне записей). Пишет только окно; SW только читает ─────
     const DB_NAME = 'owl-e2e', DB_VER = 1, STORES = Object.freeze(['keys', 'peers', 'pins', 'prefs']);
-    const DB_MS = 3000, WIPE_DEL_MS = 2000, PUSH_IDB_MS = 1200;
+    // PUSH_IDB_MS — открытие базы и каждое чтение в SW (push); PUSH_DIAG_IDB_MS — то же, когда включена диагностика push (sw.js передаёт diag):
+    // шаги до 5 с, чтобы отличить «медленно» от «зависло» (sw.js тогда ждёт расшифровку до 6 с, общий сторож — 7 с; лимит WebKit — 10 с)
+    const DB_MS = 3000, WIPE_DEL_MS = 2000, PUSH_IDB_MS = 1200, PUSH_DIAG_IDB_MS = 5000;
     function idbFactory() { const f = globalThis.indexedDB; if (!f) throw fail('noidb'); return f; }
     function closeQuiet(c) { try { if (c) c.close(); } catch (_) { /* пусто */ } }
     // create = true: открыть v1 и создать хранилища; false (SW): открыть без версии, а если БД нет — отменить создание
@@ -713,10 +715,10 @@
     });
 
     // ───── Push в SW (§6.2): расшифровать превью; любая ошибка → null (покажется запасной текст Worker'а) ─────
-    async function idbReader() {
-        const c = await openRaw(false, PUSH_IDB_MS);
+    async function idbReader(ms) {
+        const c = await openRaw(false, ms);
         return {
-            get: (store, key) => timeout(txDo(c, [store], 'readonly', (tx, set) => { const r = tx.objectStore(store).get(key); r.onsuccess = () => set(r.result); }), PUSH_IDB_MS),
+            get: (store, key) => timeout(txDo(c, [store], 'readonly', (tx, set) => { const r = tx.objectStore(store).get(key); r.onsuccess = () => set(r.result); }), ms),
             close: () => closeQuiet(c)
         };
     }
@@ -732,49 +734,77 @@
     // Иначе null (покажется запасной «🔒 Новое сообщение»): прежний ключ собеседника (прежний «cur», prev-pin, prev-nopin, pin.prevH),
     // ключ без закрепления и e.pk, не совпавший с закреплённым. app.js принимает прежние ключи лишь для переписки ДО смены (время смены
     // знает только сервер) и ставит в пузыре ⚠ — в уведомлении такой пометки нет, а подложенный в prev ключ показал бы «его» текст как настоящий.
-    async function trustedPub(rd, e, parts, me, uid) {
+    // Смена ключа собеседника, ещё не признанная на этом устройстве (pin.ack === false: app.js e2ePinPeer до «Понятно»), — тоже null (v1.121.4):
+    // в чате в это время висит плашка «заново включил(а) шифрование», а в уведомлении её нет — подложенный на сервере ключ выдал бы чужой
+    // текст за слова собеседника. Первое закрепление и «Понятно» пишут ack:true; запись без поля ack считается признанной (как e2ePeerState).
+    // D (диагностика push, необязательно) — сюда только код причины, без ключей, хэшей и id
+    async function trustedPub(rd, e, parts, me, uid, D) {
+        const why = (c) => { if (D) D.c = c; return null; };
         if (parts[0] === parts[1]) {   // Гнездо: обе стороны — свои ключи; e.pk и peers не нужны
             const own = (me && me.kid === e.sk) ? me : await rd.get('keys', 'old:' + e.sk);
-            return own && own.uid === uid && own.kid === e.sk && re(PK_RE, own.pub) && await kidOf(own.pub) === e.sk ? own.pub : null;
+            return own && own.uid === uid && own.kid === e.sk && re(PK_RE, own.pub) && await kidOf(own.pub) === e.sk ? own.pub : why('nest');
         }
         const [pin, rec] = await Promise.all([rd.get('pins', e.from), rd.get('peers', e.from + '|' + e.sk)]);
-        if (!pin || typeof pin !== 'object' || pin.kid !== e.sk || !re(B43_RE, pin.h) || pin.h.slice(0, 12) !== e.sk) return null;
+        // нет закрепления собеседника; null — запись есть, но не прочиталась (WebKit отдаёт null, если не смог её развернуть)
+        if (!pin || typeof pin !== 'object') return why(pin === undefined ? 'pin-none' : pin === null ? 'pin-null' : 'pin-bad');
+        if (pin.kid !== e.sk) return why('pin-kid');                                     // закреплён другой (прежний или новый) ключ собеседника
+        if (!re(B43_RE, pin.h) || pin.h.slice(0, 12) !== e.sk) return why('pin-bad');
+        if (pin.ack === false) return why('pin-ack');                                    // смена ключа не признана («Понятно» не нажато)
         const cands = [rec && typeof rec === 'object' && rec.uid === e.from && rec.kid === e.sk ? rec.pk : null, e.pk];
         for (const pk of cands) if (re(PK_RE, pk) && await pkHash(pk) === pin.h) return pk;
-        return null;
+        return why(cands[0] || cands[1] ? 'pk-hash' : 'pk-none');
     }
+    // Диагностика push: имя ошибки — только из букв (наши коды fail() или имя DOMException), иначе 'x'; текст ошибки не берём.
+    // У DOMException code — устаревший номер (AbortError = 20), поэтому строковый code (наш) — первым, иначе name
+    const DIAG_NAME = /^[A-Za-z]{1,32}$/;
+    const diagErr = (x) => { const c = x && (typeof x.code === 'string' ? x.code : x.name); return typeof c === 'string' && DIAG_NAME.test(c) ? c : 'x'; };
     // deps — только для тестов: {get(store, key)} вместо IndexedDB. Ничего не пишет.
-    async function pushPreview(e, chatId, deps) {
+    // diag (необязательно; sw.js передаёт свежий {} только при включённой диагностике push) — заполняется по ходу: c — код итога,
+    // at — шаг, идущий сейчас (виден и после тайм-аута гонки в sw.js), s — [шаг, мс от начала], ms — всего, idb — typeof indexedDB,
+    // me — что прочиталось из keys/me (none/null/nopriv/ok/other/bad). Только коды и миллисекунды: ни текста, ни ключей, ни uid/chatId/kid/msgId.
+    // С diag шаги IndexedDB ждут до PUSH_DIAG_IDB_MS (без него — PUSH_IDB_MS, как раньше); итог (текст или null) от diag не зависит
+    async function pushPreview(e, chatId, deps, diag) {
+        const D = diag && typeof diag === 'object' ? diag : null, t0 = Date.now();
+        if (D) { D.c = 'run'; D.at = 'start'; D.s = []; D.idb = typeof globalThis.indexedDB; }
+        const stop = (c) => { if (D) { if (c) D.c = c; D.ms = Date.now() - t0; } return null; };
+        const W = async (name, p) => { if (D) D.at = name; const v = await p; if (D) D.s.push([name, Date.now() - t0]); return v; };
         let rd = null;
         try {
-            if (!e || typeof e !== 'object' || e.v !== 1) return null;
+            if (!e || typeof e !== 'object' || e.v !== 1) return stop('e');
             const pv = e.pv;
-            if (!pv || typeof pv !== 'object' || !re(IV_RE, pv.iv) || !re(PVCT_RE, pv.ct)) return null;
-            if (!re(KID_RE, e.sk) || !re(KID_RE, e.rk) || !re(UID_RE, e.from) || !re(SAFE_ID, e.msgId)) return null;
+            if (!pv || typeof pv !== 'object' || !re(IV_RE, pv.iv) || !re(PVCT_RE, pv.ct)) return stop('e');
+            if (!re(KID_RE, e.sk) || !re(KID_RE, e.rk) || !re(UID_RE, e.from) || !re(SAFE_ID, e.msgId)) return stop('e');
             const parts = dmParts(chatId);
-            if (!parts || parts.indexOf(e.from) < 0) return null;
+            if (!parts || parts.indexOf(e.from) < 0) return stop('chat');
             if (deps && typeof deps.get === 'function') rd = { get: (s, k) => deps.get(s, k), close: () => {} };
             else {
-                if (typeof globalThis.indexedDB === 'undefined' || !globalThis.indexedDB) return null;   // iOS: бывает undefined при пробуждении
-                rd = await idbReader();
+                // iOS: бывает undefined при пробуждении (WebKit 283793); в режиме блокировки IndexedDB выключена
+                if (typeof globalThis.indexedDB === 'undefined' || !globalThis.indexedDB) return stop(typeof globalThis.indexedDB === 'undefined' ? 'noidb' : 'idbnull');
+                rd = await W('open', idbReader(D ? PUSH_DIAG_IDB_MS : PUSH_IDB_MS));
             }
-            const ses = await rd.get('prefs', 'session');                 // метка сессии (§3.8): после выхода — молчим
-            if (!ses || ses.on !== true || !re(UID_RE, ses.uid)) return null;
-            const me = await rd.get('keys', 'me');
-            if (me && me.uid !== ses.uid) return null;
-            const key = (me && me.kid === e.rk) ? me : await rd.get('keys', 'old:' + e.rk);
-            if (!key || key.uid !== ses.uid || key.kid !== e.rk || !key.priv) return null;
-            if (parts.indexOf(key.uid) < 0) return null;
-            if (e.from === key.uid && parts[0] !== parts[1]) return null;
-            const pk = await trustedPub(rd, e, parts, me, ses.uid);   // не текущий/недоверенный ключ второй стороны → null
-            if (!pk) return null;
-            const keys = await chatKeys(key.priv, pk, chatId, e.rk, e.sk);
-            let txt = await decryptPreview(keys, { chatId, uid: e.from, msgId: e.msgId }, pv);
+            const ses = await W('ses', rd.get('prefs', 'session'));                 // метка сессии (§3.8): после выхода — молчим
+            if (!ses || ses.on !== true || !re(UID_RE, ses.uid)) return stop(!ses ? 'ses-none' : ses.on !== true ? 'ses-off' : 'ses-bad');
+            const me = await W('me', rd.get('keys', 'me'));
+            // WebKit: записи нет → undefined; запись есть, но не прочиталась (CryptoKey не развернулся мастер-ключом) → null
+            if (D) D.me = me === undefined ? 'none' : me === null ? 'null' : typeof me !== 'object' ? 'bad' : !me.priv ? 'nopriv' : me.kid === e.rk ? 'ok' : 'other';
+            if (me && me.uid !== ses.uid) return stop('me-uid');
+            let old;
+            const key = (me && me.kid === e.rk) ? me : (old = await W('old', rd.get('keys', 'old:' + e.rk)));
+            if (!key) return stop(me === null || old === null ? 'unwrap' : me === undefined ? 'me-none' : 'rk');
+            if (key.uid !== ses.uid || key.kid !== e.rk) return stop('rk');
+            if (!key.priv) return stop('nopriv');
+            if (parts.indexOf(key.uid) < 0) return stop('chat');
+            if (e.from === key.uid && parts[0] !== parts[1]) return stop('self');
+            const pk = await W('pin', trustedPub(rd, e, parts, me, ses.uid, D));   // не текущий/недоверенный ключ второй стороны → null
+            if (!pk) return stop();
+            const keys = await W('derive', chatKeys(key.priv, pk, chatId, e.rk, e.sk));
+            let txt = await W('decrypt', decryptPreview(keys, { chatId, uid: e.from, msgId: e.msgId }, pv));
             txt = trService(txt, e.l).replace(/\s+/g, ' ').trim();
             txt = Array.from(txt).slice(0, 140).join('');
+            stop(txt ? 'ok' : 'empty');
             return txt || null;
-        } catch (_) {
-            return null;
+        } catch (x) {
+            return stop('err-' + (D ? D.at : '') + '-' + diagErr(x));
         } finally {
             if (rd) rd.close();
         }

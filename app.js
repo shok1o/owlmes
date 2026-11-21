@@ -34,7 +34,7 @@
       // Загрузка не уложилась в 8 с, но потом всё-таки закончилась — e2eLateLib (ставит раздел шифрования) повторит запуск сам
       let e2eLateLib = null;
       const e2eImport = (bust) => {
-          const imp = import(bust ? `./e2e.js?v=96&r=${Date.now()}` : "./e2e.js?v=96");
+          const imp = import(bust ? `./e2e.js?v=98&r=${Date.now()}` : "./e2e.js?v=98");
           return Promise.race([imp, new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 8000))])
               .then(() => globalThis.OwlE2E || null, () => {
                   if (!globalThis.OwlE2E) imp.then(() => { if (globalThis.OwlE2E && e2eLateLib) e2eLateLib(); }, () => {});
@@ -43,7 +43,7 @@
       };
       let e2eLoad = e2eImport(false); // «Повторить» (e2eRetry) подменяет промис новой попыткой; ждущие читают (await e2eLoad) || globalThis.OwlE2E
       let DICT = {};
-      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=96`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
+      if (LANG !== "ru") { try { DICT = (await import(`./i18n-${LANG}.js?v=98`)).default || {}; } catch (e) { console.log("Перевод не загрузился:", e); } }
       document.documentElement.lang = LANG;
       const i18nNorm = (s) => String(s).replace(/\s+/g, " ").trim();
       // t("Новых: {n}", { n: 3 }) — перевод с подстановкой
@@ -748,6 +748,113 @@
           finally { turnBusy = false; }
       }
       document.getElementById("turn-check").addEventListener("click", checkTurnGuard);
+      // Диагностика push лички с шифрованием (v1.121.4): только админ и только ЭТО устройство, на 24 часа. Флаг — Cache Storage owl-state,
+      // /__owl/push-diag-on = «до T» (читает sw.js: push не расшифровался — к запасному тексту уведомления добавляется код причины, а в журнал
+      // /__owl/push-diag — запись, последние 20: только коды и миллисекунды, без текста, ключей, uid и chatId). Блок — по-русски, как проба CSP.
+      // Стирается вместе с прочим: выход из аккаунта (clearPersonalData), стирание ключей (e2eWipeDevice), другой аккаунт на устройстве (e2eBoot)
+      const PD_CACHE = "owl-state", PD_ON = "/__owl/push-diag-on", PD_LOG = "/__owl/push-diag", PD_MS = 24 * 3600e3;
+      const PD_WHY = {
+          ok: "расшифровано", empty: "пустой текст", run: "расшифровка не закончилась и к записи журнала (≈7,5 с) — зависла или очень медленная",
+          "pin-none": "ключ собеседника здесь не закреплён (он впервые или заново включил шифрование)",
+          "pin-null": "закрепление ключа собеседника не прочиталось", "pin-kid": "закреплён другой ключ собеседника (он сменил ключ)",
+          "pin-bad": "закрепление ключа собеседника испорчено", "pin-ack": "собеседник сменил ключ, смена не признана («Понятно» не нажато)",
+          "pk-none": "нет самого ключа собеседника (ни в базе, ни в push)", "pk-hash": "ключ собеседника не совпал с закреплённым",
+          unwrap: "свой ключ есть, но не открылся (телефон был заблокирован?)", "me-none": "своего ключа на устройстве нет",
+          "me-uid": "на устройстве ключ другого аккаунта", rk: "сообщение зашифровано другим своим ключом", nopriv: "в записи своего ключа нет закрытой части",
+          "ses-none": "нет метки входа", "ses-off": "метка входа выключена (был выход)", "ses-bad": "метка входа испорчена",
+          noidb: "в фоне нет IndexedDB (ошибка WebKit 283793 или режим блокировки)", idbnull: "IndexedDB = null",
+          noe: "Worker не приложил зашифрованное превью", nodata: "push без данных", inapp: "Owl был на экране — уведомление показало приложение",
+          nolib: "ядро шифрования не загрузилось", e: "превью в push испорчено", chat: "чат не сходится с отправителем",
+          self: "сообщение от себя не в Гнезде", nest: "Гнездо: свой ключ не найден"
+      };
+      const PD_STEP = { pre: "до расшифровки", start: "начало", open: "открытие базы", ses: "метка входа", me: "свой ключ", old: "прежний свой ключ", pin: "ключ собеседника", derive: "ключ чата", decrypt: "расшифровка" };
+      const pdOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+      function pdWhy(c) {
+          if (typeof c !== "string") return "";
+          if (pdOwn(PD_WHY, c)) return PD_WHY[c];
+          const step = (s) => "«" + (pdOwn(PD_STEP, s) ? PD_STEP[s] : s || "?") + "»";
+          let m = /^(race|wd)-([a-z]+)$/.exec(c);
+          if (m) return (m[1] === "race" ? "не уложились во время" : "сработал общий сторож — что-то зависло") + ", шаг " + step(m[2]);
+          m = /^err-([a-z]*)-([A-Za-z]+)$/.exec(c);
+          if (m) return "ошибка на шаге " + step(m[1]) + ": " + (m[2] === "timeout" ? "тайм-аут" : m[2]);
+          return "";
+      }
+      function pdLine(r) { // одна запись журнала — строкой (только числа и коды из записи, обрезанные)
+          const num = (v) => typeof v === "number" && isFinite(v) ? Math.round(v) : null, str = (v) => typeof v === "string" ? v.slice(0, 40) : "";
+          const c = str(r.c) || "?", fin = str(r.fin), why = pdWhy(c), out = [];
+          out.push((num(r.t) ? new Date(r.t).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "?") + " · " + c + (why ? " — " + why : ""));
+          // «потом:» — чем кончилась расшифровка, проигравшая гонку или сторожу (race-…/wd-…): ok — медленно; run — так и не закончилась
+          if (fin && fin !== c && (fin !== "run" || /^(race|wd)-/.test(c))) out.push("потом: " + fin + (pdWhy(fin) ? " — " + pdWhy(fin) : "") + (num(r.ms) !== null ? ", за " + num(r.ms) + " мс" : ""));
+          else if (num(r.ms) !== null) out.push("расшифровка " + num(r.ms) + " мс");
+          out.push(num(r.shown) === null ? "показ не ответил" : r.shown < 0 ? "показать не удалось" : "показано через " + num(r.shown) + " мс");
+          if (num(r.age) !== null) out.push(r.age < 3000 ? "service worker запущен этим push (" + num(r.age) + " мс)" : "service worker уже работал " + Math.round(r.age / 1000) + " с");
+          if (str(r.idb)) out.push("indexedDB: " + str(r.idb));
+          if (str(r.me)) out.push("keys/me: " + str(r.me));
+          if (Array.isArray(r.s) && r.s.length) out.push("шаги: " + r.s.slice(0, 12).map((x) => Array.isArray(x) ? str(x[0]) + " " + num(x[1]) : "").join(", "));
+          if (r.showErr) out.push("первый показ не принят");
+          return out.join(" · ");
+      }
+      // pdShown — что сейчас написано на кнопке (true — «Выключить», false — «Диагностика… (24 ч)», null — блок ещё не прочитан: кнопка
+      // в разметке выключена, «Проверяю…»). Блок живёт в «Настройках (Админ)» и на вкладке «Копия» — перерисовываем при входе админа,
+      // при открытии этих окон и при возвращении в Owl, а нажатие сверяет надпись с настоящим флагом
+      let pdLog = [], pdBusy = false, pdShown = null;
+      async function pdRead() { // → { until, log } или null (Cache Storage нет); owl-state не создаём, если его ещё нет
+          if (typeof caches === "undefined") return null;
+          if (!(await caches.has(PD_CACHE))) return { until: 0, log: [] };
+          const c = await caches.open(PD_CACHE), r1 = await c.match(PD_ON), r2 = await c.match(PD_LOG);
+          const until = r1 ? +(await r1.text()) || 0 : 0, j = r2 ? await r2.json().catch(() => null) : null;
+          return { until, log: Array.isArray(j) ? j.filter((x) => x && typeof x === "object").slice(-20) : [] };
+      }
+      async function renderPushDiag() {
+          const st = document.getElementById("pd-status"), btn = document.getElementById("pd-toggle");
+          if (!isAdmin || !st || !btn) return;
+          let s = null; try { s = await pdRead(); } catch (_) {}
+          if (!s) { pdLog = []; pdShown = null; btn.disabled = true; st.textContent = "Cache Storage недоступен — на этом устройстве диагностика не работает."; return; }
+          const on = s.until > Date.now();
+          pdLog = s.log; pdShown = on; btn.disabled = false;
+          btn.textContent = on ? "Выключить диагностику push" : "Диагностика push на этом устройстве (24 ч)";
+          const lines = [on ? "Включена до " + new Date(s.until).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + "." : "Выключена."];
+          lines.push(s.log.length ? "Журнал (новые сверху):" : "Журнал пуст.");
+          for (const r of s.log.slice().reverse()) lines.push("• " + pdLine(r));
+          st.textContent = lines.join("\n");
+      }
+      function pushDiagClear() { // флаг и журнал — при выходе из аккаунта и стирании ключей (owl-state не создаём, если его нет)
+          try {
+              if (typeof caches === "undefined") return Promise.resolve();
+              return caches.has(PD_CACHE).then((h) => h && caches.open(PD_CACHE).then((c) => Promise.all([c.delete(PD_ON), c.delete(PD_LOG)]))).catch(() => {});
+          } catch (_) { return Promise.resolve(); }
+      }
+      document.getElementById("pd-toggle").addEventListener("click", async () => {
+          if (!isAdmin || pdBusy || typeof caches === "undefined") return;
+          pdBusy = true;
+          try {
+              const c = await caches.open(PD_CACHE), r = await c.match(PD_ON), on = !!r && +(await r.text()) > Date.now();
+              // надпись устарела (блок не перерисован, флаг истёк или его сменили в другой вкладке) — ничего не меняем, только показываем
+              // настоящее состояние: «включить» не должно выключить уже включённую диагностику, и наоборот
+              if (pdShown !== on) showToast(on ? "Диагностика уже включена — состояние обновлено" : "Диагностика уже выключена — состояние обновлено", "info");
+              else if (on) await c.delete(PD_ON); else await c.put(PD_ON, new Response(String(Date.now() + PD_MS)));
+          } catch (e) { showToast("Не получилось: " + (e && (e.name || e.message)), "error"); }
+          pdBusy = false; renderPushDiag();
+      });
+      document.getElementById("pd-refresh").addEventListener("click", renderPushDiag);
+      document.getElementById("pd-copy").addEventListener("click", async () => { // в журнале нет ни текста, ни ключей, ни id — можно прислать в чат
+          // копируем то, что показано в блоке (его перерисовывают при каждом показе); ещё не читали — сначала прочитать
+          if (pdShown === null) await renderPushDiag();
+          if (!pdLog.length) { showToast("Журнал пуст — копировать нечего", "info"); return; }
+          const s = JSON.stringify(pdLog);
+          try { await navigator.clipboard.writeText(s); showToast("Журнал скопирован (записей: " + pdLog.length + ")", "check"); } catch (_) { prompt("Скопируйте журнал:", s); }
+      });
+      document.getElementById("pd-clear").addEventListener("click", async () => {
+          if (!isAdmin) return;
+          try { if (typeof caches !== "undefined" && await caches.has(PD_CACHE)) await (await caches.open(PD_CACHE)).delete(PD_LOG); } catch (_) {}
+          renderPushDiag();
+      });
+      // вернулись в Owl после тестового push, а блок на экране (вкладка «Копия» или «Настройки (Админ)») — журнал обновить сразу
+      const pdOnScreen = () => (devFilter === "backup" && document.getElementById("dev-panel-screen").style.display !== "none")
+          || document.getElementById("admin-global-screen").style.display !== "none";
+      document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible" && isAdmin && pdOnScreen()) renderPushDiag();
+      });
 
       // ===== ПОИСК ПО ЧАТУ =====
       let chatSearchQuery = "", chatSearchHits = [], chatSearchPos = -1;
@@ -1456,6 +1563,7 @@
               Object.keys(localStorage).filter(k => /^owl-(draft-|guard|seen-followers-|otp-sent-|active-|lp-)/.test(k) || ["owl-reads", "owl-invite", "owl_custom_bg_data", "owl-gc"].includes(k)).forEach(k => localStorage.removeItem(k)); // owl-gc — беседа и сессия группового звонка
               sessionStorage.clear();
           } catch (_) {}
+          pushDiagClear(); // диагностика push (флаг и журнал в Cache Storage) — при любом выходе, в т. ч. из окна бана и при отзыве входа
       }
 
       // Капля под вкладками «Все / Подписки» — её ведёт и код стекла (по смене вкладки), и свайп по списку (hold — пока палец на экране)
@@ -1729,11 +1837,15 @@
           guardBusy = true; renderGuard(); guardOpN++;
           try { const j = await guardCall("/guard/extend", { minutes: min }, { timeout: 45000 }); guardBusy = false; guardSet(j.guard); showToast(t("Срок продлён до {time}", { time: guardHm(j.guard.due) }), "clock"); }
           catch (e) {
-              showToast(e.info && e.info.error === "no timer" ? t("Таймер уже не идёт")
+              // 404 "no timer": таймера нет. С fired: true (Worker с 21.11) — тревога уже ушла близким: продлевать поздно, нужно «Я в порядке».
+              // Прежний Worker fired не присылает — тогда, как раньше, «Таймер уже не идёт»; в обоих случаях сверяемся с сервером
+              const noTimer = !!(e.info && e.info.error === "no timer"), fired = noTimer && e.info.fired === true;
+              showToast(fired ? t("Тревога уже ушла близким — сначала нажмите «Я в порядке»")
+                  : noTimer ? t("Таймер уже не идёт")
                   : e.maybe ? t("Ответ сервера оборвался — срок, скорее всего, продлён. Обновим его здесь через минуту")
                   : isNetErr(e) ? t("Не удаётся подключиться к серверу из этой сети — срок не продлён. Попробуйте другую сеть или повторите позже")
                   : t("Не получилось продлить — попробуйте ещё раз"), "error", { full: true });
-              if (e.info && e.info.error === "no timer") setTimeout(guardSync, 0); // после снятия guardBusy — иначе ответ отбросится
+              if (noTimer) setTimeout(guardSync, 0); // после снятия guardBusy — иначе ответ отбросится
               // сервер, скорее всего, продлил — сверяемся через минуту (запись на сервере догоняет до ~60 с), не продлевая дважды
               else if (e.maybe) setTimeout(guardSync, 65000);
               else if (isNetErr(e)) guardSyncAt = 0;
@@ -4716,7 +4828,7 @@
       // Когда человек возвращается в приложение (не чаще раза в 5 минут), сверяем номер версии в sw.js на сайте со своим:
       // вышла новая — тихо перезагружаемся. Не трогаем, пока идёт звонок, пишется голосовое или человек набирает текст;
       // после возвращения ждём 5 с (вдруг это нажали уведомление о звонке) и не перезагружаемся дважды ради одной версии
-      const OWL_SHELL = 96; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
+      const OWL_SHELL = 98; // = номер из CACHE в sw.js (owl-shell-vNN) — поднимать вместе с ним при каждой выкладке
       let updCheckAt = 0, updTarget = 0, updTimer = null;
       async function checkAppUpdate() {
           if (updTarget || Date.now() - updCheckAt < 5 * 60000) return;
@@ -5642,6 +5754,7 @@
           document.getElementById("admin-global-screen").style.display = "none";
           document.getElementById("dev-panel-screen").style.display = "flex";
           renderDevPanel();
+          if (devFilter === "backup") renderPushDiag(); // панель открыли сразу на вкладке «Копия»
       }
       document.getElementById("dev-panel-btn").addEventListener("click", (e) => { e.stopPropagation(); openDevPanel(); });
       document.getElementById("open-dev-panel-btn").addEventListener("click", openDevPanel);
@@ -5650,7 +5763,7 @@
           devFilter = t.getAttribute("data-f");
           document.querySelector("#dev-panel-screen .dev-search").style.display = devFilter === "stats" || devFilter === "backup" ? "none" : "";
           if (devFilter === "stats") statsDocs = null; // при каждом открытии — свежие цифры
-          if (devFilter === "backup") checkTurnGuard(); // предохранитель TURN — при каждом открытии вкладки (не на каждую перерисовку)
+          if (devFilter === "backup") { checkTurnGuard(); renderPushDiag(); } // предохранитель TURN и журнал push — при каждом открытии вкладки (не на каждую перерисовку)
           document.querySelectorAll("#dev-tabs .tab").forEach(el => el.classList.toggle("active", el === t));
           renderDevPanel();
       });
@@ -6462,7 +6575,7 @@
       document.getElementById("chat-header-info").addEventListener("click", (e) => {
         if(e.target.closest('#mobile-back-btn') || e.target.closest('#pin-chat-btn') || e.target.closest('#clear-chat-btn') || e.target.closest('[data-e2e-hd]')) return; // замок шифрования — своё окно (Т7)
         let trigger = e.target.closest("#header-profile-trigger");
-        if(trigger) { let uid = trigger.getAttribute("data-profile-target"); if (uid === 'admin-settings') { document.getElementById("admin-global-screen").style.display = "flex"; } else if(uid) { openPublicProfile(uid); } }
+        if(trigger) { let uid = trigger.getAttribute("data-profile-target"); if (uid === 'admin-settings') { document.getElementById("admin-global-screen").style.display = "flex"; renderPushDiag(); } else if(uid) { openPublicProfile(uid); } }
       });
 
       document.getElementById("tab-all").addEventListener("click", (e) => { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); e.currentTarget.classList.add('active'); currentFilter = 'all'; renderChatList(document.getElementById("search-input").value); });
@@ -7043,6 +7156,9 @@
         if (user) {
           currentUser = user; isAdmin = (user.email === ADMIN_EMAIL);
           if(isAdmin) { document.getElementById("admin-badge").style.display = "inline-flex"; document.getElementById("dev-panel-btn").style.display = "flex"; }
+          // диагностика push (v1.121.4): админу — блок с настоящим состоянием флага (он в «Настройках (Админ)»); не админу — стереть флаг и журнал,
+          // если остались (выход не успел стереть, откат на аварийную сборку, раньше на устройстве был админ)
+          if (isAdmin) renderPushDiag(); else pushDiagClear();
           mfaRefresh();
           ["my-verified-badge", "settings-verified-badge"].forEach(id => document.getElementById(id).setAttribute("data-verified-uid", user.uid));
           ["my-premium-badge", "settings-premium-badge"].forEach(id => document.getElementById(id).setAttribute("data-premium-uid", user.uid));
@@ -8142,9 +8258,10 @@
           try {
               await lib.db.open();
               const ses = await lib.db.get("prefs", "session");
-              if (ses && ses.uid && ses.uid !== uid) { await lib.db.clearAll(); E2E.peers = new Map(); E2E.pins = new Map(); } // на устройстве был другой аккаунт
+              // на устройстве был другой аккаунт — стираем его ключи и заодно диагностику push (флаг и журнал в Cache Storage)
+              if (ses && ses.uid && ses.uid !== uid) { await lib.db.clearAll(); E2E.peers = new Map(); E2E.pins = new Map(); pushDiagClear(); }
               const keys = await lib.db.getAll("keys");
-              if ([...keys.values()].some((v) => v && v.uid && v.uid !== uid)) { await lib.db.clearAll(); E2E.peers = new Map(); E2E.pins = new Map(); }
+              if ([...keys.values()].some((v) => v && v.uid && v.uid !== uid)) { await lib.db.clearAll(); E2E.peers = new Map(); E2E.pins = new Map(); pushDiagClear(); }
               await lib.db.put("prefs", "session", { uid, on: true }); // service worker может расшифровывать push этого аккаунта
               await e2eLoadIdb(true);
           } catch (e) { console.log("E2E: хранилище ключей:", e && (e.name || e.message)); E2E.broken = "idb"; return; }
@@ -8594,7 +8711,10 @@
               if (changed && typeof repaintOpenChat === "function") repaintOpenChat();
           }
           e2eRefreshFp(); e2eRefreshProfileFp(); // Т7: открытые окно отпечатка и профиль — по проверенному ключу
-          if (changed && typeof wantPreview === "function") for (const id of Object.keys(chatsMetaCache)) if (isE2EChat(id) && dmPeer(id) === uid) wantPreview(id, chatsMetaCache[id]);
+          if (changed && typeof wantPreview === "function") {
+              for (const id of Object.keys(chatsMetaCache)) if (isE2EChat(id) && dmPeer(id) === uid) wantPreview(id, chatsMetaCache[id]);
+              e2eListSoon(); // ключ сменился — превью этой лички в списке до «Понятно» заглушкой (e2ePvHold), а не прежним текстом
+          }
       }
       function e2ePeerState(uid) { // ok | changed | none | lost | unknown
           if (!uid) return "none";
@@ -8835,6 +8955,9 @@
               if (pin) await e2eSavePin(peer, { ...pin, ...(k ? { h: k.h, kid: k.kid } : {}), ack: true });
               applyBlockState(); if (typeof paintE2EHeader === "function") paintE2EHeader();
               if (typeof repaintOpenChat === "function" && isE2EChat(currentChatId)) repaintOpenChat(); // ⚠ с переписки до смены — убрать
+              // превью в списке чатов (до «Понятно» — заглушка, e2ePvHold) — расшифровать и показать текст
+              if (typeof wantPreview === "function") for (const id of Object.keys(chatsMetaCache)) if (isE2EChat(id) && dmPeer(id) === peer) wantPreview(id, chatsMetaCache[id]);
+              e2eListSoon();
           }
           else if (act === "recheck") { e2eBarNote = null; if (peer && peer !== currentUser.uid) { e2ePeerChk.delete(peer); if (usersCache[peer]) e2eSeePeer(peer, usersCache[peer].e2e); else watchUser(peer); } if (E2E.broken) e2eRetry(); applyBlockState(); }
           else if (act === "resend") { if (typeof e2eResendHeld === "function") e2eResendHeld(); }
@@ -9498,6 +9621,7 @@
       // deleteDatabase (≤2 с); флаг снимаем, только если стёрли; не успели — сотрём при следующем запуске до всего остального
       async function e2eWipeDevice(opts = {}) {
           if (!opts.startup) { E2E.wiped = true; e2eIdbGen++; e2eBroadcast("wipe"); } // операции в полёте (создание, подключение, повышение) больше не пишут ключ
+          const pd = pushDiagClear(); // диагностика push (Cache Storage) — вместе с ключами: «Выйти», удаление аккаунта, недоделанное стирание при запуске
           e2eSrvSeen.clear(); e2eSrvAll = false;
           await e2eLocked(async () => {
               const lib = E2E.lib || await Promise.race([e2eLoad, e2eSleep(3000)]) || globalThis.OwlE2E || null;
@@ -9508,6 +9632,7 @@
           }, 3000).catch((e) => console.log("E2E: стирание:", e && (e.name || e.message)));
           if (!opts.startup) E2E.wiped = true;
           e2eDropMemory(); E2E.idb = false;
+          await Promise.race([pd, e2eSleep(1000)]);
       }
       async function e2eOnSignedOut() { // общая ветка выхода (в т. ч. невольного — отзыв токена): метка сессии off, отписка push
           if (e2eLoggingOut) return; // явный «Выйти» уже всё сделал
@@ -9715,9 +9840,19 @@
           return [chatId, uid, mid, enc.sk, enc.rk, enc.iv].join("|");
       }
       const e2ePvBusy = new Map(); // k → Promise (одна расшифровка на превью)
+      // Смена ключа собеседника на этом устройстве ещё не признана (pin.ack === false — «Понятно» не нажато) или ключ уже другой, а pin
+      // прежний (e2ePeerState "changed"): превью лички не расшифровываем и не показываем — ни в списке чатов, ни в уведомлении приложения,
+      // как и service worker (e2e.js trustedPub, v1.121.4). В чате в это время висит плашка «заново включил(а) шифрование», а в списке и
+      // уведомлении её нет — подложенный на сервере ключ выдал бы чужой текст за слова собеседника. После «Понятно» — снова текст (ack-peer)
+      function e2ePvHold(chatId) {
+          if (isNest(chatId)) return false;
+          const peer = dmPeer(chatId), pin = peer && E2E.pins.get(peer);
+          return !!peer && (!!(pin && pin.ack === false) || e2ePeerState(peer) === "changed");
+      }
       function wantPreview(chatId, meta) { // из applyMeta, при переходе в ready, после проверки ключа собеседника, из previewTextFor
           if (!currentUser || E2E.wiped || !isE2EChat(chatId)) return null;
           const k = e2ePvKey(chatId, meta); if (!k) return null;
+          if (e2ePvHold(chatId)) return null; // смена ключа собеседника не признана — не расшифровываем (провал не запоминаем: после «Понятно» — сразу)
           const cur = previewPlain.get(chatId);
           if (cur && cur.k === k && (typeof cur.text === "string" || cur.ep === e2eEpoch)) return null; // есть или известный провал
           if (e2ePvBusy.has(k)) return e2ePvBusy.get(k);
@@ -9744,6 +9879,7 @@
           const txt = meta && meta.lastMessageText;
           if (!meta || !meta.lastMessageEnc || !isE2EChat(chatId)) return txt;
           const k = e2ePvKey(chatId, meta), r = k && previewPlain.get(chatId);
+          if (e2ePvHold(chatId)) return txt; // смена ключа собеседника не признана — заглушка «🔒 …», даже если текст уже расшифрован (из чата)
           if (r && r.k === k && typeof r.text === "string" && r.text) return (typeof txt === "string" && txt.indexOf("✏️ ") === 0 ? "✏️ " : "") + r.text;
           if (k && (!r || r.k !== k || r.ep !== e2eEpoch)) wantPreview(chatId, meta); // ещё не пробовали в этом состоянии — в фоне
           return txt;
